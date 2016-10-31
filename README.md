@@ -1,6 +1,6 @@
 # rpio -- Raspberry Pi Input Output
 
-release.? (Unstable)
+release.2 (Unstable)
 
 * Support of a few GPIO functions
 
