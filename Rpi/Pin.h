@@ -26,17 +26,14 @@
 //
 // This project is hosted at https://github.com/ma16/rpio
 
-#ifndef _Main_rpio_h_
-#define _Main_rpio_h_
+#ifndef _Rpi_Pin_h_
+#define _Rpi_Pin_h_
 
-#include <Rpi/Peripheral.h>
-#include <Ui/ArgL.h>
+#include <Neat/Enum.h>
 
-namespace Main
+namespace Rpi
 {
-  namespace      Gpio  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace   Max7219  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace Throughput { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
+  using Pin = Neat::Enum<unsigned,32-1> ;
 }
 
-#endif // _Main_rpio_h_
+#endif // _Rpi_Pin_h_

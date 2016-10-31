@@ -1,0 +1,12 @@
+The fonts in this subdirectory were derived from X11 fonts of the
+Raspbian distribution (i.e those in the lightdm package). These
+fonts are...
+
+  COPYRIGHT "Public domain font. Share and enjoy."
+
+...according to the font description. 
+
+/usr/share/fonts/X11/misc/5x8-ISO8859-15.pcf.gz
+/usr/share/fonts/X11/misc/6x9-ISO8859-15.pcf.gz
+/usr/share/fonts/X11/misc/6x12-ISO8859-15.pcf.gz
+/usr/share/fonts/X11/misc/7x13-ISO8859-15.pcf.gz

@@ -30,7 +30,9 @@
 #include "Neat/cast.h"
 
 #include <cassert>
+#include <cmath> // floor
 #include <cstring> // strerror
+#include <limits> // numeric_limits
 #include <sstream>
 #include <unistd.h> // sysconf(_SC_PAGE_SIZE)
 
@@ -58,6 +60,39 @@ static unsigned long get_page_size()
   // return: sizeof(void*) <= n <= signed-long::max
   return n ;
   // note: the page-size is almost always 0x1000.
+}
+
+void Posix::nanosleep(double seconds)
+{
+  if (seconds < 0.0) {
+    std::ostringstream os ;
+    os << "nanosleep(" << seconds << "):negative duration" ;
+    throw Posix::Error(os.str()) ;
+  }
+  timespec t ;
+  auto i = floor(seconds) ;
+  if (i > std::numeric_limits<decltype(t.tv_sec)>::max()) {
+    std::ostringstream os ;
+    os << "nanosleep(" << seconds << "):duration exceeds maximum value" ;
+    throw Posix::Error(os.str()) ;
+  }
+  t.tv_sec = static_cast<decltype(t.tv_sec)>(i) ;
+  t.tv_nsec = static_cast<decltype(t.tv_nsec)>(1E+9 * (seconds - i) + 0.5) ;
+  if (t.tv_nsec >= 1000000000) {
+    if (t.tv_sec == std::numeric_limits<decltype(t.tv_sec)>::max()) {
+      std::ostringstream os ;
+      os << "nanosleep(" << seconds << "):duration exceeds maximum value" ;
+      throw Posix::Error(os.str()) ;
+    }
+    ++t.tv_sec ;
+    t.tv_nsec = 0 ;
+  }
+  auto result = ::nanosleep(&t,nullptr) ;
+  if (result != 0) {
+    std::ostringstream os ;
+    os << "nanosleep(" << seconds << "):" << Posix::strerror(errno) ;
+    throw Posix::Error(os.str()) ;
+  }
 }
 
 unsigned long Posix::page_size()

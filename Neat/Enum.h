@@ -62,7 +62,10 @@ namespace Neat
 
     constexpr Domain value() const { return i ; }
 
-    template<Domain i> static Enum const init() 
+    template<Domain i> constexpr static void static_check() 
+    { static_assert(i <= max,"out of range") ; }
+    
+    template<Domain i> constexpr static Enum init() 
     { static_assert(i <= max,"out of range") ; return Enum(i) ; }
 
     constexpr Enum() : i(0) {}

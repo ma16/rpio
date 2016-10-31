@@ -26,17 +26,53 @@
 //
 // This project is hosted at https://github.com/ma16/rpio
 
-#ifndef _Main_rpio_h_
-#define _Main_rpio_h_
+#ifndef _Main_Max7219_Parser_h_
+#define _Main_Max7219_Parser_h_
 
-#include <Rpi/Peripheral.h>
-#include <Ui/ArgL.h>
+#include <Neat/Error.h>
+#include <Ui/strto.h>
+#include <deque>
+#include <memory> // unique_ptr
 
-namespace Main
-{
-  namespace      Gpio  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace   Max7219  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace Throughput { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-}
+namespace Main { namespace Max7219 { struct Parser {
 
-#endif // _Main_rpio_h_
+  struct Error : Neat::Error
+  {
+    Error(std::string const &s) : Neat::Error("Main::Max7219::Parser:"+s) {}
+  } ;
+
+  struct Command { using Ptr = std::unique_ptr<Command> ; virtual ~Command() {} } ;
+
+  struct Delay : public Command { double   seconds ; Delay(double   seconds) : seconds(seconds) {} } ;
+  struct Echo  : public Command { std::string text ; Echo (std::string text) : text      (text) {} } ;
+  struct Eof   : public Command {} ;
+  struct Latch : public Command {} ;
+  struct Shift : public Command { uint16_t    data ; Shift (uint16_t   data) : data      (data) {} } ;
+
+  Command::Ptr parse() ;
+
+  Parser(std::istream *is) : is(is) {}
+  
+private:
+
+  std::istream *is ; unsigned row=1 ; unsigned col=0 ;
+
+  void throw_error(std::string const &s) ;
+
+  int next_char() ;
+  
+  std::string scan(char const *set) ;
+
+  void         parse_comment() ;
+  Command::Ptr parse_delay() ;
+  Command::Ptr parse_echo() ;
+  Command::Ptr parse_shift() ;
+  
+} ; /* Parser */ } /* Max7219 */ } /* Main */
+
+// [future] use boost::variant instead of Command inheritance. currently,
+// just including <boost/variant.hpp> results in lots of warnings though.
+// (in libboost1.55-dev:armhf)
+
+#endif // _Main_Max7219_Parser_h_
+    

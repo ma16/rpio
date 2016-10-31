@@ -48,18 +48,6 @@ namespace Main { namespace Throughput {
 using rep_t = size_t ;
 // [note] the results are quite different with a 64-bit counter
     
-static Posix::Fd::uoff_t base_addr(Ui::ArgL *argL)
-{
-  if (argL->pop_if("--bcm2835")) return Rpi::Peripheral::for_bcm2835() ;
-  if (argL->pop_if("--bcm2836")) return Rpi::Peripheral::for_bcm2836() ;
-  auto addr = argL->option("--base") ;
-  if (addr)
-    return Ui::strto<Posix::Fd::uoff_t>(*addr) ;
-  if (argL->pop_if("--devtree")) return Rpi::Peripheral::by_devtree() ;
-  if (argL->pop_if("--cpuinfo")) return Rpi::Peripheral::by_cpuinfo() ;
-  return Rpi::Peripheral::by_cpuinfo() ;
-}
-
 static std::chrono::time_point<std::chrono::steady_clock> now()
 {
   return std::chrono::steady_clock::now() ;
@@ -528,48 +516,40 @@ static void invoke_nn(Rpi::Peripheral *rpi,rep_t rep,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-void invoke(Ui::ArgL *argL)
+void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") { 
-    std::cout << "arguments := base <rep> type\n"
+    std::cout << "arguments : {rep} type\n"
 	      << '\n'
-	      << "     base := --bcm2835    \n"
-	      << "          |= --bcm2836    \n"
-	      << "          |= --base <addr>\n"
-	      << "          |= --devtree    \n"
-	      << "          |= --cpuinfo    \n"
-	      << "          |= <void>       \n"
+	      << "     type : '0:1'               dst1 ( 'blck' {m} | 'iter' | 'pool' {m} )\n"
+	      << "          | '0:n' {nwords}      dstN ( 'blck' {m} | 'iter' | 'libc'     )\n"
+	      << "          | '1:0'          src1      ( 'blck' {m} | 'iter' | 'pool' {m} )\n"
+	      << "          | '1:1'          src1 dst1 ( 'blck' {m} | 'iter' | 'pool' {m} )\n"
+	      << "          | '1:n' {nwords} src1 dstN ( 'blck' {m} | 'iter' |            )\n"
+	      << "          | 'n:0' {nwords} srcN      ( 'blck' {m} | 'iter' |            )\n"
+	      << "          | 'n:1' {nwords} srcN dst1 ( 'blck' {m} | 'iter' |            )\n"
+	      << "          | 'n:n' {nwords} srcN dstN ( 'blck' {m} | 'iter' | 'libc'     )\n"
 	      << '\n'
-	      << "     type := '0:1'               dst1 ( 'blck' <m> | 'iter' | 'pool' <m> )\n"
-	      << "          |= '0:n' <nwords>      dstN ( 'blck' <m> | 'iter' | 'libc'     )\n"
-	      << "          |= '1:0'          src1      ( 'blck' <m> | 'iter' | 'pool' <m> )\n"
-	      << "          |= '1:1'          src1 dst1 ( 'blck' <m> | 'iter' | 'pool' <m> )\n"
-	      << "          |= '1:n' <nwords> src1 dstN ( 'blck' <m> | 'iter' |            )\n"
-	      << "          |= 'n:0' <nwords> srcN      ( 'blck' <m> | 'iter' |            )\n"
-	      << "          |= 'n:1' <nwords> srcN dst1 ( 'blck' <m> | 'iter' |            )\n"
-	      << "          |= 'n:n' <nwords> srcN dstN ( 'blck' <m> | 'iter' | 'libc'     )\n"
+	      << "src1,dst1 : location1\n"
+	      << "srcN,dstN : locationN\n"
 	      << '\n'
-	      << "src1,dst1 := location1\n"
-	      << "srcN,dstN := locationN\n"
-	      << '\n'
-	      << "location1 := 'plain' | 'port' <page> <index>\n" 
-	      << "locationN := 'plain'                        \n" ;
+	      << "location1 : 'plain' | 'port' {page} {index}\n" 
+	      << "locationN : 'plain'                        \n" ;
     return ;
   }
 
-  auto rpi = Rpi::Peripheral::make(base_addr(argL)) ;
   auto rep = Ui::strto<rep_t>(argL->pop()) ;
 
   std::string arg = argL->pop() ;
   
-  if      (arg == "0:1") invoke_01(rpi.get(),rep,argL) ;
-  else if (arg == "0:n") invoke_0n(rpi.get(),rep,argL) ;
-  else if (arg == "1:0") invoke_10(rpi.get(),rep,argL) ;
-  else if (arg == "1:1") invoke_11(rpi.get(),rep,argL) ;
-  else if (arg == "1:n") invoke_1n(rpi.get(),rep,argL) ;
-  else if (arg == "n:0") invoke_n0(rpi.get(),rep,argL) ;
-  else if (arg == "n:1") invoke_n1(rpi.get(),rep,argL) ;
-  else if (arg == "n:n") invoke_nn(rpi.get(),rep,argL) ;
+  if      (arg == "0:1") invoke_01(rpi,rep,argL) ;
+  else if (arg == "0:n") invoke_0n(rpi,rep,argL) ;
+  else if (arg == "1:0") invoke_10(rpi,rep,argL) ;
+  else if (arg == "1:1") invoke_11(rpi,rep,argL) ;
+  else if (arg == "1:n") invoke_1n(rpi,rep,argL) ;
+  else if (arg == "n:0") invoke_n0(rpi,rep,argL) ;
+  else if (arg == "n:1") invoke_n1(rpi,rep,argL) ;
+  else if (arg == "n:n") invoke_nn(rpi,rep,argL) ;
   
   else throw std::runtime_error("not supported option:<"+arg+'>') ; 
 }

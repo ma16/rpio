@@ -39,6 +39,10 @@ CC=$(CXX) $(INCLUDE) $(CFLAGS)
 LD=$(CXX) $(LDFLAGS)
 
 LSRC=\
+	Main/Gpio/invoke.cc\
+	Main/Max7219/Host.cc\
+	Main/Max7219/invoke.cc\
+	Main/Max7219/Parser.cc\
 	Main/Throughput/Buffer.cc\
 	Main/Throughput/invoke.cc\
 	Neat/NotSigned.cc\
@@ -46,6 +50,7 @@ LSRC=\
 	Posix/base.cc\
 	Posix/Fd.cc\
 	Posix/MMap.cc\
+	Rpi/Gpio.cc\
 	Rpi/Page.cc\
 	Rpi/Peripheral.cc\
 	Ui/ArgL.cc\

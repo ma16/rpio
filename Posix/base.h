@@ -30,16 +30,18 @@
 #define _Posix_base_h_
 
 #include "Error.h"
-
 #include <string>
 
 namespace Posix 
 {
-  std::string strerror(int no) ;
-  // ...see strerror_r()
-
+  void nanosleep(double seconds) ;
+  // [todo] std::chrono::duration
+  
   unsigned long page_size() ;
   // ...see sysconf(_SC_PAGESIZE)
+
+  std::string strerror(int no) ;
+  // ...see strerror_r()
 } 
 
 #endif // _Posix_base_h_

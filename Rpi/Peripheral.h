@@ -68,6 +68,7 @@
 // (so the upper 0x100,0000 bytes _RAM_ are not addressable by the ARM core?)
 
 #include "Error.h"
+#include "Gpio.h"
 #include "Page.h"
 
 #include <Neat/Enum.h>
@@ -96,6 +97,8 @@ namespace Rpi
     std::shared_ptr<Page> page(PNo no) ;
     // ...shared_ptr so it can easily be passed around incl. ownership
 
+    std::shared_ptr<Gpio> gpio() { if (gpio_.get() == nullptr) gpio_.reset(new Gpio(page(PNo::init<0x200>()))) ; return gpio_ ; }
+    
     Peripheral           (Peripheral const&) = delete ;
     Peripheral& operator=(Peripheral const&) = delete ;
     
@@ -104,6 +107,8 @@ namespace Rpi
     using Map = std::map<unsigned,std::shared_ptr<Page>> ;
       
     size_t base_page ; Map map ;
+
+    std::shared_ptr<Gpio> gpio_ ;
     
     Peripheral(size_t base_page_,Map &&map_) : base_page(base_page_),map(std::move(map_)) {}
   } ;

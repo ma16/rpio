@@ -26,17 +26,28 @@
 //
 // This project is hosted at https://github.com/ma16/rpio
 
-#ifndef _Main_rpio_h_
-#define _Main_rpio_h_
+#ifndef _Main_Max7219_Host_h_
+#define _Main_Max7219_Host_h_
 
 #include <Rpi/Peripheral.h>
-#include <Ui/ArgL.h>
 
-namespace Main
+namespace Main { namespace Max7219 {
+
+struct Host
 {
-  namespace      Gpio  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace   Max7219  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace Throughput { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-}
+  void send(uint16_t data) ;
 
-#endif // _Main_rpio_h_
+  void latch() ;
+    
+  Host(Rpi::Gpio *gpio,Rpi::Pin loadPin,Rpi::Pin clkPin,Rpi::Pin datPin) ;
+
+private:
+  
+  Rpi::Gpio *gpio ; Rpi::Pin loadPin ; Rpi::Pin clkPin ; Rpi::Pin datPin ;
+
+  static void hold() ;
+} ;
+    
+} /* Max7219 */ } /* Main */
+
+#endif // _Main_Max7219_Host_h_
