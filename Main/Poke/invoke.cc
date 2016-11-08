@@ -23,73 +23,47 @@
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
 // POSSIBILITY OF SUCH DAMAGE.
-
+//
 // This project is hosted at https://github.com/ma16/rpio
 
 // --------------------------------------------------------------------
-// An unsigned integer value in the range 0..max
+// get/set word at any peripheral address
 // --------------------------------------------------------------------
 
-#ifndef _Neat_Enum_h_
-#define _Neat_Enum_h_
+#include "../rpio.h"
+#include <Rpi/Peripheral.h>
+#include <Ui/strto.h>
+#include <iostream>
 
-#include "Error.h"
-#include <limits>
-#include <sstream> 
+namespace Main { namespace Poke {
 
-namespace Neat
+void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-  template<typename D,D M> struct Enum
-  {
-    using Domain = D ;
-    
-    static_assert(std::is_integral<Domain>::value,"integral type required") ;
-    static_assert(std::is_unsigned<Domain>::value,"unsigned type required") ;
-
-    static Domain const max = M ;
-
-    // ---- c'tor ----
-    
-    constexpr Enum() : i(0) {}
-
-    // ---- make ----
-    
-    template<Domain i> constexpr static Enum make() 
-    { static_assert(i<=max,"out of range") ; return Enum(i) ; }
-
-    template<typename T> static Enum make(T i)
-    {
-      static_assert(std::is_integral<T>::value,"integral type required") ;
-      static_assert(std::is_unsigned<T>::value,"unsigned type required") ;
-      if (i <= max)
-	return Enum(static_cast<Domain>(i)) ;
-      std::ostringstream os ;
-      os << "Enum:" << std::to_string(i) << " out of range (0," << std::to_string(max) << ')' ;
-      // ...to_string() promotes if domain=char
-      throw Error(os.str()) ;
-    }
-
-    // ---- access ----
-    
-    constexpr Domain value() const { return i ; }
-
-    // ---- iterate ----
-    
-    static Enum first() { return 0 ; } 
-
-    bool next() { if (i == max) return false ; ++i ; return true ; }
-
-    // ---- verify ----
-    
-    template<Domain i> constexpr static void static_check() 
-    { static_assert(i<=max,"out of range") ; }
-    
-  private:
-
-    constexpr Enum(Domain i) : i(i) {}
-
-    Domain i ;
-  } ;
+  if (argL->empty() || argL->peek() == "help") { 
+    std::cout << "arguments: MODE\n"
+	      << '\n'
+	      << "MODE : get ADDR\n"
+	      << "     | set ADDR WORD\n"
+	      << '\n'
+	      << "ADDR : peripheral address offset: 0..FFFFFC\n"
+	      << "WORD : 32-bit integer number\n"
+	      << '\n'
+	      << "For example, the GPIO input levels are located at offset 0x200034.\n"
+	      << std::flush ;
+    return ;
+  }
+  std::string mode = argL->pop() ;
+  auto addr = Ui::strto<size_t>(argL->pop()) ;
+  if (mode == "get") {
+    argL->finalize() ;
+    std::cout << std::hex << rpi->at(addr) << std::endl ;
+  }
+  else if (mode == "set") {
+    auto word = Ui::strto<uint32_t>(argL->pop()) ;
+    argL->finalize() ;
+    rpi->at(addr) = word ;
+  }
+  else throw std::runtime_error("not supported option:<"+mode+'>') ;
 }
 
-#endif // _Neat_Enum_h_
+} /* Poke */ } /* Main */

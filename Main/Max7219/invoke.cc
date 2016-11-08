@@ -38,7 +38,7 @@
 
 namespace Main { namespace Max7219 {
 
-static void invokeCommand(Host *host,Ui::ArgL *argL)
+static void dataInvoke(Host *host,Ui::ArgL *argL)
 {
   std::deque<uint16_t> q ;
   while (!argL->empty())
@@ -49,7 +49,7 @@ static void invokeCommand(Host *host,Ui::ArgL *argL)
   host->latch() ;
 }
     
-static void invokeScript(Host *host,Ui::ArgL *argL)
+static void fileInvoke(Host *host,Ui::ArgL *argL)
 {
   std::ifstream is(argL->pop().c_str()) ;
   auto n = Ui::strto<unsigned>(argL->option("-r","1")) ;
@@ -77,7 +77,7 @@ static void invokeScript(Host *host,Ui::ArgL *argL)
   }
 }
     
-static void invokeStdin(Host *host,Ui::ArgL *argL)
+static void stdinInvoke(Host *host,Ui::ArgL *argL)
 {
   argL->finalize() ;
   auto p = Parser(&std::cin) ;
@@ -100,29 +100,30 @@ static void invokeStdin(Host *host,Ui::ArgL *argL)
 void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") {
-    std::cout << "arguments: {loadPin} {clkPin} {dinPin} {mode}\n"
-	      << "\n"
-	      << "{loadPin} : Pi's pin for MAX7219 LOAD pin\n"
-	      << " {clkPin} : Pi's pin for MAX7219  CLK pin\n"
-	      << " {dinPin} : Pi's pin for MAX7219  DIN pin\n"
-	      << "\n"
-	      << "{mode} : -d {data}*\n"
-	      << "       | -i\n"
-	      << "       | -f {file} [-r {n}]\n"
-	      << "\n"
-	      << " -d {data}* : shift {data} and latch\n"
-	      << " -i         : {command} sequence is read from stdin and immediately executed\n"
-	      << " -f {file}  : {command} sequence is read from file; thereafter executed\n"
-	      << " -r {n}     : repeat {n} times\n"
-	      << "\n"
-	      << "{command} : '>' {data}    // shift data\n"
-	      << "          | '+' {seconds} // delay seconds\n"
-	      << "          | '!'           // latch (load)\n"
-	      << "          | '\"' {text}    // echo text on console\n"
-	      << "\n"
-	      << "   {data} : unsigned 16-bit integer\n"
-	      << "{seconds} : floating point decimal\n"
-	      << "   {text} : text terminated by double quotes (\")\n"
+    std::cout << "arguments: LOAD CLK DIN MODE\n"
+	      << '\n'
+	      << "LOAD : Pi's pin number connected to MAX7219 LOAD pin\n"
+	      << " CLK : Pi's pin number connected to MAX7219  CLK pin\n"
+	      << " DIN : Pi's pin number connected to MAX7219  DIN pin\n"
+	      << '\n'
+	      << "MODE : -d DATA+ | -i | -f FILE [-r N]\n"
+	      << '\n'
+	      << " -d : shift DATA+ and latch\n"
+	      << " -f : read COMMAND+ until eof from FILE and execute thereafter\n"
+	      << " -i : read COMMAND from standard-input and execute (repeat until eof)\n"
+	      << " -r : execute N times (default 1)\n"
+	      << '\n'
+	      << "COMMAND+ : COMMAND | COMMAND COMMAND+\n"
+	      << "   DATA+ :    DATA |    DATA    DATA+\n"
+	      << '\n'
+	      << " COMMAND : > DATA     # shift\n"
+	      << "         | + SECONDS  # delay\n"
+	      << "         | !          # latch (i.e. load)\n"
+	      << "         | \" TEXT     # echo on standard-output\n"
+	      << '\n'
+	      << "    DATA : 0..65535\n"
+	      << " SECONDS : floating point decimal number\n"
+	      << "    TEXT : string terminated by double quotes (\")\n"
 	      << std::flush ;
     return ;
   }
@@ -134,9 +135,9 @@ void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   Host host(rpi->gpio().get(),loadPin,clkPin,datPin) ;
   
   auto arg = argL->pop() ;
-  if      (arg == "-d") invokeCommand(&host,argL) ;
-  else if (arg == "-i") invokeStdin (&host,argL) ;
-  else if (arg == "-f") invokeScript (&host,argL) ;
+  if      (arg == "-d") dataInvoke (&host,argL) ;
+  else if (arg == "-i") stdinInvoke(&host,argL) ;
+  else if (arg == "-f") fileInvoke (&host,argL) ;
 
   else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }

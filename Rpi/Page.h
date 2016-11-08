@@ -42,13 +42,13 @@ namespace Rpi
     // ...throws at runtime if not
     static const size_t nwords = nbytes / sizeof(uint32_t) ;
     
-    template<unsigned i> uint32_t      & at()       { static_assert(i<nwords,"") ; return front()[i] ; }
-    template<unsigned i> uint32_t const& at() const { static_assert(i<nwords,"") ; return front()[i] ; }
-
     using Index = Neat::Enum<unsigned,nwords-1> ;
-    
-    uint32_t      & operator[](Index i)       { return front()[i.value()] ; }
-    uint32_t const& operator[](Index i) const { return front()[i.value()] ; }
+
+    volatile uint32_t      & at(Index i)       { return front()[i.value()] ; }
+    volatile uint32_t const& at(Index i) const { return front()[i.value()] ; }
+
+    template<unsigned i> volatile uint32_t      & at()       { static_assert(i<nwords,"") ; return front()[i] ; }
+    template<unsigned i> volatile uint32_t const& at() const { static_assert(i<nwords,"") ; return front()[i] ; }
 
     Page           (Page const&) = delete ;
     Page& operator=(Page const&) = delete ;
@@ -63,9 +63,8 @@ namespace Rpi
 
     Page(std::unique_ptr<Posix::MMap> &&mmap) : mmap(std::move(mmap)) {}
 
-    uint32_t      * front()       { return reinterpret_cast<uint32_t*>(mmap->front()) ; }
-    uint32_t const* front() const { return reinterpret_cast<uint32_t*>(mmap->front()) ; }
-    
+    volatile uint32_t      * front()       { return reinterpret_cast<volatile uint32_t*>(mmap->front()) ; }
+    volatile uint32_t const* front() const { return reinterpret_cast<volatile uint32_t*>(mmap->front()) ; }
   } ;
 }
 

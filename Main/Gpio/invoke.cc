@@ -101,27 +101,22 @@ static std::string mkstr(uint32_t mask,uint32_t bits)
 static void modeInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") {
-    std::cout << "arguments: {pins} i|o|0|1|2|3|4|5\n"
-	      << "\n"
-	      << "   {pins}: <no> | -l <no>(,<no>)* | -m <mask> | all\n"
+    std::cout << "arguments: PINS MODE\n"
+	      << '\n'
+	      << "MODE : i  # as input\n"
+	      << "     | o  # as output\n"
+	      << "     | 0  # as alternate function 0\n"
+	      << "     | 1  # as alternate function 1\n"
+	      << "     | 2  # as alternate function 2\n"
+	      << "     | 3  # as alternate function 3\n"
+	      << "     | 4  # as alternate function 4\n"
+	      << "     | 5  # as alternate function 5\n"
 	      << std::flush ;
     return ; 
   }
   auto pins = getPins(argL) ;
-
-  auto i = argL->pop({"i","o","0","1","2","3","4","5"}) ;
-  Rpi::Gpio::Mode mode = Rpi::Gpio::Mode::Base() ;
-  switch (i) {
-  case 0: mode = Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::  In>() ; break ;
-  case 1: mode = Rpi::Gpio::Mode::init<Rpi::Gpio::Mode:: Out>() ; break ;
-  case 2: mode = Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Alt0>() ; break ;
-  case 3: mode = Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Alt1>() ; break ;
-  case 4: mode = Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Alt2>() ; break ;
-  case 5: mode = Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Alt3>() ; break ;
-  case 6: mode = Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Alt4>() ; break ;
-  case 7: mode = Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Alt5>() ; break ;
-  }
-  
+  auto i = argL->pop({"i","o","5","4","0","1","2","3"}) ;
+  auto mode = Rpi::Gpio::ModeN::make(i).e() ;
   argL->finalize() ;
   rpi->gpio()->setMode(pins,mode) ;
 }
@@ -129,19 +124,16 @@ static void modeInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void outputInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") {
-    std::cout << "argument: {pins} lo|hi\n"
-	      << "\n"
-	      << "   {pins}: <no> | -l <no>(,<no>)* | -m <mask> | all\n"
+    std::cout << "arguments: PINS MODE\n"
+	      << '\n'
+	      << "MODE : lo  # set output low\n"
+	      << "     | hi  # set output high\n"
 	      << std::flush ;
     return ;
   }
   auto pins = getPins(argL) ;
-  auto i = argL->pop({"lo","hi"}) ;
-  Rpi::Gpio::Output output = Rpi::Gpio::Output::Base() ;
-  switch (i) {
-  case 0: output = Rpi::Gpio::Output::init<Rpi::Gpio::Output::Lo>() ; break ;
-  case 1: output = Rpi::Gpio::Output::init<Rpi::Gpio::Output::Hi>() ; break ;
-  }
+  auto i = argL->pop({"hi","lo"}) ;
+  auto output = Rpi::Gpio::OutputN::make(i).e() ;
   argL->finalize() ;
   rpi->gpio()->setOutput(pins,output) ;
 }
@@ -149,22 +141,17 @@ static void outputInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void pullInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") {
-    std::cout << "argument: {pins} up|down|off\n"
-	      << "\n"
-	      << "   {pins}: <no> | -l <no>(,<no>)* | -m <mask> | all\n"
+    std::cout << "arguments: PINS MODE\n"
+	      << '\n'
+	      << "MODE : down  # apply pull-down resistor\n"
+	      << "     | off   # set tri-state (high-impedance)\n"
+	      << "     | up    # apply pull-up resistor\n"
 	      << std::flush ;
     return ;
   }
   auto pins = getPins(argL) ;
-  
-  auto i = argL->pop({"up","down","off"}) ;
-  Rpi::Gpio::Pull pull = Rpi::Gpio::Pull::Base() ;
-  switch (i) {
-  case 0: pull = Rpi::Gpio::Pull::init<Rpi::Gpio::Pull::  Up>() ; break ;
-  case 1: pull = Rpi::Gpio::Pull::init<Rpi::Gpio::Pull::Down>() ; break ;
-  case 2: pull = Rpi::Gpio::Pull::init<Rpi::Gpio::Pull:: Off>() ; break ;
-  }
-  
+  auto i = argL->pop({"off","down","up"}) ;
+  auto pull = Rpi::Gpio::PullN::make(i).e() ;
   argL->finalize() ;
   rpi->gpio()->setPull(pins,pull) ; 
 }
@@ -172,9 +159,11 @@ static void pullInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (!argL->empty() && argL->peek() == "help") {
-    std::cout << "arguments: [{pins}]\n"
-	      << "\n"
-	      << "   {pins}: <no> | -l <no>(,<no>)* | -m <mask> | all\n"
+    std::cout << "arguments: [PINS]\n"
+	      << '\n'
+	      << "Displays for all (default) or for selected pins:\n"
+	      << "* mode  : i,o,0..5 (see mode's help)\n"
+	      << "* level : the input level (0:low, 1:high)\n"
 	      << std::flush ;
     return ;
   }
@@ -183,31 +172,37 @@ static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     pins = getPins(argL) ;
   argL->finalize() ;
 
-  std::cout << mkhdr(pins) << std::endl ;
-  std::cout << mksep(pins) << std::endl ;
+  std::cout << mkhdr(pins) << '\n'
+	    << mksep(pins) << '\n' ;
   auto i = Rpi::Pin::first() ;
   do {
     if (0 == (pins & (1u << i.value())))
       continue ;
-    switch (rpi->gpio()->getMode(i).value()) {
-    case Rpi::Gpio::Mode::  In: std::cout << "i " ; break ;
-    case Rpi::Gpio::Mode:: Out: std::cout << "o " ; break ;
-    case Rpi::Gpio::Mode::Alt0: std::cout << "0 " ; break ;
-    case Rpi::Gpio::Mode::Alt1: std::cout << "1 " ; break ;
-    case Rpi::Gpio::Mode::Alt2: std::cout << "2 " ; break ;
-    case Rpi::Gpio::Mode::Alt3: std::cout << "3 " ; break ;
-    case Rpi::Gpio::Mode::Alt4: std::cout << "4 " ; break ;
-    case Rpi::Gpio::Mode::Alt5: std::cout << "5 " ; break ;
-    default: assert(false) ;
-    }
-  } while (i.next()) ;                  std::cout << "mode" << std::endl ;
+    static const char m[] = { 'i','o','5','4','0','1','2','3' } ;
+    auto mode = rpi->gpio()->getMode(i) ;
+    std::cout << m[Rpi::Gpio::ModeN(mode).n()] << ' ' ;
+  } while (i.next()) ;
+  std::cout << "mode\n" ;
   std::cout << mkstr(pins,rpi->gpio()->getLevels()) << "level" << std::endl ;
 }
 
 void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") { 
-    std::cout << "arguments: (mode | output | pull | status) [help]\n" ;
+    std::cout << "arguments: MODE [help]\n"
+	      << '\n'
+	      << "MODE : mode    # set mode\n"
+	      << "     | output  # set level\n"
+	      << "     | pull    # switch resistor\n"
+	      << "     | status  # display status\n"
+	      << '\n'
+	      << "Arguments may require a PINS value:\n"
+	      << '\n'
+	      << "PINS : NO             # a single pin number\n"
+	      << "     | -l NO[,NO]...  # a set of pin numbers as list\n"
+	      << "     | -m MASK        # a set of pin number as bit mask\n"
+	      << "     | all            # all pins\n"
+	      << std::flush ;
     return ;
   }
 

@@ -49,7 +49,7 @@ namespace Neat
 
     static NotSigned make(Unsigned u) ;
 
-    template<Unsigned u> static const NotSigned init() 
+    template<Unsigned u> static const NotSigned make() 
     { static_assert(u <= max,"out of range") ; return NotSigned(u) ; }
 
     constexpr   Signed   as_signed() const { return static_cast<Signed>(u) ; }

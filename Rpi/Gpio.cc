@@ -4,20 +4,20 @@
 Rpi::Gpio::Mode Rpi::Gpio::getMode(Pin pin) const
 {
   auto i = Page::Index::make(0x0u + pin.value()/10u) ; // GPFSEL0..GPFSEL5
-  auto bits = (*this)[i] ; // 10 pins per register
+  auto bits = this->page->at(i) ; // 10 pins per register
   auto r = 3u * (pin.value()%10u) ; // 3 bits for each pin
   bits >>= r ;
-  return Mode::make(bits & 7u) ;
+  return ModeN::make(bits & 7u).e() ;
 }
 
 void Rpi::Gpio::setMode(Pin pin,Mode mode)
 {
   auto i = Page::Index::make(0x0u + pin.value()/10u) ; // GPFSEL0..GPFSEL5
-  auto bits = (*this)[i] ; // 10 pins per register
+  auto bits = this->page->at(i) ; // 10 pins per register
   auto r = 3u * (pin.value()%10u) ; // 3 bits for each pin
   bits &= ~(7u << r) ; 
-  bits |= (static_cast<uint32_t>(mode.value()) << r) ;
-  (*this)[i] = bits ;
+  bits |= (static_cast<uint32_t>(ModeN(mode).n()) << r) ;
+  this->page->at(i) = bits ;
 }
 
 void Rpi::Gpio::setMode(uint32_t set,Mode mode)
@@ -53,12 +53,12 @@ void Rpi::Gpio::enable(uint32_t set,bool on)
 
 void Rpi::Gpio::setPull(uint32_t set,Pull how)
 {
-  auto &GPPUD     = this->at<0x94/4>() ; 
-  auto &GPPUDCLK0 = this->at<0x98/4>() ;
+  auto &GPPUD     = this->page->at<0x94/4>() ; 
+  auto &GPPUDCLK0 = this->page->at<0x98/4>() ;
   
   // 1. Write to GPPUD to set the required control signal (i.e. Pull-
   //    up or Pull-Down or neither to remove the current Pull-up/down)
-  GPPUD = how.value() ;
+  GPPUD = PullN(how).n() ;
 
   // 2. Wait 150 cycles – this provides the required set-up time for 
   //    the control signal

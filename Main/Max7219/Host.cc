@@ -65,9 +65,9 @@ void Main::Max7219::Host::latch()
 Main::Max7219::Host::Host(Rpi::Gpio *gpio,Rpi::Pin loadPin,Rpi::Pin clkPin,Rpi::Pin datPin)
   : gpio(gpio),loadPin(loadPin),clkPin(clkPin),datPin(datPin)
 {
-  gpio->setMode(loadPin,Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Out>()) ;
-  gpio->setMode( clkPin,Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Out>()) ;
-  gpio->setMode( datPin,Rpi::Gpio::Mode::init<Rpi::Gpio::Mode::Out>()) ;
+  gpio->setMode(loadPin,Rpi::Gpio::Mode::Out) ;
+  gpio->setMode( clkPin,Rpi::Gpio::Mode::Out) ;
+  gpio->setMode( datPin,Rpi::Gpio::Mode::Out) ;
   // [future] recall previous states and recover them in d'tor
 }
 

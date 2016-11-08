@@ -26,20 +26,20 @@
 //
 // This project is hosted at https://github.com/ma16/rpio
 
-#ifndef _Main_rpio_h_
-#define _Main_rpio_h_
+#include "Timer.h"
 
-#include <Rpi/Peripheral.h>
-#include <Ui/ArgL.h>
-
-namespace Main
+uint64_t Rpi::Timer::clock() const
 {
-  namespace     Clock  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace      Gpio  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace   Max7219  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace   Mcp3008  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace      Poke  { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-  namespace Throughput { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
+  auto hi  = this->cHi() ;
+  auto lo  = this->cLo() ;
+  auto chk = this->cHi() ;
+  while (chk != hi) {
+    hi  = chk ;
+    lo  = this->cLo() ;
+    chk = this->cHi() ;
+  }
+  auto i = static_cast<uint64_t>(hi) ;
+  i <<= 32 ;
+  i |= lo ;
+  return i ;
 }
-
-#endif // _Main_rpio_h_

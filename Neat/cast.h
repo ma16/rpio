@@ -30,6 +30,7 @@
 #define _Neat_cast_h_
 
 #include "Error.h"
+#include <memory> // shared_ptr
 #include <type_traits> // std::make_unsigned
 
 namespace Neat
@@ -41,10 +42,25 @@ namespace Neat
     return static_cast<typename std::make_unsigned<T>::type>(i) ;
   }
 
-  template<typename T> inline T volatile* as_volatile(T *p)
+  template<typename E> typename std::underlying_type<E>::type as_base(E e)
   {
-    return const_cast<T volatile*>(p) ;
-  } 
+    static_assert(std::is_enum<E>::value,"enum type required") ;
+    return static_cast<typename std::underlying_type<E>::type>(e) ;
+  }
+
+  template<typename T> inline T volatile* as_volatile(T *p) { return const_cast<T volatile*>(p) ; } 
+  template<typename T> inline T volatile& as_volatile(T &p) { return const_cast<T volatile&>(p) ; }
+  
+  template<typename T> inline T* clip_volatile(T volatile*p) { return const_cast<T*>(p) ; } 
+  template<typename T> inline T& clip_volatile(T volatile&p) { return const_cast<T&>(p) ; } 
+
+  template<typename T> inline T const* as_const(T *p) { return const_cast<T const*>(p) ; } 
+  template<typename T> inline T const& as_const(T &p) { return const_cast<T const&>(p) ; } 
+ 
+  template<typename T> inline T* clip_const(T const*p) { return const_cast<T*>(p) ; } 
+  template<typename T> inline T& clip_const(T const&p) { return const_cast<T&>(p) ; } 
+
+  template<typename T> inline std::shared_ptr<T> clip_const(std::shared_ptr<T const> p) { return std::const_pointer_cast<T>(p) ; } 
 }
 
 #endif // _Neat_cast_h_

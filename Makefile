@@ -31,6 +31,8 @@ CXX=g++
 INCLUDE=
 
 CFLAGS=-std=c++11 -I. -Wall -Wconversion -Wsign-conversion -Wextra -pedantic -Wno-maybe-uninitialized -fno-strict-aliasing -O3 -DNDEBUG 
+# [todo] -Wstrict-aliasing -- even though aliasing is disabled, warnings about shouldn't
+# [todo] -Wno-maybe-uninitialized because of issues when implementing placement-new (though not in this project)
 
 LDFLAGS=
 
@@ -39,10 +41,14 @@ CC=$(CXX) $(INCLUDE) $(CFLAGS)
 LD=$(CXX) $(LDFLAGS)
 
 LSRC=\
+	Main/Clock/invoke.cc\
 	Main/Gpio/invoke.cc\
 	Main/Max7219/Host.cc\
 	Main/Max7219/invoke.cc\
 	Main/Max7219/Parser.cc\
+	Main/Mcp3008/Host.cc\
+	Main/Mcp3008/invoke.cc\
+	Main/Poke/invoke.cc\
 	Main/Throughput/Buffer.cc\
 	Main/Throughput/invoke.cc\
 	Neat/NotSigned.cc\
@@ -53,6 +59,7 @@ LSRC=\
 	Rpi/Gpio.cc\
 	Rpi/Page.cc\
 	Rpi/Peripheral.cc\
+	Rpi/Timer.cc\
 	Ui/ArgL.cc\
 	Ui/strto.cc\
 

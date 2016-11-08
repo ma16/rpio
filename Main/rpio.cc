@@ -32,13 +32,11 @@
 
 static Posix::Fd::uoff_t base_addr(Ui::ArgL *argL)
 {
-  if (argL->pop_if("--bcm2835")) return Rpi::Peripheral::for_bcm2835() ;
-  if (argL->pop_if("--bcm2836")) return Rpi::Peripheral::for_bcm2836() ;
   auto addr = argL->option("--base") ;
   if (addr)
     return Ui::strto<Posix::Fd::uoff_t>(*addr) ;
-  if (argL->pop_if("--devtree")) return Rpi::Peripheral::by_devtree() ;
-  if (argL->pop_if("--cpuinfo")) return Rpi::Peripheral::by_cpuinfo() ;
+  if (argL->pop_if("--devtree"))
+    return Rpi::Peripheral::by_devtree() ;
   return Rpi::Peripheral::by_cpuinfo() ;
 }
 
@@ -48,27 +46,34 @@ int main(int argc,char **argv)
     auto argL = Ui::ArgL::make(argc-1,argv+1) ;
 
     if (argL.empty() || argL.peek() == "help") { 
-      std::cout << "arguments: [<base>] <type>\n"
-		<< "\n"
-		<< "<base> : --bcm2835 | --bcm2836 | --devtree | --cpuinfo | --base {address}\n"
-		<< "\n"
-		<< "--bcm2835 = to force base-address 0x2000:0000\n"
-		<< "--bcm2836 = to force base-address 0x3f00:0000\n"
-		<< "--devtree = base-address based on /proc/device-tree/soc/ranges\n"
-		<< "--cpuinfo = base-address based on /proc/cpuinfo\n"
-		<< "{address} = base-address to be used for peripheral access\n"
-		<< "\n"
-		<< "<type> : gpio | max7219 | throughput\n"
-		<< "\n"
-		<< "use \"<type> help\" for more information" << std::endl ;
+      std::cout << "arguments: [BASE] MODE [help]\n"
+		<< '\n'
+		<< "BASE : --base ADDRESS  # use 0x20000000 (ARMv6) or 0x3f000000\n"
+		<< "     | --devtree       # use info in /proc/device-tree/soc/ranges\n"
+		<< '\n'
+		<< "If BASE is not given then the peripheral address is derived from\n"
+		<< "the processor's model name (i.e. ARMv6/7/8) in /proc/cpuinfo.\n"
+		<< '\n'
+		<< "MODE : clock       # r/w clock sources\n"
+		<< "     | gpio        # r/w GPIO\n"
+		<< "     | max7219     # dot-matrix control for the MAX7219 circuit\n"
+		<< "     | mcp3008     # ADC control for the MCP3008 circuit\n"
+		<< "     | poke        # r/w any word in peripheral address space\n"
+		<< "     | throughput  # i/o and memory performance tests\n"
+		<< '\n'
+		<< "Use the keyword help for additional information.\n"
+		<< std::flush ;
       return 0 ;
     }
     
     auto rpi = Rpi::Peripheral::make(base_addr(&argL)) ;
     std::string arg = argL.pop() ;
   
-    if      (arg ==       "gpio") Main::      Gpio::invoke(rpi.get(),&argL) ;
+    if      (arg ==      "clock") Main::     Clock::invoke(rpi.get(),&argL) ;
+    else if (arg ==       "gpio") Main::      Gpio::invoke(rpi.get(),&argL) ;
     else if (arg ==    "max7219") Main::   Max7219::invoke(rpi.get(),&argL) ;
+    else if (arg ==    "mcp3008") Main::   Mcp3008::invoke(rpi.get(),&argL) ;
+    else if (arg ==       "poke") Main::      Poke::invoke(rpi.get(),&argL) ;
     else if (arg == "throughput") Main::Throughput::invoke(rpi.get(),&argL) ;
   
     else throw std::runtime_error("not supported option:<"+arg+'>') ;

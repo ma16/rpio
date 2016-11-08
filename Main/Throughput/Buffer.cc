@@ -63,8 +63,9 @@ struct Port : public Main::Throughput::Buffer
     return std::unique_ptr<Port>(new Port(page,ix)) ;
   }
 
-  virtual uint32_t* front()       override { return &((*page)[ix]) ; }
-  virtual size_t     size() const override { return              1 ; }
+  virtual uint32_t* front() override { return Neat::clip_volatile(&page->at(ix)) ; }
+  
+  virtual size_t size() const override { return 1 ; }
   
 private:
   

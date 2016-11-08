@@ -519,22 +519,34 @@ static void invoke_nn(Rpi::Peripheral *rpi,rep_t rep,Ui::ArgL *argL)
 void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") { 
-    std::cout << "arguments : {rep} type\n"
+    std::cout << "arguments : REP MODE\n"
 	      << '\n'
-	      << "     type : '0:1'               dst1 ( 'blck' {m} | 'iter' | 'pool' {m} )\n"
-	      << "          | '0:n' {nwords}      dstN ( 'blck' {m} | 'iter' | 'libc'     )\n"
-	      << "          | '1:0'          src1      ( 'blck' {m} | 'iter' | 'pool' {m} )\n"
-	      << "          | '1:1'          src1 dst1 ( 'blck' {m} | 'iter' | 'pool' {m} )\n"
-	      << "          | '1:n' {nwords} src1 dstN ( 'blck' {m} | 'iter' |            )\n"
-	      << "          | 'n:0' {nwords} srcN      ( 'blck' {m} | 'iter' |            )\n"
-	      << "          | 'n:1' {nwords} srcN dst1 ( 'blck' {m} | 'iter' |            )\n"
-	      << "          | 'n:n' {nwords} srcN dstN ( 'blck' {m} | 'iter' | 'libc'     )\n"
+	      << "     MODE : 0:1        DST1 ( blck M | iter | pool M )\n"
+	      << "          | 0:n N      DSTN ( blck M | iter | libc   )\n"
+	      << "          | 1:0   SRC1      ( blck M | iter | pool M )\n"
+	      << "          | 1:1   SRC1 DST1 ( blck M | iter | pool M )\n"
+	      << "          | 1:n N SRC1 DSTN ( blck M | iter |        )\n"
+	      << "          | n:0 N SRCN      ( blck M | iter |        )\n"
+	      << "          | n:1 N SRCN DST1 ( blck M | iter |        )\n"
+	      << "          | n:n N SRCN DSTN ( blck M | iter | libc   )\n"
 	      << '\n'
-	      << "src1,dst1 : location1\n"
-	      << "srcN,dstN : locationN\n"
+	      << "      REP : number of repetitions\n"
+	      << "        N : number of 32-bit words to transfer\n"
+	      << "   blck M : use buffer of M 32-bit words\n"
+	      << "   pool M : perform M copy/read/write operations at once\n"
+	      << "     libc : Lib-C's memset (0:n) or memcpy (n:n)\n"
 	      << '\n'
-	      << "location1 : 'plain' | 'port' {page} {index}\n" 
-	      << "locationN : 'plain'                        \n" ;
+	      << "SRC1,DST1 : LOCATION1\n"
+	      << "SRCN,DSTN : LOCATIONN\n"
+	      << '\n'
+	      << "LOCATION1 : plain                 # use virtual memory\n"
+	      << "          | port PAGE-NO PAGE-IX  # use peripheral address\n"
+	      << '\n'
+	      << "LOCATIONN : plain                 # use virtual memory\n"
+	      << '\n'
+	      << "  PAGE-NO : peripheral page number as offset 0..FFF (e.g. 0x200 for GPIO)\n"
+	      << "  PAGE-IX : offset within page 0..FFC (e.g. 0x34 for GPIO input levels)\n"
+	      << std::flush ;
     return ;
   }
 

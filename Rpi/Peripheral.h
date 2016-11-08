@@ -67,9 +67,11 @@
 // The BCM2836 peripherals start at ARM physical address 0x3f00,0000. 
 // (so the upper 0x100,0000 bytes _RAM_ are not addressable by the ARM core?)
 
+#include "Counter.h"
 #include "Error.h"
 #include "Gpio.h"
 #include "Page.h"
+#include "Timer.h"
 
 #include <Neat/Enum.h>
 #include <Posix/Fd.h> // uoff_t
@@ -83,21 +85,23 @@ namespace Rpi
     static std::shared_ptr<Peripheral> make(Posix::Fd::uoff_t addr) ;
     // ...shared_ptr so it can easily be passed around incl. ownership
 
-    // bus address 0x7e00,0000 is available at physical ARM address...
-    static Posix::Fd::uoff_t for_bcm2835() { return Posix::Fd::uoff_t::init<0x20000000u>() ; }
-    static Posix::Fd::uoff_t for_bcm2836() { return Posix::Fd::uoff_t::init<0x3f000000u>() ; }
-    static Posix::Fd::uoff_t for_bcm2837() { return Posix::Fd::uoff_t::init<0x3f000000u>() ; }
-
     // figure out the physical ARM address automatically...
     static Posix::Fd::uoff_t by_devtree() ;
     static Posix::Fd::uoff_t by_cpuinfo() ;
     
     using PNo = Neat::Enum<unsigned,0x1000-1> ;
     
-    std::shared_ptr<Page> page(PNo no) ;
+    std::shared_ptr<Page>       page(PNo no) ;
+    std::shared_ptr<Page const> page(PNo no) const ;
     // ...shared_ptr so it can easily be passed around incl. ownership
 
-    std::shared_ptr<Gpio> gpio() { if (gpio_.get() == nullptr) gpio_.reset(new Gpio(page(PNo::init<0x200>()))) ; return gpio_ ; }
+    uint32_t volatile const & at(size_t i) const ;
+    uint32_t volatile       & at(size_t i)       ;
+    // ...i is relative to base_page as a byte-offset (which must be word-aligned though)
+    
+    std::shared_ptr<Counter> counter() { if (counter_.get() == nullptr) counter_.reset(new Counter(page(PNo::make<0x00b>()))) ; return counter_ ; }
+    std::shared_ptr<   Gpio>    gpio() { if (   gpio_.get() == nullptr)    gpio_.reset(new    Gpio(page(PNo::make<0x200>()))) ; return    gpio_ ; }
+    std::shared_ptr<  Timer>   timer() { if (  timer_.get() == nullptr)   timer_.reset(new   Timer(page(PNo::make<0x003>()))) ; return   timer_ ; }
     
     Peripheral           (Peripheral const&) = delete ;
     Peripheral& operator=(Peripheral const&) = delete ;
@@ -106,11 +110,13 @@ namespace Rpi
 
     using Map = std::map<unsigned,std::shared_ptr<Page>> ;
       
-    size_t base_page ; Map map ;
+    size_t base_page ; mutable Map map ;
 
-    std::shared_ptr<Gpio> gpio_ ;
+    std::shared_ptr<Counter> counter_ ;
+    std::shared_ptr<   Gpio>    gpio_ ;
+    std::shared_ptr<  Timer>   timer_ ;
     
-    Peripheral(size_t base_page_,Map &&map_) : base_page(base_page_),map(std::move(map_)) {}
+    Peripheral(size_t base_page,Map &&map) : base_page(base_page),map(std::move(map)) {}
   } ;
 }
 

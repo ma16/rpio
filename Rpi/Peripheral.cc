@@ -39,9 +39,9 @@ Posix::Fd::uoff_t Rpi::Peripheral::by_devtree()
 {
   auto fd = Posix::Fd::open("/proc/device-tree/soc/ranges",Posix::Fd::Open::RO) ;
   unsigned char buffer[8] ;
-  auto n = fd->read(buffer,Posix::Fd::ussize_t::init<sizeof(buffer)>()) ;
+  auto n = fd->read(buffer,Posix::Fd::ussize_t::make<sizeof(buffer)>()) ;
   if (n.as_unsigned() != sizeof(buffer))
-    throw Error("read(/proc/device-tree/soc/ranges,8):premature end-of-file") ;
+    throw Error("Peripheral:read(/proc/device-tree/soc/ranges,8):premature end-of-file") ;
   uint32_t address = buffer[4] ;
   address <<= 8 ; address |= buffer[5] ;
   address <<= 8 ; address |= buffer[6] ;
@@ -54,16 +54,16 @@ Posix::Fd::uoff_t Rpi::Peripheral::by_cpuinfo()
 {
   std::ifstream is("/proc/cpuinfo") ;
   if (!is)
-    throw Error("ifstream(/proc/cpuinfo):"+Posix::strerror(errno)) ;
+    throw Error("Peripheral:ifstream(/proc/cpuinfo):"+Posix::strerror(errno)) ;
   std::string line ;
   while (std::getline(is,line)) {
-    if (line.find("ARMv6") != line.npos) return for_bcm2835() ;
-    if (line.find("ARMv7") != line.npos) return for_bcm2836() ;
-    if (line.find("ARMv8") != line.npos) return for_bcm2837() ;
+    if (line.find("ARMv6") != line.npos) return Posix::Fd::uoff_t::make<0x20000000>() ;
+    if (line.find("ARMv7") != line.npos) return Posix::Fd::uoff_t::make<0x3f000000>() ;
+    if (line.find("ARMv8") != line.npos) return Posix::Fd::uoff_t::make<0x3f000000>() ;
   }
   if (!is.eof())
-    throw Error("ifstream(/proc/cpuinfo):"+Posix::strerror(errno)) ;
-  throw Error("No ARM found in /proc/cpuinfo") ;
+    throw Error("Peripheral:ifstream(/proc/cpuinfo):"+Posix::strerror(errno)) ;
+  throw Error("Peripheral:no ARM found in /proc/cpuinfo") ;
 }
 
 std::shared_ptr<Rpi::Peripheral> Rpi::Peripheral::make(Posix::Fd::uoff_t addr)
@@ -79,7 +79,7 @@ std::shared_ptr<Rpi::Peripheral> Rpi::Peripheral::make(Posix::Fd::uoff_t addr)
   return self ;
 }
 
-std::shared_ptr<Rpi::Page> Rpi::Peripheral::page(PNo no)
+std::shared_ptr<Rpi::Page const> Rpi::Peripheral::page(PNo no) const
 {
   auto i = this->map.find(no.value()) ;
   if (i == this->map.end()) {
@@ -88,3 +88,25 @@ std::shared_ptr<Rpi::Page> Rpi::Peripheral::page(PNo no)
   }
   return i->second ;
 }
+
+std::shared_ptr<Rpi::Page> Rpi::Peripheral::page(PNo no)
+{
+  return Neat::clip_const(Neat::as_const(this)->page(no)) ;
+}
+
+uint32_t volatile const & Rpi::Peripheral::at(size_t i) const
+{
+  if (0 != (i % 4))
+    throw Error("Peripheral:address is not page aligned") ;
+  i /= 4 ;
+  auto ofs = Rpi::Page::Index::make(i % 0x400) ;
+  i /= 0x400 ;
+  auto pno = Rpi::Peripheral::PNo::make(i) ;
+  return this->page(pno)->at(ofs) ; 
+}
+
+uint32_t volatile & Rpi::Peripheral::at(size_t i)
+{
+  return Neat::clip_const(Neat::as_const(this)->at(i)) ;
+}
+    

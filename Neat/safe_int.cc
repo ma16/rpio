@@ -50,8 +50,9 @@ template<> unsigned long long Neat::safe_add(unsigned long long a,unsigned long 
 
 template<typename T> static T mult(T a,T b)
 {
+  if (b == 0)
+    return 0 ;
   if (a <= std::numeric_limits<T>::max() / b)
-    // [todo] watch div by zero
     return static_cast<T>(a * b) ;
   // ...cast since auto promotion to int for char and short
   std::ostringstream os ;
