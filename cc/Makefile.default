@@ -1,0 +1,42 @@
+# BSD 2-Clause License, see github.com/ma16/rpio
+
+# This is a generic Makefile:
+#
+# The client has to provide following variables: LSRC,BSRC,CC,LD.
+# The makefile compiles for each BSRC's and LSRC's .cc-file an object
+# file. Each BSRC's object files is linked to an executable with all
+# LSRC's objects.
+#
+# This makefile generates and updates automatically dependencies
+# (.cc.d).
+# Thanks to Paul D. Smith, see:
+# make.mad-scientist.net/papers/advanced-auto-dependency-generation
+
+default: all
+
+DEP=$(LSRC:=.d) $(BSRC:=.d)
+$(DEP): ;
+
+LOBJ=$(LSRC:.cc=.o)
+BOBJ=$(BSRC:.cc=.o)
+$(LOBJ) $(BOBJ): %.o : %.cc.d
+	$(CC) -E $(@:.o=.cc) -MD -MT $@ -MF $(@:.o=.cc.d) > /dev/null
+	$(CC) -o $@ -c $(@:.o=.cc)
+
+# -MD: depend not only on local headers but also on system includes
+# -MT: dependency target name 
+# -MF: file to write dependencies to 
+
+BIN=$(BOBJ:.o=)
+$(BIN): % : %.o $(LOBJ) $(AOBJ)
+	$(LD) -o $@ $^
+
+all: $(BIN)
+
+clean:
+	rm -f $(DEP) $(LOBJ) $(BOBJ) $(BIN)
+
+
+-include $(DEP)
+
+# [opt] introduce a .build-directory to keep source directories clean
