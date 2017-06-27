@@ -19,14 +19,6 @@ using namespace Device::Mcp3008 ;
 
 static void bangRate(Rpi::Peripheral *rpi,Bang *host,bool monitor,Ui::ArgL *argL)
 {
-    if (argL->empty() || argL->peek() == "help")
-    {
-	std::cout << "arguments: N [-s SOURCE]"
-		  << "N - the number of consecutive samples to take\n"
-		  << "SOURCE - the MCP3008-channel to sample (0..15)\n"
-	    ;
-	return ;
-    }
     auto n = Ui::strto<size_t>(argL->pop()) ;
     auto source = Ui::strto(argL->option("-s","8"),Circuit::Source()) ;
     argL->finalize() ;
@@ -70,13 +62,6 @@ static void bangRate(Rpi::Peripheral *rpi,Bang *host,bool monitor,Ui::ArgL *argL
     
 static void bangSample(Rpi::Peripheral*,Bang *host,bool monitor,Ui::ArgL *argL)
 {
-    if (argL->empty() || argL->peek() == "help")
-    {
-	std::cout << "arguments: SOURCE+\n"
-		  << "SOURCE+ : SOURCE | SOURCE SOURCE+\n"
-		  << std::flush ;
-	return ;
-    }
     auto source = Ui::strto(argL->pop(),Circuit::Source()) ;
     std::deque<decltype(source)> q(1,source) ;
     while (!argL->empty())
@@ -115,8 +100,10 @@ void bangInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << '\n'
 		  << "FREQ: ARM counter frequency\n"
 		  << '\n'
-		  << "MODE :   rate  # perform throughput test\n"
-		  << "     | sample  # read one or more samples\n" ;
+		  << "MODE : rate N [-s SOURCE]  # perform throughput test\n"
+		  << "     | sample SOURCE+      # read one or more samples\n" 
+		  << '\n'
+		  << "SOURCE - the MCP3008-channel to sample (0..15)\n" ;
 	return ;
     }
   
