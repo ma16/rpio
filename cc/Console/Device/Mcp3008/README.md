@@ -94,7 +94,7 @@ If monitoring is enabled then also the 9 LSB digits are transferred besides the 
 
 ### Throughput (Example)
 
-The ADC samples about 80.000 analog inputs per second:
+This implementation of bit-banging provides about 80.000 samples per second:
 ```
 $ ./rpio device mcp3008 bang 22 23 24 25 rate 100000
 info: measured frequency: 2.50e+08
@@ -108,4 +108,4 @@ info: measured frequency: 2.50e+08
 success: 100000
 5.08e+04/s
 ```
-The program performs some checks to verify whether the transfer was successful. In the example above, all checks cleared.
+The program performs error checks to verify whether the transfer was successful. In the example above, all checks cleared (error code 0).
