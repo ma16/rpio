@@ -67,8 +67,42 @@ struct Bang
     // record.sample[9..18] (monitor)
     Circuit::Sample lsb(Record const &record) const ;
 
+    struct Error 
+    {
+	// verify pin values at start after reset:
+	uint8_t reset_cs   : 1 ; // CS=Hi (read-back)
+	uint8_t reset_clk  : 1 ; // CLK=Lo (read-back)
+	uint8_t reset_din  : 1 ; // DIN=Lo (read-back)
+	uint8_t reset_dout : 1 ; // DOUT=Hi 
+
+	// verify pin value when receiving data 
+	uint8_t recv_dout : 1 ; // start-bit DOUT=Lo
+
+	// verify MSB sample with LSB sample value
+	uint8_t recv_mismatch : 1 ;
+
+	// verify pin value after transfer
+	uint8_t end_dout : 1 ; // DOUT=Hi (after CS has been disabled)
+
+	// verify whether capacitance began to bleed out
+	uint8_t bled_off : 1 ; 
+
+	uint8_t value() const
+	{
+	    return static_cast<uint8_t>(
+		(reset_cs      << 0) |
+		(reset_clk     << 1) |
+		(reset_din     << 2) |
+		(reset_dout    << 3) |
+		(recv_dout     << 4) |
+		(recv_mismatch << 5) |
+		(end_dout      << 6) |
+		(bled_off      << 7)) ;
+	}
+    } ;
+    
     // verify (monitor)
-    Circuit::Error error(Record const &record) const ;
+    Error error(Record const &record) const ;
 
 private:
   

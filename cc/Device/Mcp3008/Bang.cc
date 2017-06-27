@@ -51,10 +51,10 @@ Device::Mcp3008::Bang::lsb(Record const &record) const
     return Device::Mcp3008::Circuit::Sample::coset(d) ;
 }
 
-Device::Mcp3008::Circuit::Error
+Device::Mcp3008::Bang::Error
 Device::Mcp3008::Bang::error(Record const &record) const
 {
-    Circuit::Error error ;
+    Error error ;
     
     error.reset_cs   = (0 == (record.resetLevel & this->pins.  cs)) ;
     error.reset_clk  = (0 != (record.resetLevel & this->pins. clk)) ;
@@ -66,7 +66,6 @@ Device::Mcp3008::Bang::error(Record const &record) const
     error.bled_off = (record.t_end - record.t_start > this->timing.bled) ;
     error.recv_mismatch = (this->lsb(record).value() !=
 			   this->msb(record).value()) ;
-    
     return error ;
 }
 
