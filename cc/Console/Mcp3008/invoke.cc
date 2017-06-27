@@ -2,18 +2,18 @@
 
 #include "../rpio.h"
 
-#include "Bang.h"
-#include "Spi0.h"
-#include "Spi1.h"
-
-#include <Neat/cast.h>
-#include <Posix/base.h>
-#include <Ui/strto.h>
 #include <chrono>
 #include <deque>
 #include <iostream>
 
-using namespace Console::Mcp3008 ;
+#include <Device/Mcp3008/Bang.h>
+#include <Device/Mcp3008/Spi0.h>
+#include <Device/Mcp3008/Spi1.h>
+#include <Neat/cast.h>
+#include <Posix/base.h>
+#include <Ui/strto.h>
+
+using namespace Device::Mcp3008 ;
 
 // --------------------------------------------------------------------
 

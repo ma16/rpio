@@ -1,14 +1,14 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Console_Mcp3008_Bang_h_
-#define _Console_Mcp3008_Bang_h_
+#ifndef INCLUDE_Device_Mcp3008_Bang_h
+#define INCLUDE_Device_Mcp3008_Bang_h
 
 #include "Circuit.h"
 #include <Rpi/Counter.h>
 #include <Rpi/Gpio.h>
 #include <RpiExt/Bang.h>
 
-namespace Console { namespace Mcp3008 {
+namespace Device { namespace Mcp3008 {
 
 struct Bang
 {
@@ -80,4 +80,4 @@ private:
     
 } ; } } 
 
-#endif // _Console_Mcp3008_Bang_h_
+#endif // INCLUDE_Device_Mcp3008_Bang_h

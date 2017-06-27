@@ -9,12 +9,12 @@
 // Please refer to the MCP3008 data sheet for more details.
 // --------------------------------------------------------------------
 
-#ifndef _Console_Mcp3008_Circuit_h_
-#define _Console_Mcp3008_Circuit_h_
+#ifndef INCLUDE_Device_Mcp3008_Circuit_h
+#define INCLUDE_Device_Mcp3008_Circuit_h
 
 #include <Neat/uint.h>
 
-namespace Console { namespace Mcp3008 {
+namespace Device { namespace Mcp3008 {
 
 namespace Circuit
 {
@@ -112,4 +112,4 @@ namespace Circuit
     
 } } } 
 
-#endif // _Console_Mcp3008_Circuit_h_
+#endif // INCLUDE_Device_Mcp3008_Circuit_h

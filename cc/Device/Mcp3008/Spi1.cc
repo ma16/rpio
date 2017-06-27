@@ -3,9 +3,9 @@
 #include "Spi1.h"
 #include <vector>
 
-using namespace Console ;
-using namespace Console::Mcp3008 ;
-using namespace Console::Mcp3008::Circuit ;
+using namespace Device ;
+using namespace Device::Mcp3008 ;
+using namespace Device::Mcp3008::Circuit ;
 
 void Spi1::setup(Rpi::Spi1 *spi,Speed speed,Cs cs,bool full)
 {

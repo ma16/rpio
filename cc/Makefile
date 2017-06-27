@@ -41,10 +41,7 @@ LSRC=\
 	Console/Max7219/invoke.cc \
 	Console/Max7219/Parser.cc \
 	Console/Mbox/invoke.cc \
-	Console/Mcp3008/Bang.cc \
 	Console/Mcp3008/invoke.cc \
-	Console/Mcp3008/Spi0.cc \
-	Console/Mcp3008/Spi1.cc \
 	Console/Memory/Lib.cc \
 	Console/Poke/invoke.cc \
 	Console/Pwm/invoke.cc \
@@ -65,6 +62,9 @@ LSRC=\
 	Console/Ws2812b/invoke.cc \
 	Console/Ws2812b/Pwm.cc \
 	Console/Ws2812b/Spi0.cc \
+	Device/Mcp3008/Bang.cc \
+	Device/Mcp3008/Spi0.cc \
+	Device/Mcp3008/Spi1.cc \
 	Linux/base.cc \
 	Linux/PhysMem.cc \
 	Linux/Shm.cc \

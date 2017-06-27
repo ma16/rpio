@@ -5,7 +5,7 @@
 #include <iostream>
 #include <Neat/cast.h>
 
-Console::Mcp3008::Bang::Bang(
+Device::Mcp3008::Bang::Bang(
     Rpi::Peripheral *rpi,
     Rpi::Pin       csPin,
     Rpi::Pin      clkPin,
@@ -21,11 +21,11 @@ Console::Mcp3008::Bang::Bang(
     gpio.setMode(doutPin,Rpi::Gpio::Mode:: In) ;
 }
 
-Console::Mcp3008::Circuit::Sample
-Console::Mcp3008::Bang::msb(Record const &record) const
+Device::Mcp3008::Circuit::Sample
+Device::Mcp3008::Bang::msb(Record const &record) const
 {
     auto mask = this->pins.dout ;
-    Console::Mcp3008::Circuit::Sample::Unsigned d ;
+    Device::Mcp3008::Circuit::Sample::Unsigned d ;
     d = (0 != (record.sample[0] & mask)) ? 1 : 0 ;
     for (int i=1 ; i<10 ; ++i)
     {
@@ -33,14 +33,14 @@ Console::Mcp3008::Bang::msb(Record const &record) const
 	if (0 != (record.sample[i] & mask))
 	    ++d ;
     }
-    return Console::Mcp3008::Circuit::Sample::coset(d) ;
+    return Device::Mcp3008::Circuit::Sample::coset(d) ;
 }
 
-Console::Mcp3008::Circuit::Sample
-Console::Mcp3008::Bang::lsb(Record const &record) const
+Device::Mcp3008::Circuit::Sample
+Device::Mcp3008::Bang::lsb(Record const &record) const
 {
     auto mask = this->pins.dout ;
-    Console::Mcp3008::Circuit::Sample::Unsigned d ;
+    Device::Mcp3008::Circuit::Sample::Unsigned d ;
     d = (0 != (record.sample[18] & mask)) ? 1 : 0 ;
     for (int i=17 ; i>=9 ; --i)
     {
@@ -48,11 +48,11 @@ Console::Mcp3008::Bang::lsb(Record const &record) const
 	if (0 != (record.sample[i] & mask))
 	    ++d ;
     }
-    return Console::Mcp3008::Circuit::Sample::coset(d) ;
+    return Device::Mcp3008::Circuit::Sample::coset(d) ;
 }
 
-Console::Mcp3008::Circuit::Error
-Console::Mcp3008::Bang::error(Record const &record) const
+Device::Mcp3008::Circuit::Error
+Device::Mcp3008::Bang::error(Record const &record) const
 {
     Circuit::Error error ;
     
@@ -70,8 +70,8 @@ Console::Mcp3008::Bang::error(Record const &record) const
     return error ;
 }
 
-Console::Mcp3008::Bang::Record
-Console::Mcp3008::Bang::query(Circuit::Source source,bool monitor)
+Device::Mcp3008::Bang::Record
+Device::Mcp3008::Bang::query(Circuit::Source source,bool monitor)
 {
     Record record ;
 
@@ -84,7 +84,7 @@ Console::Mcp3008::Bang::query(Circuit::Source source,bool monitor)
     return record ;
 } 
     
-Console::Mcp3008::Bang::Script Console::Mcp3008::Bang::
+Device::Mcp3008::Bang::Script Device::Mcp3008::Bang::
 makeScript(Circuit::Source source,bool monitor,Record *record)
 {
     RpiExt::Bang::Enqueue q ;

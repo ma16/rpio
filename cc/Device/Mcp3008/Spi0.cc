@@ -22,9 +22,9 @@ static uint32_t reverse(uint32_t i)
     return i ;
 }
 
-using Sample = Console::Mcp3008::Circuit::Sample ;
+using Sample = Device::Mcp3008::Circuit::Sample ;
 
-boost::optional<Sample> Console::Mcp3008::Spi0::query(Circuit::Source source)
+boost::optional<Sample> Device::Mcp3008::Spi0::query(Circuit::Source source)
 {
     if (!this->monitor)
 	return this->queryShort(source) ;
@@ -34,7 +34,7 @@ boost::optional<Sample> Console::Mcp3008::Spi0::query(Circuit::Source source)
     return boost::none ;
 }
 
-Sample Console::Mcp3008::Spi0::queryShort(Circuit::Source source)
+Sample Device::Mcp3008::Spi0::queryShort(Circuit::Source source)
 {
     uint8_t tx[4] = {0} ;
     tx[0] = static_cast<uint8_t>(0x80 | (source.value() << 3)) ;
@@ -43,7 +43,7 @@ Sample Console::Mcp3008::Spi0::queryShort(Circuit::Source source)
     return Circuit::Sample::coset(msb32(rx) >> 15) ; // pos. 7-16
 }
 
-std::pair<Sample,Sample> Console::Mcp3008::Spi0::queryLong(Circuit::Source source)
+std::pair<Sample,Sample> Device::Mcp3008::Spi0::queryLong(Circuit::Source source)
 {
     uint8_t tx[4] = {0} ;
     tx[0] = static_cast<uint8_t>(0x80 | (source.value() << 3)) ;
