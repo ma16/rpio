@@ -5,7 +5,7 @@
 #include "Host.h"
 #include <chrono>
 
-void Console::Max7219::Host::send(uint16_t data)
+void Console::Device::Max7219::Host::send(uint16_t data)
 {
   // the level (high/low) on DAT={datPin} is shiftet into the MAX7219
   // with each LH-edge on CLK={clkPin}. {data} is transmitted most-
@@ -22,7 +22,7 @@ void Console::Max7219::Host::send(uint16_t data)
   // {clkPin} is high on return
 }
 
-void Console::Max7219::Host::latch()
+void Console::Device::Max7219::Host::latch()
 {
   // the contents of the MAX7219's shift-register is latched-in (i.e.
   // loaded by the MAX7219) with an LH-edge on LOAD={loadPin}.
@@ -36,7 +36,7 @@ void Console::Max7219::Host::latch()
   // {loadPin} is high on return
 }
     
-Console::Max7219::Host::Host(Rpi::Gpio gpio,Rpi::Pin loadPin,Rpi::Pin clkPin,Rpi::Pin datPin)
+Console::Device::Max7219::Host::Host(Rpi::Gpio gpio,Rpi::Pin loadPin,Rpi::Pin clkPin,Rpi::Pin datPin)
   : gpio(gpio),loadPin(loadPin),clkPin(clkPin),datPin(datPin)
 {
   gpio.setMode(loadPin,Rpi::Gpio::Mode::Out) ;
@@ -45,7 +45,7 @@ Console::Max7219::Host::Host(Rpi::Gpio gpio,Rpi::Pin loadPin,Rpi::Pin clkPin,Rpi
   // [future] recall previous states and recover them in d'tor
 }
 
-void Console::Max7219::Host::hold()
+void Console::Device::Max7219::Host::hold()
 {
   auto t0 = std::chrono::steady_clock::now() ;
   decltype(t0) ti ;

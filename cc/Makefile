@@ -27,21 +27,25 @@ CC=$(CXX) $(INCLUDE) $(CFLAGS)
 LD=$(CXX) $(LDFLAGS)
 
 LSRC=\
-	Console/Ads1115/Host.cc \
-	Console/Ads1115/invoke.cc \
 	Console/Bang/Host.cc \
 	Console/Bang/invoke.cc \
 	Console/Clock/invoke.cc \
 	Console/Cp/invoke.cc \
+	Console/Device/Ads1115/Host.cc \
+	Console/Device/Ads1115/invoke.cc \
+	Console/Device/invoke.cc \
+	Console/Device/Mcp3008/invoke.cc \
+	Console/Device/Max7219/Host.cc \
+	Console/Device/Max7219/invoke.cc \
+	Console/Device/Max7219/Parser.cc \
+	Console/Device/Ws2812b/invoke.cc \
+	Console/Device/Ws2812b/Pwm.cc \
+	Console/Device/Ws2812b/Spi0.cc \
 	Console/Dma/Lib.cc \
 	Console/Dma/invoke.cc \
 	Console/Gpio/invoke.cc \
 	Console/Intr/invoke.cc \
-	Console/Max7219/Host.cc \
-	Console/Max7219/invoke.cc \
-	Console/Max7219/Parser.cc \
 	Console/Mbox/invoke.cc \
-	Console/Mcp3008/invoke.cc \
 	Console/Memory/Lib.cc \
 	Console/Poke/invoke.cc \
 	Console/Pwm/invoke.cc \
@@ -59,9 +63,6 @@ LSRC=\
 	Console/SpiSlave/invoke.cc \
 	Console/Throughput/Buffer.cc \
 	Console/Throughput/invoke.cc \
-	Console/Ws2812b/invoke.cc \
-	Console/Ws2812b/Pwm.cc \
-	Console/Ws2812b/Spi0.cc \
 	Device/Mcp3008/Bang.cc \
 	Device/Mcp3008/Spi0.cc \
 	Device/Mcp3008/Spi1.cc \

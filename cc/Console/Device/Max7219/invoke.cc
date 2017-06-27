@@ -1,6 +1,6 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "../rpio.h"
+#include "../invoke.h"
 #include "Host.h"
 #include "Parser.h"
 #include <Posix/base.h> // nanosleep
@@ -10,7 +10,7 @@
 #include <fstream>
 #include <iostream>
 
-namespace Console { namespace Max7219 {
+namespace Console { namespace Device { namespace Max7219 {
 
 static void dataInvoke(Host *host,Ui::ArgL *argL)
 {
@@ -28,23 +28,23 @@ static void fileInvoke(Host *host,Ui::ArgL *argL)
   std::ifstream is(argL->pop().c_str()) ;
   auto n = Ui::strto<unsigned>(argL->option("-r","1")) ;
   argL->finalize() ;
-  auto p = Parser(&is) ; std::deque<Console::Max7219::Parser::Command::shared_ptr> q ;
+  auto p = Parser(&is) ; std::deque<Console::Device::Max7219::Parser::Command::shared_ptr> q ;
   while (true) {
     auto c = p.parse() ;
-    auto eof = dynamic_cast<Console::Max7219::Parser::Eof*>(c.get()) ;
+    auto eof = dynamic_cast<Console::Device::Max7219::Parser::Eof*>(c.get()) ;
     if (eof != nullptr)
       break ;
     q.push_back(c) ;
   }
   for (auto i=0u ; i<n ; ++i) {
     for (auto &c : q) {
-      auto delay = dynamic_cast<Console::Max7219::Parser::Delay*>(c.get()) ;
+      auto delay = dynamic_cast<Console::Device::Max7219::Parser::Delay*>(c.get()) ;
       if (delay != nullptr) { Posix::nanosleep(1E9*delay->seconds) ; continue ; }
-      auto echo = dynamic_cast<Console::Max7219::Parser::Echo*>(c.get()) ;
+      auto echo = dynamic_cast<Console::Device::Max7219::Parser::Echo*>(c.get()) ;
       if (echo != nullptr) { std::cout << echo->text << std::flush ; continue ; }
-      auto latch = dynamic_cast<Console::Max7219::Parser::Latch*>(c.get()) ;
+      auto latch = dynamic_cast<Console::Device::Max7219::Parser::Latch*>(c.get()) ;
       if (latch != nullptr) { host->latch() ; continue ; }
-      auto shift = dynamic_cast<Console::Max7219::Parser::Shift*>(c.get()) ;
+      auto shift = dynamic_cast<Console::Device::Max7219::Parser::Shift*>(c.get()) ;
       if (shift != nullptr) { host->send(shift->data) ; continue ; }
       assert(false) ;
     }
@@ -57,15 +57,15 @@ static void stdinInvoke(Host *host,Ui::ArgL *argL)
   auto p = Parser(&std::cin) ;
   while (true) {
     auto c = p.parse() ;
-    auto delay = dynamic_cast<Console::Max7219::Parser::Delay*>(c.get()) ;
+    auto delay = dynamic_cast<Console::Device::Max7219::Parser::Delay*>(c.get()) ;
     if (delay != nullptr) { Posix::nanosleep(1E9*delay->seconds) ; continue ; }
-    auto echo = dynamic_cast<Console::Max7219::Parser::Echo*>(c.get()) ;
+    auto echo = dynamic_cast<Console::Device::Max7219::Parser::Echo*>(c.get()) ;
     if (echo != nullptr) { std::cout << echo->text << std::flush ; continue ; }
-    auto eof = dynamic_cast<Console::Max7219::Parser::Eof*>(c.get()) ;
+    auto eof = dynamic_cast<Console::Device::Max7219::Parser::Eof*>(c.get()) ;
     if (eof != nullptr) break ;
-    auto latch = dynamic_cast<Console::Max7219::Parser::Latch*>(c.get()) ;
+    auto latch = dynamic_cast<Console::Device::Max7219::Parser::Latch*>(c.get()) ;
     if (latch != nullptr) { host->latch() ; continue ; }
-    auto shift = dynamic_cast<Console::Max7219::Parser::Shift*>(c.get()) ;
+    auto shift = dynamic_cast<Console::Device::Max7219::Parser::Shift*>(c.get()) ;
     if (shift != nullptr) { host->send(shift->data) ; continue ; }
     assert(false) ;
   }
@@ -116,4 +116,4 @@ void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
 
-} /* Max7219 */ } /* Console */
+} /* Max7219 */ } /* Device */ } /* Console */

@@ -28,16 +28,14 @@ int main(int argc,char **argv)
 		<< "If BASE is not given then the peripheral address is derived from\n"
 		<< "the processor's model name (i.e. ARMv6/7/8) in /proc/cpuinfo.\n"
 		<< '\n'
-		<< "MODE : ads1115     # ADC control for the ADS1115 circuit\n"
-		<< "     | bang        # generic bit-banging\n"
+		<< "MODE : bang        # generic bit-banging\n"
 		<< "     | clock       # r/w clock sources\n"
 		<< "     | cp          # clock-pulse generator (GPIO Clock)\n"
 		<< "     | dma         # DMA setup and tests\n"
+		<< "     | device      # control a certain device\n"
 		<< "     | gpio        # r/w GPIO\n"
 		<< "     | intr        # enable/disable ARM and GPU interrupts\n"
-		<< "     | max7219     # dot-matrix control for the MAX7219 circuit\n"
 		<< "     | mbox        # Mailbox access\n"
-		<< "     | mcp3008     # ADC control for the MCP3008 circuit\n"
 		<< "     | poke        # r/w any word in peripheral address space\n"
 		<< "     | pwm         # PWM setup\n"
 		<< "     | sample      # sample data\n"
@@ -46,7 +44,6 @@ int main(int argc,char **argv)
 		<< "     | spi1        # serial peripheral interface (controller #1)\n"
 		<< "     | spi-slave   # serial peripheral interface (slave)\n"
 		<< "     | throughput  # i/o and memory performance tests\n"
-		<< "     | ws2812b     # Serial interface for WS2812B (LED strip)\n"
 		<< '\n'
 		<< "Use the keyword help for additional information.\n"
 		<< std::flush ;
@@ -55,17 +52,16 @@ int main(int argc,char **argv)
     
     auto rpi = Rpi::Peripheral::make(base_addr(&argL)) ;
     std::string arg = argL.pop() ;
+    if (false) ;
   
-    if      (arg ==    "ads1115") Console::   Ads1115::invoke(rpi.get(),&argL) ;
     else if (arg ==       "bang") Console::      Bang::invoke(rpi.get(),&argL) ;
     else if (arg ==      "clock") Console::     Clock::invoke(rpi.get(),&argL) ;
     else if (arg ==         "cp") Console::        Cp::invoke(rpi.get(),&argL) ;
+    else if (arg ==     "device") Console::    Device::invoke(rpi.get(),&argL) ;
     else if (arg ==        "dma") Console::       Dma::invoke(rpi.get(),&argL) ;
     else if (arg ==       "gpio") Console::      Gpio::invoke(rpi.get(),&argL) ;
     else if (arg ==       "intr") Console::      Intr::invoke(rpi.get(),&argL) ;
-    else if (arg ==    "max7219") Console::   Max7219::invoke(rpi.get(),&argL) ;
     else if (arg ==       "mbox") Console::      Mbox::invoke(rpi.get(),&argL) ;
-    else if (arg ==    "mcp3008") Console::   Mcp3008::invoke(rpi.get(),&argL) ;
     else if (arg ==       "poke") Console::      Poke::invoke(rpi.get(),&argL) ;
     else if (arg ==        "pwm") Console::       Pwm::invoke(rpi.get(),&argL) ;
     else if (arg ==     "sample") Console::    Sample::invoke(rpi.get(),&argL) ;
@@ -74,7 +70,6 @@ int main(int argc,char **argv)
     else if (arg ==       "spi1") Console::      Spi1::invoke(rpi.get(),&argL) ;
     else if (arg ==  "spi-slave") Console::  SpiSlave::invoke(rpi.get(),&argL) ;
     else if (arg == "throughput") Console::Throughput::invoke(rpi.get(),&argL) ;
-    else if (arg ==    "ws2812b") Console::   Ws2812b::invoke(rpi.get(),&argL) ;
   
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
   }

@@ -1,6 +1,6 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "../rpio.h"
+#include "../invoke.h"
 #include "Host.h"
 #include <Neat/cast.h>
 #include <Ui/strto.h>
@@ -8,7 +8,7 @@
 #include <deque>
 #include <iostream>
 
-namespace Console { namespace Ads1115 {
+namespace Console { namespace Device { namespace Ads1115 {
 
 static void configInvoke(Host *host,Ui::ArgL *argL)
 {
@@ -83,4 +83,4 @@ void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
 
-} /* Ads1115 */ } /* Console */
+} /* Ads1115 */ } /* Device */ } /* Console */

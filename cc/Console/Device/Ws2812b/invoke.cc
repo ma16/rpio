@@ -1,6 +1,6 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "../rpio.h"
+#include "../invoke.h"
 #include "Pwm.h"
 #include "Spi0.h"
 #include <Console/Bang/Host.h>
@@ -114,7 +114,7 @@ static void spi0(Rpi::Peripheral *rpi,
   spi.send(nleds,grb) ;
 }
 
-void Console::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") {
     std::cout << "arguments: NLEDS GRB TIMING MODE\n"

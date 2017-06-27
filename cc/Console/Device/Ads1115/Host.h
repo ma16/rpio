@@ -20,15 +20,15 @@
 // Please refer to the ADS1115 data sheet for more details.
 // --------------------------------------------------------------------
 
-#ifndef _Console_Ads1115_Host_h_
-#define _Console_Ads1115_Host_h_
+#ifndef _Console_Device_Ads1115_Host_h_
+#define _Console_Device_Ads1115_Host_h_
 
 #include <Neat/Enum.h>
 #include <Rpi/Counter.h>
 #include <Rpi/Gpio.h>
 #include <boost/optional.hpp>
 
-namespace Console { namespace Ads1115 { struct Host
+namespace Console { namespace Device { namespace Ads1115 { struct Host
 {
   // (Single=1/Diff=0,D2,D1,D0)
   using source_t = Neat::Enum<unsigned,0x7> ;
@@ -98,6 +98,6 @@ private:
 
   boost::optional<error_t> error_ ; boost::none_t set(error_t error) { error_ = error ; return boost::none ; }
     
-} ; } }
+} ; } } }
 
-#endif // _Console_Ads1115_Host_h_
+#endif // _Console_Device_Ads1115_Host_h_

@@ -1,14 +1,14 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Console_Max7219_Parser_h_
-#define _Console_Max7219_Parser_h_
+#ifndef _Console_Device_Max7219_Parser_h_
+#define _Console_Device_Max7219_Parser_h_
 
 #include <Neat/Error.h>
 #include <Ui/strto.h>
 #include <deque>
 #include <memory> // shared_ptr
 
-namespace Console { namespace Max7219 { struct Parser {
+namespace Console { namespace Device { namespace Max7219 { struct Parser {
 
   struct Error : Neat::Error
   {
@@ -42,11 +42,11 @@ private:
   Command::shared_ptr parse_echo() ;
   Command::shared_ptr parse_shift() ;
   
-} ; /* Parser */ } /* Max7219 */ } /* Console */
+} ; /* Parser */ } /* Max7219 */ } /* Device */ } /* Console */
 
 // [future] use boost::variant instead of Command inheritance. currently,
 // just including <boost/variant.hpp> results in lots of warnings though.
 // (in libboost1.55-dev:armhf)
 
-#endif // _Console_Max7219_Parser_h_
+#endif // _Console_Device_Max7219_Parser_h_
     

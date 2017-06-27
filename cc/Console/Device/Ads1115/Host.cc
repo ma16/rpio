@@ -9,7 +9,7 @@
 static auto const Lo = Rpi::Gpio::Output::Lo ;
 static auto const Hi = Rpi::Gpio::Output::Hi ;
 
-Console::Ads1115::Host::Host(Rpi::Peripheral *rpi,
+Console::Device::Ads1115::Host::Host(Rpi::Peripheral *rpi,
 			  Rpi::Pin sclPin,
 			  Rpi::Pin sdaPin,
 			  addr_t addr,
@@ -33,29 +33,29 @@ Console::Ads1115::Host::Host(Rpi::Peripheral *rpi,
 
 // --------------------------------------------------------------------
 
-void Console::Ads1115::Host::sclHi()
+void Console::Device::Ads1115::Host::sclHi()
 {
   assert(this->gpio.getMode(this->sclPin) == Rpi::Gpio::Mode::Out) ;
   this->gpio.setOutput<Hi>(this->sclPin) ; 
 }
 
-void Console::Ads1115::Host::sclLo()
+void Console::Device::Ads1115::Host::sclLo()
 {
   assert(this->gpio.getMode(this->sclPin) == Rpi::Gpio::Mode::Out) ;
   this->gpio.setOutput<Lo>(this->sclPin) ; 
 }
 
-void Console::Ads1115::Host::sdaLo()
+void Console::Device::Ads1115::Host::sdaLo()
 {
   this->gpio.setMode(this->sdaPin,Rpi::Gpio::Mode::Out) ;
 }
 
-void Console::Ads1115::Host::sdaOff()
+void Console::Device::Ads1115::Host::sdaOff()
 {
   this->gpio.setMode(this->sdaPin,Rpi::Gpio::Mode::In) ;
 }
 
-bool Console::Ads1115::Host::sdaLevel()
+bool Console::Device::Ads1115::Host::sdaLevel()
 {
   assert(this->gpio.getMode(this->sdaPin) == Rpi::Gpio::Mode::In) ;
   return this->gpio.getLevel(this->sdaPin) ;
@@ -63,7 +63,7 @@ bool Console::Ads1115::Host::sdaLevel()
 
 // --------------------------------------------------------------------
 
-void Console::Ads1115::Host::start()
+void Console::Device::Ads1115::Host::start()
 {
   // (Hi,Off) -> (Lo,Off)
   this->hold(this->timing.buf) ;
@@ -73,7 +73,7 @@ void Console::Ads1115::Host::start()
   this->sdaOff() ; // [todo] we're going to send data, so keep it Lo
 }
 
-void Console::Ads1115::Host::stop()
+void Console::Device::Ads1115::Host::stop()
 {
   // (Lo,Off) -> (Hi,Off)
   this->sdaLo() ; 
@@ -85,7 +85,7 @@ void Console::Ads1115::Host::stop()
 
 // --------------------------------------------------------------------
 
-void Console::Ads1115::Host::sendBit(bool hi)
+void Console::Device::Ads1115::Host::sendBit(bool hi)
 {
   // (Lo,Off) -> (Lo,Off)
   if (!hi)
@@ -98,7 +98,7 @@ void Console::Ads1115::Host::sendBit(bool hi)
     this->sdaOff() ;
 }
 
-void Console::Ads1115::Host::sendByte(uint8_t byte)
+void Console::Device::Ads1115::Host::sendByte(uint8_t byte)
 {
   // (Lo,Off) -> (Lo,Off)
   auto data = static_cast<int>(byte) ;
@@ -108,7 +108,7 @@ void Console::Ads1115::Host::sendByte(uint8_t byte)
   }
 }
 
-bool Console::Ads1115::Host::recvBit()
+bool Console::Device::Ads1115::Host::recvBit()
 {
   // (Lo,Off) -> (Lo,Off)
   this->hold(this->timing.low) ;
@@ -120,7 +120,7 @@ bool Console::Ads1115::Host::recvBit()
   return level ;
 }
 
-uint8_t Console::Ads1115::Host::recvByte()
+uint8_t Console::Device::Ads1115::Host::recvByte()
 {
   // (Lo,Off) -> (Lo,Off)
   auto data = 0u ;
@@ -133,7 +133,7 @@ uint8_t Console::Ads1115::Host::recvByte()
 
 // --------------------------------------------------------------------
 
-unsigned Console::Ads1115::Host::hold(unsigned delay)
+unsigned Console::Device::Ads1115::Host::hold(unsigned delay)
 {
   auto t0 = this->counter.clock() ;
   // [note] on a slow clock (which may return the same value several
@@ -146,7 +146,7 @@ unsigned Console::Ads1115::Host::hold(unsigned delay)
 
 // --------------------------------------------------------------------
 
-bool Console::Ads1115::Host::doReset()
+bool Console::Device::Ads1115::Host::doReset()
 {
   this->start() ;
   // general address (000:0000,0)B
@@ -163,7 +163,7 @@ bool Console::Ads1115::Host::doReset()
   return true ;
 }
 
-boost::optional<uint16_t> Console::Ads1115::Host::read(uint8_t rix)
+boost::optional<uint16_t> Console::Device::Ads1115::Host::read(uint8_t rix)
 {
   this->start() ;
   // address + WRITE
@@ -194,7 +194,7 @@ boost::optional<uint16_t> Console::Ads1115::Host::read(uint8_t rix)
   return static_cast<uint16_t>((hi<<8) | lo) ;
 }
 
-bool Console::Ads1115::Host::write(uint8_t rix,uint16_t data)
+bool Console::Device::Ads1115::Host::write(uint8_t rix,uint16_t data)
 {
   this->start() ;
   // address + WRITE

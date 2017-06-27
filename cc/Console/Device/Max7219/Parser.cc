@@ -3,14 +3,14 @@
 #include "Parser.h"
 #include <cstring> // index
 
-void Console::Max7219::Parser::throw_error(std::string const &s)
+void Console::Device::Max7219::Parser::throw_error(std::string const &s)
 {
   std::ostringstream os ;
   os << s << " before (" << this->row << ',' << this->col << ')' ;
   throw Error(os.str()) ;
 }
 
-int Console::Max7219::Parser::next_char()
+int Console::Device::Max7219::Parser::next_char()
 {
   int c = this->is->get() ;
   if (c == std::char_traits<char>::eof())
@@ -25,7 +25,7 @@ int Console::Max7219::Parser::next_char()
   return c ;
 }
 
-Console::Max7219::Parser::Command::shared_ptr Console::Max7219::Parser::parse()
+Console::Device::Max7219::Parser::Command::shared_ptr Console::Device::Max7219::Parser::parse()
 {
   while (true) {
     int c = this->next_char() ;
@@ -45,7 +45,7 @@ Console::Max7219::Parser::Command::shared_ptr Console::Max7219::Parser::parse()
   }
 }
 
-std::string Console::Max7219::Parser::scan(char const *set)
+std::string Console::Device::Max7219::Parser::scan(char const *set)
 {
   int c = this->next_char() ;
   while (isspace(c)) 
@@ -61,7 +61,7 @@ std::string Console::Max7219::Parser::scan(char const *set)
   return os.str() ;
 }
 
-void Console::Max7219::Parser::parse_comment()
+void Console::Device::Max7219::Parser::parse_comment()
 {
   std::ostringstream os ; 
   while (true) {
@@ -73,7 +73,7 @@ void Console::Max7219::Parser::parse_comment()
   }
 }
 
-Console::Max7219::Parser::Command::shared_ptr Console::Max7219::Parser::parse_delay()
+Console::Device::Max7219::Parser::Command::shared_ptr Console::Device::Max7219::Parser::parse_delay()
 {
   auto s = scan(".0123456789E+-") ;
   auto seconds = Ui::strto<double>(s) ;
@@ -82,7 +82,7 @@ Console::Max7219::Parser::Command::shared_ptr Console::Max7219::Parser::parse_de
   return Command::shared_ptr(new Delay(seconds)) ;
 }
 
-Console::Max7219::Parser::Command::shared_ptr Console::Max7219::Parser::parse_echo()
+Console::Device::Max7219::Parser::Command::shared_ptr Console::Device::Max7219::Parser::parse_echo()
 {
   std::ostringstream os ; 
   while (true) {
@@ -96,7 +96,7 @@ Console::Max7219::Parser::Command::shared_ptr Console::Max7219::Parser::parse_ec
   return Command::shared_ptr(new Echo(os.str())) ;
 }
 
-Console::Max7219::Parser::Command::shared_ptr Console::Max7219::Parser::parse_shift()
+Console::Device::Max7219::Parser::Command::shared_ptr Console::Device::Max7219::Parser::parse_shift()
 {
   auto s = scan("xXoO0123456789ABCDEFabcdef") ;
   auto data = Ui::strto<uint16_t>(s) ;

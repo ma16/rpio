@@ -1,6 +1,6 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "../rpio.h"
+#include "../invoke.h"
 
 #include <chrono>
 #include <deque>
@@ -308,7 +308,7 @@ static void spi1Sample(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
 // --------------------------------------------------------------------
 
-void Console::Mcp3008::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+void Console::Device::Mcp3008::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     {
