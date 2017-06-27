@@ -1,4 +1,6 @@
 *~
 *.d
 *.o
+.*
+\#*
 cc/Console/rpio
