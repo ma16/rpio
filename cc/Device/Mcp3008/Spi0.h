@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #ifndef INCLUDE_Device_Mcp3008_Spi0_h
-#define INCLUDE_Device_Mcp3008_Spi0_h_
+#define INCLUDE_Device_Mcp3008_Spi0_h
 
 #include "Circuit.h"
 #include <Rpi/Spi0.h>
@@ -25,4 +25,4 @@ private:
 
 } ; } } 
 
-#endif // INCLUDE_Device_Mcp3008_Spi0_h_
+#endif // INCLUDE_Device_Mcp3008_Spi0_h
