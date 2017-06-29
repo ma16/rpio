@@ -72,7 +72,7 @@ info: measured frequency: 2.50e+08
 ```
 Pin 0 is connected to the reference voltage. All other pins are connected to ground.
 
-(The ARM counter runs at a frequency of 2.5e+8 MHz.)
+(The ARM counter runs at a frequency of 250 MHz.)
 
 Sample all sources. Monitoring is enabled:
 ```
@@ -146,7 +146,7 @@ These four commands do:
 * Enable GPIO pins 7..11 for SPI0, i.e. CE1, CE0, MISO, MOSI SCLK.
 * Disable the read-enable-mode (which is active by default).
 * Set the DLEN register to a value greater than 1. Otherwise there will be gaps between octets; which wouldn't be a problem for the MCP3008 either but slightly reduce the transfer rate.
-* Set SCLK pulse to 2.5e+8/186, which is about the maximum clock speed of 1.35e+6 MHz for the MCP3008 at 3 volts.
+* Set SCLK pulse to 2.5e+8/186, which is about the maximum clock speed of 1.35 MHz for the MCP3008 at 3 volts.
 
 The default setup uses CE0 for the chip select signal. That can be changed:
 ```
@@ -172,7 +172,7 @@ This provides a 3-tuple for each source: The sampled value, 32-bit DOUT/MISO dat
 
 ### Measure Throughput (Example)
 
-The maximum clock speed for the MCP3008 at 3 volts is 1.35e+6 MHz according to the datasheet. Hence the SCKL pulse shouldn't be set any higher than 2.5e+8/186.
+The maximum clock speed for the MCP3008 at 3 volts is 1.35e MHz according to the datasheet. Hence the SCKL pulse shouldn't be set any higher than 2.5e+8/186.
 ```
 $ ./rpio device mcp3008 spi0 rate 100000
 5.29e+04/s
