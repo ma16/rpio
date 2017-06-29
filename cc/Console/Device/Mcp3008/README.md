@@ -158,14 +158,14 @@ $ ./rpio spi0 control cs 1 # use CE1
 
 Sample all sources:
 ```
-$ sudo ./rpio device mcp3008 spi0 sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+$ ./rpio device mcp3008 spi0 sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
 1023 0 0 0 0 0 0 0 1023 0 0 0 0 0 0 0
 ```
 Pin 0 is connected to the reference voltage. All other pins are connected to ground.
 
 Sample all sources. Monitoring is enabled:
 ```
-sudo ./rpio device mcp3008 spi0 -m sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+$ ./rpio device mcp3008 spi0 -m sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
 (1023,fdffffc0,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (1023,fdffffc0,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) 
 ```
 This provides a 3-tuple for each source: The sampled value, 32-bit DOUT/MISO data that were received (hex) and an error (hex) code (0 on success). 
@@ -182,7 +182,7 @@ success: 100000
 ```
 This permits sampling at about 40 kHz with monitoring and at about 53 kHz w/o monitoring.
 
-When can try to increase the clock speed beyond the specified limits until we get errors:
+We might try to increase the clock speed beyond the specified limits until we get errors:
 ```
 $ ./rpio spi0 div 48
 $ ./rpio device mcp3008 spi0 -m rate 100000
@@ -195,13 +195,15 @@ error 0x4: 18
 success: 99954
 1.50e+05/s
 ```
-So, this model of the MCP3008 appears to be still working at 5.2 MHz (divider 48) with the 3.3 volts provided by the Raspberry Pi-2. That's however only half of the truth. Even though the transfer still works, the analog sampling doesn't keep up:
+So, this model of the MCP3008 appears to be still working at 5.2 MHz (divider 48) with 3.3 volts power supply and reference voltage provided by the Raspberry Pi-2. That's however only half of the truth. Even though the transfer still works, the analog sampling doesn't keep up:
 ```
 $ ./rpio spi0 div 48
 $ ./rpio device mcp3008 spi0 sample 8
 1018
-$./rpio spi0 div 54
+```
+A minimum clock speed of 4.5 MHz (divider 54) is required to acquire the analog sample:
+```
+$ ./rpio spi0 div 54
 $ ./rpio device mcp3008 spi0 sample 8
 1023 
 ```
-A minimum clock speed of 4,5 MHz (divider 54) is required to acquire the analog sample.
