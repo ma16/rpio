@@ -22,35 +22,75 @@ static uint32_t reverse(uint32_t i)
     return i ;
 }
 
-using Sample = Device::Mcp3008::Circuit::Sample ;
-
-boost::optional<Sample> Device::Mcp3008::Spi0::query(Circuit::Source source)
+Device::Mcp3008::Spi0::Sample24
+Device::Mcp3008::Spi0::query24(Circuit::Source source)
 {
-    if (!this->monitor)
-	return this->queryShort(source) ;
-    auto sample = this->queryLong(source) ;
-    if (sample.first.value() == sample.second.value())
-	return sample.first ;
-    return boost::none ;
-}
-
-Sample Device::Mcp3008::Spi0::queryShort(Circuit::Source source)
-{
-    uint8_t tx[4] = {0} ;
+    // 17-bit dialog
+    uint8_t tx[4] = {0} ; // MOSI: 1 + SOURCE:4 + ANY:12 (+ANY:7)
     tx[0] = static_cast<uint8_t>(0x80 | (source.value() << 3)) ;
-    uint8_t rx[4] ;
+    uint8_t rx[4] ; // MISO: Hi:6 + Lo:1 + MSB:10 (+Lo:7)
     this->spi.transceive(3,tx,rx) ;
-    return Circuit::Sample::coset(msb32(rx) >> 15) ; // pos. 7-16
+    // SPI0 transfers are a multiple of 8-bit. Thus, 17 bits become
+    // 24 bits and so we're going to receive also 7 LSB bits of the
+    // sample. We use 32-bit buffers (instead of 24-bit) because of
+    // the msb32() function.
+    return Sample24(msb32(rx)) ;
 }
 
-std::pair<Sample,Sample> Device::Mcp3008::Spi0::queryLong(Circuit::Source source)
+Device::Mcp3008::Circuit::Sample 
+Device::Mcp3008::Spi0::Sample24::fetch() const
 {
-    uint8_t tx[4] = {0} ;
-    tx[0] = static_cast<uint8_t>(0x80 | (source.value() << 3)) ;
-    uint8_t rx[4] ;
-    this->spi.transceive(4,tx,rx) ;
-    auto i = msb32(rx) ;
-    auto msb = Circuit::Sample::coset(        i  >> 15) ; // pos.  7-16
-    auto lsb = Circuit::Sample::coset(reverse(i) >> 16) ; // pos. 25-16
-    return std::make_pair(msb,lsb) ;
+    // pos. 7-16
+    return Circuit::Sample::coset(this->i >> 15) ;
 }
+
+Device::Mcp3008::Spi0::Error
+Device::Mcp3008::Spi0::Sample24::verify() const
+{
+    Error error ;
+    // 7-bit head
+    error.head = 0 != (0xfe000000 & (this->i ^ 0xfc000000)) ;
+    auto msb =         this->i  >> 15 ; // pos.  7-16
+    auto lsb = reverse(this->i) >> 16 ; // pos. 25-16
+    // 9 + 1 + 7 bit sample
+    error.mismatch = 0 != (0xff & (msb ^ lsb)) ;
+    error.tail = 0 ;
+    return error ;
+}
+
+
+Device::Mcp3008::Spi0::Sample32
+Device::Mcp3008::Spi0::query32(Circuit::Source source)
+{
+    // 26-bit dialog
+    uint8_t tx[4] = {0} ; // MOSI: 1 + SOURCE:4 + ANY:21 (+ANY:6)
+    tx[0] = static_cast<uint8_t>(0x80 | (source.value() << 3)) ;
+    uint8_t rx[4] ; // MISO: Hi:6 + Lo:1 + MSB:10 + LSB:9 (+Lo:6)
+    this->spi.transceive(4,tx,rx) ;
+    // SPI0 transfers are a multiple of 8-bit. Thus, 26 bits become
+    // 32 bits and so we're going to receive 6 additional Lo bits.
+    return Sample32(msb32(rx)) ;
+}
+
+Device::Mcp3008::Circuit::Sample 
+Device::Mcp3008::Spi0::Sample32::fetch() const
+{
+    // pos. 7-16
+    return Circuit::Sample::coset(this->i >> 15) ;
+}
+
+Device::Mcp3008::Spi0::Error
+Device::Mcp3008::Spi0::Sample32::verify() const
+{
+    Error error ;
+    // 7-bit head
+    error.head = 0 != (0xfe000000 & (this->i ^ 0xfc000000)) ;
+    // 9 + 1 + 9 bit sample
+    auto msb =         this->i  >> 15 ; // pos.  7-16
+    auto lsb = reverse(this->i) >> 16 ; // pos. 25-16
+    error.mismatch = 0 != (0x3ff & (msb ^ lsb)) ;
+    // 6-bit tail
+    error.tail = 0 != (0x3f & this->i) ;
+    return error ;
+}
+

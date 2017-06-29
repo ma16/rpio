@@ -20,7 +20,7 @@ using namespace Device::Mcp3008 ;
 static void bangRate(Rpi::Peripheral *rpi,Bang *host,bool monitor,Ui::ArgL *argL)
 {
     auto n = Ui::strto<size_t>(argL->pop()) ;
-    auto source = Ui::strto(argL->option("-s","8"),Circuit::Source()) ;
+    auto source = Ui::strto(argL->option("-s","0"),Circuit::Source()) ;
     argL->finalize() ;
 
     Bang::Record record ;
@@ -98,11 +98,12 @@ void bangInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << '\n'
 		  << "-m: enable monitoring to detect communication problems\n"
 		  << '\n'
-		  << "FREQ: ARM counter frequency\n"
+		  << "FREQ: ARM counter frequency that has been set up\n"
 		  << '\n'
 		  << "MODE : rate N [-s SOURCE]  # perform throughput test\n"
 		  << "     | sample SOURCE+      # read one or more samples\n" 
 		  << '\n'
+		  << "N - the number of consecutive samples to take\n" 
 		  << "SOURCE - the MCP3008-channel to sample (0..15)\n" ;
 	return ;
     }
@@ -159,56 +160,66 @@ void bangInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void spi0Rate(Spi0 *host,Ui::ArgL *argL)
+static void spi0Rate(Spi0 *host,bool monitor,Ui::ArgL *argL)
 {
-    if (argL->empty() || argL->peek() == "help")
-    {
-	std::cout << "arguments: N  # the number of consecutive samples to take\n"
-		  << std::flush ;
-	return ;
-    }
     auto n = Ui::strto<unsigned>(argL->pop()) ;
+    auto source = Ui::strto(argL->option("-s","0"),Circuit::Source()) ;
     argL->finalize() ;
-    auto t0 = std::chrono::steady_clock::now() ;
-    decltype(n) i ;
-    for (i=0 ; i<n ; ++i)
+
+    std::chrono::steady_clock::time_point t0,t1 ;
+    if (monitor)
     {
-	auto sample = host->query(Circuit::Source::make<0x8>()) ;
-	if (!sample)
+	std::vector<Device::Mcp3008::Spi0::Sample32> v(n) ;
+	t0 = std::chrono::steady_clock::now() ;
+	for (decltype(n) i=0 ; i<n ; ++i)
+	    v[i] = host->query32(source) ;
+	t1 = std::chrono::steady_clock::now() ;
+	decltype(n) array[0x8] = { 0 } ;
+	for (decltype(n) i=0 ; i<n ; ++i)
 	{
-	    std::cout << "Error at sample <" << i << '>' << std::endl ;
-	    break ;
+	    Neat::uint<unsigned,3> code = v[i].verify().code() ;
+	    ++array[code.value()] ;
 	}
+	for (unsigned code=1 ; code<0x8 ; ++code)
+	{
+	    if (array[code] > 0)
+		std::cout << "error 0x" << std::hex << code << ": "
+			  << std::dec << array[code] << '\n' ;
+	}
+	std::cout << "success: " << array[0] << '\n' ;
     }
-    auto t1 = std::chrono::steady_clock::now() ;
+    else
+    {
+	t0 = std::chrono::steady_clock::now() ;
+	for (decltype(n) i=0 ; i<n ; ++i)
+	    host->query24(source) ;
+	t1 = std::chrono::steady_clock::now() ;
+    }
+    
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
-    std::cout << i/std::chrono::duration<double>(t1-t0).count() << "/s" << std::endl ;
+    std::cout << n/std::chrono::duration<double>(t1-t0).count() << "/s" << std::endl ;
 }
     
-static void spi0Sample(Spi0 *host,Ui::ArgL *argL)
+static void spi0Sample(Spi0 *host,bool monitor,Ui::ArgL *argL)
 {
-    if (argL->empty() || argL->peek() == "help")
-    {
-	std::cout << "arguments: SOURCE+\n"
-		  << '\n'
-		  << "SOURCE+ : SOURCE | SOURCE SOURCE+\n"
-		  << std::flush ;
-	return ;
-    }
     auto source = Ui::strto(argL->pop(),Circuit::Source()) ;
     std::deque<decltype(source)> q(1,source) ;
-    while (!argL->empty()) {
+    while (!argL->empty())
+    {
 	q.push_back(Ui::strto(argL->pop(),Circuit::Source())) ;
     }
     argL->finalize() ;
-    for (auto source: q) {
-	auto sample = host->query(source) ;
-	if (!sample) {
-	    std::cout << "Error while sampling" ;
-	    break ;
+    for (auto source: q)
+    {
+	if (monitor)
+	{
+	    auto sample = host->query32(source) ;
+	    if (!sample.verify().ok())
+		std::cout << "Error code <" << 0 << '>' << std::endl ;
+	    std::cout << sample.fetch().value() << " " ;
 	}
-	std::cout << sample->value() << " " ;
+	else std::cout << host->query24(source).fetch().value() << " " ;
     }
     std::cout << std::endl ;
 }
@@ -218,20 +229,25 @@ static void spi0Invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (argL->empty() || argL->peek() == "help") {
 	std::cout << "arguments: [-m] MODE [help]\n"
 		  << '\n'
-		  << "-m: enable monitoring to detect communication errors\n"
+		  << "-m: enable monitoring to detect communication problems\n"
 		  << '\n'
-		  << "MODE :   rate  # perform throughput test\n"
-		  << "     | sample  # read one or more samples\n"
-		  << std::flush ;
+		  << "MODE : rate N [-s SOURCE]  # perform throughput test\n"
+		  << "     | sample SOURCE+      # read one or more samples\n" 
+		  << '\n'
+		  << "N - the number of consecutive samples to take\n" 
+		  << "SOURCE - the MCP3008-channel to sample (0..15)\n" ;
 	return ;
     }
   
     auto monitor = argL->pop_if("-m") ;
-    Spi0 host(rpi,monitor) ;
+    Spi0 host(rpi) ;
 
     auto arg = argL->pop() ;
-    if      (arg ==   "rate")   spi0Rate(&host,argL) ;
-    else if (arg == "sample") spi0Sample(&host,argL) ;
+    if (false) ;
+    
+    else if (arg ==   "rate")   spi0Rate(&host,monitor,argL) ;
+    else if (arg == "sample") spi0Sample(&host,monitor,argL) ;
+    
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
 
@@ -244,12 +260,16 @@ static void spi1Sample(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     if (!argL->empty() && (argL->peek() == "help"))
     {
-	std::cout << "arguments: [-m] [-s SPEED] [-c CS]\n"
+	std::cout << "arguments: [-m] [-s SPEED] [-c CS] MODE\n"
 		  << "\n"
 		  << "   -m: enable monitoring to detect communication errors\n"
 		  << "SPEED: divider to define SCLK speed (default 49)\n"
-		  << "   CS: bit-mask (0..7) for the chip-select pins (default 4 for CS#0)\n"
-		  << std::flush ;
+		  << "   CS: bit-mask (0..7) for chip-select pins (default 4 for CS#0)\n"
+		  << "\n"
+		  << "MODE : rate N [-s SOURCE]  # perform throughput test\n"
+		  << "     | sample SOURCE+      # read one or more samples\n" 
+		  << '\n'
+		  << "SOURCE - the MCP3008-channel to sample (0..15)\n" ;
 	return ;
     }
     auto monitor = argL->pop_if("-m") ;
