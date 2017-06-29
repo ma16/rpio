@@ -32,7 +32,7 @@ SOURCE :  0  # differential CH0 = IN+ CH1 = IN-
 
 ## Bit-Banging
 ```
-$ sudo ./rpio device mcp3008 bang 
+$ ./rpio device mcp3008 bang
 arguments: CS DIN DOUT CLK [-m] [-f FREQ] MODE
 
   CS: Pi's pin to feed MCP's   CS pin @10
@@ -42,11 +42,12 @@ DOUT: Pi's pin to read MCP's DOUT pin @12
 
 -m: enable monitoring to detect communication problems
 
-FREQ: ARM counter frequency
+FREQ: ARM counter frequency that has been set up
 
 MODE : rate N [-s SOURCE]  # perform throughput test
      | sample SOURCE+      # read one or more samples
 
+N - the number of consecutive samples to take
 SOURCE - the MCP3008-channel to sample (0..15)
 ```
 
@@ -61,7 +62,7 @@ For example, in order to set the maximum clock-speed (normally 250 MHz):
 $ ./rpio clock set on 0
 ```
 
-### Sample (Example)
+### Sample Data (Example)
 
 Sample all sources:
 ```
@@ -77,7 +78,7 @@ Sample all sources. Monitoring is enabled:
 ```
 $ ./rpio device mcp3008 bang 22 23 24 25 -m sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
 info: measured frequency: 2.50e+08
-(1009,1009,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (1023,1023,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) 
+(1023,1023,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (1023,1023,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) (0,0,0) 
 ```
 This provides a 3-tuple for each source: The MSB sample, the LSB sample and an error code (0 on success). The error codes are:
 
@@ -92,7 +93,7 @@ This provides a 3-tuple for each source: The MSB sample, the LSB sample and an e
 
 If monitoring is enabled then also the 9 LSB digits are transferred besides the 10 MSB digits. This increases the number of clock-pulses per transfer from 16 to 25, and thus, reduces the throughput. 
 
-### Throughput (Example)
+### Measure Throughput (Example)
 
 This implementation of bit-banging provides about 80.000 samples per second:
 ```
@@ -109,3 +110,98 @@ success: 100000
 5.08e+04/s
 ```
 The program performs error checks to verify whether the transfer was successful. In the example above, all checks cleared (error code 0).
+
+## Main Peripheral Controller (SPI0)
+```
+$ ./rpio device mcp3008 spi0
+arguments: [-m] MODE
+
+-m: enable monitoring to detect communication problems
+
+MODE : rate N [-s SOURCE]  # perform throughput test
+     | sample SOURCE+      # read one or more samples
+
+N - the number of consecutive samples to take
+SOURCE - the MCP3008-channel to sample (0..15)
+```
+Note: The peripheral SPI0 controller has to be set up beforehand (see example below).
+
+SPI0 deals with a multiple of 8-bit octets. If monitoring is enabled then 4 octets are transferred. Otherwise only 3 octets. An error code is provided if something went wrong. The error codes are:
+- Bit:0 - Set if the leading 7 (DOUT/MISO) digits are not 1111:110 (Binary).
+- Bit:1 - Set if the (DOUT/MISO) MSB value does not match the LSB value.
+- Bit:2 - Set if the trailing 6 (DOUT/MISO) digits are not zero.
+
+This implementation does not use DMA for SPI0 invocation (yet). SPI0 is used in direct mode only. The transfer is controlled by the CPU which includes busy loops for polling. That means, whenever the process is suspended by the operating system, this will affect the transfer (i.e. the timing). A single SPI dialog (SCLK,MOSI,MISO) is however safe to be not interrupted since the SPI serializer provides enough buffer space. The CS signals (CE0,CE1) can be delayed though.
+
+### Controller Setup (Example)
+
+Set up the SPI controller:
+```
+$ ./rpio gpio mode -l 7,8,9,10,11 0
+$ ./rpio spi0 control ren 0
+$ ./rpio spi0 dlen 2
+$ ./rpio spi0 div 186
+```
+These four commands do:
+* Enable GPIO pins 7..11 for SPI0, i.e. CE1, CE0, MISO, MOSI SCLK.
+* Disable the read-enable-mode (which is active by default).
+* Set the DLEN register to a value greater than 1. Otherwise there will be gaps between octets; which wouldn't be a problem for the MCP3008 either but slightly reduce the transfer rate.
+* Set SCLK pulse to 2.5e+8/186, which is about the maximum clock speed of 1.35e+6 MHz for the MCP3008 at 3 volts.
+
+The default setup uses CE0 for the chip select signal. That can be changed:
+```
+$ ./rpio spi0 control cs 0 # use CE0
+$ ./rpio spi0 control cs 1 # use CE1
+```
+
+### Sample Data (Example)
+
+Sample all sources:
+```
+$ sudo ./rpio device mcp3008 spi0 sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+1023 0 0 0 0 0 0 0 1023 0 0 0 0 0 0 0
+```
+Pin 0 is connected to the reference voltage. All other pins are connected to ground.
+
+Sample all sources. Monitoring is enabled:
+```
+sudo ./rpio device mcp3008 spi0 -m sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+(1023,fdffffc0,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (1023,fdffffc0,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) (0,fc000000,0) 
+```
+This provides a 3-tuple for each source: The sampled value, 32-bit DOUT/MISO data that were received (hex) and an error (hex) code (0 on success). 
+
+### Measure Throughput (Example)
+
+The maximum clock speed for the MCP3008 at 3 volts is 1.35e+6 MHz according to the datasheet. Hence the SCKL pulse shouldn't be set any higher than 2.5e+8/186.
+```
+$ ./rpio device mcp3008 spi0 rate 100000
+5.29e+04/s
+$ ./rpio device mcp3008 spi0 -m rate 100000
+success: 100000
+4.03e+04/s
+```
+This permits sampling at about 40 kHz with monitoring and at about 53 kHz w/o monitoring.
+
+When can try to increase the clock speed beyond the specified limits until we get errors:
+```
+$ ./rpio spi0 div 48
+$ ./rpio device mcp3008 spi0 -m rate 100000
+success: 100000
+1.45e+05/s
+$ ./rpio spi0 div 47
+$ ./rpio device mcp3008 spi0 -m rate 100000
+error 0x2: 28
+error 0x4: 18
+success: 99954
+1.50e+05/s
+```
+So, this model of the MCP3008 appears to be still working at 5.2 MHz (divider 48) with the 3.3 volts provided by the Raspberry Pi-2. That's however only half of the truth. Even though the transfer still works, the analog sampling doesn't keep up:
+```
+$ ./rpio spi0 div 48
+$ ./rpio device mcp3008 spi0 sample 8
+1018
+$./rpio spi0 div 54
+$ ./rpio device mcp3008 spi0 sample 8
+1023 
+```
+A minimum clock speed of 4,5 MHz (divider 54) is required to acquire the analog sample.
