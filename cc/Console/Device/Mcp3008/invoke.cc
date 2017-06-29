@@ -198,7 +198,8 @@ static void spi0Rate(Spi0 *host,bool monitor,Ui::ArgL *argL)
     
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
-    std::cout << n/std::chrono::duration<double>(t1-t0).count() << "/s" << std::endl ;
+    auto rate = n/std::chrono::duration<double>(t1-t0).count() ;
+    std::cout << rate << "/s" << std::endl ;
 }
     
 static void spi0Sample(Spi0 *host,bool monitor,Ui::ArgL *argL)
@@ -215,11 +216,15 @@ static void spi0Sample(Spi0 *host,bool monitor,Ui::ArgL *argL)
 	if (monitor)
 	{
 	    auto sample = host->query32(source) ;
-	    if (!sample.verify().ok())
-		std::cout << "Error code <" << 0 << '>' << std::endl ;
-	    std::cout << sample.fetch().value() << " " ;
+	    std::cout << "("
+		      << std::dec << sample.fetch().value() 
+		      << ','
+		      << std::hex << sample.i
+		      << ','
+		      << std::hex << sample.verify().code().value()
+		      << ") " ;
 	}
-	else std::cout << host->query24(source).fetch().value() << " " ;
+	else std::cout << host->query24(source).fetch().value() << ' ' ;
     }
     std::cout << std::endl ;
 }
@@ -227,7 +232,7 @@ static void spi0Sample(Spi0 *host,bool monitor,Ui::ArgL *argL)
 static void spi0Invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") {
-	std::cout << "arguments: [-m] MODE [help]\n"
+	std::cout << "arguments: [-m] MODE\n"
 		  << '\n'
 		  << "-m: enable monitoring to detect communication problems\n"
 		  << '\n'
