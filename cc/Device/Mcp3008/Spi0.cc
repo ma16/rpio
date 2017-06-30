@@ -58,7 +58,6 @@ Device::Mcp3008::Spi0::Sample24::verify() const
     return error ;
 }
 
-
 Device::Mcp3008::Spi0::Sample32
 Device::Mcp3008::Spi0::query32(Circuit::Source source)
 {
