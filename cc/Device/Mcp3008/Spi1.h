@@ -4,34 +4,54 @@
 #define INCLUDE_Device_Mcp3008_Spi1_h
 
 #include "Circuit.h"
-#include <Neat/U32.h>
 #include <Neat/uint.h>
 #include <Rpi/Spi1.h>
-#include <boost/optional.hpp>
 
 namespace Device { namespace Mcp3008 {
 
 struct Spi1
 {
-    using    Cs = Neat::uint<uint32_t,Neat::U32::Sig<Rpi::Spi1::   Cs>()> ;
-    using Speed = Neat::uint<uint32_t,Neat::U32::Sig<Rpi::Spi1::Speed>()> ;
-  
-    static uint32_t makeTx(Circuit::Source source) ;
-
-    static void setup(Rpi::Spi1*,Speed,Cs,bool full) ;
- 
-    // requires setup(full=false)
-    static Circuit::Sample evalRx(uint32_t) ;
-  
-    enum : int
+    struct Error 
     {
-	Success    =  0,
-	WrongStart = -1, // sample must start with zero-bit
-	Mismatch   = -2, // MSB sample doesn't match LSB sample
-    } ;
+        Error() : head(0),mismatch(0) {} 
+	
+	uint8_t head      : 1 ; // invalid DOUT start sequence
+	uint8_t mismatch  : 1 ; // MSB vs LSB mismatch
 
-    // requires setup(full=true)
-    static int evalRx(uint32_t,Circuit::Sample*) ;
+	Neat::uint<unsigned,2> code() const
+	{
+	    auto code = (head << 0) | (mismatch << 1) ;
+	    return Neat::uint<unsigned,2>::coset((unsigned)code) ;
+	}
+
+	bool ok() const { return head == 0 && mismatch == 0 ; }
+    } ;
+    
+    struct Sample17
+    {
+	uint32_t i ;
+	Sample17() : i(0) {}
+	Sample17(uint32_t i) : i(i) {}
+	Error verify() const ;
+	Circuit::Sample fetch() const ;
+    } ;
+    Sample17 query17(Circuit::Source) ;
+  
+    struct Sample26
+    {
+	uint32_t i ;
+	Sample26() : i(0) {}
+	Sample26(uint32_t i) : i(i) {}
+	Error verify() const ;
+	Circuit::Sample fetch() const ;
+    } ;
+    Sample26 query26(Circuit::Source) ;
+  
+    Spi1(Rpi::Peripheral *rpi) : spi(Rpi::Spi1(rpi)) {}
+    
+private:
+
+    Rpi::Spi1 spi ;
 } ;
 
 } } 

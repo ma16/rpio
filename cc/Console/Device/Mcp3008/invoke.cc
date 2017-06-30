@@ -17,6 +17,18 @@ using namespace Device::Mcp3008 ;
 
 // --------------------------------------------------------------------
 
+static std::vector<Circuit::Source> scanSources(Ui::ArgL *argL)
+{
+    auto source = Ui::strto(argL->pop(),Circuit::Source()) ;
+    std::deque<decltype(source)> q(1,source) ;
+    while (!argL->empty())
+	q.push_back(Ui::strto(argL->pop(),Circuit::Source())) ;
+    argL->finalize() ;
+    return std::vector<Circuit::Source>(q.begin(),q.end()) ;
+}
+
+// --------------------------------------------------------------------
+
 static void bangRate(Rpi::Peripheral *rpi,Bang *host,bool monitor,Ui::ArgL *argL)
 {
     auto n = Ui::strto<size_t>(argL->pop()) ;
@@ -62,14 +74,8 @@ static void bangRate(Rpi::Peripheral *rpi,Bang *host,bool monitor,Ui::ArgL *argL
     
 static void bangSample(Rpi::Peripheral*,Bang *host,bool monitor,Ui::ArgL *argL)
 {
-    auto source = Ui::strto(argL->pop(),Circuit::Source()) ;
-    std::deque<decltype(source)> q(1,source) ;
-    while (!argL->empty())
-    {
-	q.push_back(Ui::strto(argL->pop(),Circuit::Source())) ;
-    }
-    argL->finalize() ;
-    for (auto source: q)
+    auto sourceV = scanSources(argL) ;
+    for (auto source: sourceV)
     {
 	auto sample = host->query(source,monitor) ;
 	if (monitor)
@@ -204,14 +210,8 @@ static void spi0Rate(Spi0 *host,bool monitor,Ui::ArgL *argL)
     
 static void spi0Sample(Spi0 *host,bool monitor,Ui::ArgL *argL)
 {
-    auto source = Ui::strto(argL->pop(),Circuit::Source()) ;
-    std::deque<decltype(source)> q(1,source) ;
-    while (!argL->empty())
-    {
-	q.push_back(Ui::strto(argL->pop(),Circuit::Source())) ;
-    }
-    argL->finalize() ;
-    for (auto source: q)
+    auto sourceV = scanSources(argL) ;
+    for (auto source: sourceV)
     {
 	if (monitor)
 	{
@@ -231,7 +231,8 @@ static void spi0Sample(Spi0 *host,bool monitor,Ui::ArgL *argL)
     
 static void spi0Invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    if (argL->empty() || argL->peek() == "help") {
+    if (argL->empty() || argL->peek() == "help")
+    {
 	std::cout << "arguments: [-m] MODE\n"
 		  << '\n'
 		  << "-m: enable monitoring to detect communication problems\n"
@@ -246,7 +247,8 @@ static void spi0Invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     auto monitor = argL->pop_if("-m") ;
     Spi0 host(rpi) ;
-
+    // [todo] some kind of diagnostic if clock isn't enabled
+    
     auto arg = argL->pop() ;
     if (false) ;
     
@@ -258,66 +260,98 @@ static void spi0Invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void spi1Sample(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void spi1Rate(Spi1 *host,bool monitor,Ui::ArgL *argL)
 {
-    // note: pin mode (ALT4) has to be enabled by user
-    // i.e. CS0 (18), CS1 (17), CS2 (16), SCLK (21), MISO (19), MOSI (20)
-    
-    if (!argL->empty() && (argL->peek() == "help"))
-    {
-	std::cout << "arguments: [-m] [-s SPEED] [-c CS] MODE\n"
-		  << "\n"
-		  << "   -m: enable monitoring to detect communication errors\n"
-		  << "SPEED: divider to define SCLK speed (default 49)\n"
-		  << "   CS: bit-mask (0..7) for chip-select pins (default 4 for CS#0)\n"
-		  << "\n"
-		  << "MODE : rate N [-s SOURCE]  # perform throughput test\n"
-		  << "     | sample SOURCE+      # read one or more samples\n" 
-		  << '\n'
-		  << "SOURCE - the MCP3008-channel to sample (0..15)\n" ;
-	return ;
-    }
-    auto monitor = argL->pop_if("-m") ;
-    auto speed = Ui::strto(argL->option("-s","49"),Spi1::Speed()) ;
-    // ...on Pi-0: 4 Mhz SCLK, 200 khz sample rate
-    auto cs = Ui::strto(argL->option("-c","4"),Spi1::Cs()) ;
-    // ...CS#0 (pin 18)
+    auto n = Ui::strto<unsigned>(argL->pop()) ;
+    auto source = Ui::strto(argL->option("-s","0"),Circuit::Source()) ;
     argL->finalize() ;
 
-    // prepare room for tx/rx data
-    std::deque<uint32_t> tx ;
-    for (Circuit::Source::Unsigned i=0 ; i<16 ; ++i)
+    std::chrono::steady_clock::time_point t0,t1 ;
+    if (monitor)
     {
-	auto source = Circuit::Source::make(i) ;
-	tx.push_back(Spi1::makeTx(source)) ;
+	std::vector<Device::Mcp3008::Spi1::Sample26> v(n) ;
+	t0 = std::chrono::steady_clock::now() ;
+	for (decltype(n) i=0 ; i<n ; ++i)
+	    v[i] = host->query26(source) ;
+	t1 = std::chrono::steady_clock::now() ;
+	decltype(n) array[0x4] = { 0 } ;
+	for (decltype(n) i=0 ; i<n ; ++i)
+	{
+	    Neat::uint<unsigned,2> code = v[i].verify().code() ;
+	    ++array[code.value()] ;
+	}
+	for (unsigned code=1 ; code<0x4 ; ++code)
+	{
+	    if (array[code] > 0)
+		std::cout << "error 0x" << std::hex << code << ": "
+			  << std::dec << array[code] << '\n' ;
+	}
+	std::cout << "success: " << array[0] << '\n' ;
     }
-    std::vector<uint32_t> rx ; rx.reserve(tx.size()) ;
-
-    // init SPI
-    Rpi::Spi1 spi(rpi) ;
-    Spi1::setup(&spi,speed,cs,monitor) ;
-
-    // transceive data
-    spi.xfer(tx,&rx,false) ; // [todo] arrays are more generic, see Spi0
-
-    // depending on the monitoring flag, we get 17- or 26-bit words
-    for (auto w: rx)
+    else
+    {
+	t0 = std::chrono::steady_clock::now() ;
+	for (decltype(n) i=0 ; i<n ; ++i)
+	    host->query17(source) ;
+	t1 = std::chrono::steady_clock::now() ;
+    }
+    
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    auto rate = n/std::chrono::duration<double>(t1-t0).count() ;
+    std::cout << rate << "/s" << std::endl ;
+}
+    
+static void spi1Sample(Spi1 *host,bool monitor,Ui::ArgL *argL)
+{
+    auto sourceV = scanSources(argL) ;
+    for (auto source: sourceV)
     {
 	if (monitor)
 	{
-	    Circuit::Sample sample ;
-	    auto result = Spi1::evalRx(w,&sample) ;
-	    if (result == Spi1::Success)
-	    {
-		std::cout << sample.value() << ' ' ;
-	    }
-	    else std::cout << "error(" << result << ") " ;
+	    auto sample = host->query26(source) ;
+	    std::cout << "("
+		      << std::dec << sample.fetch().value() 
+		      << ','
+		      << std::hex << (~(~0 << 26) & sample.i)
+		      << ','
+		      << std::hex << sample.verify().code().value()
+		      << ") " ;
 	}
-	else std::cout << Spi1::evalRx(w).value() << ' ' ;
+	else std::cout << host->query17(source).fetch().value() << ' ' ;
     }
     std::cout << std::endl ;
 }
+
+static void spi1Invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    if (argL->empty() || argL->peek() == "help")
+    {
+	std::cout << "arguments: [-m] MODE\n"
+		  << '\n'
+		  << "-m: enable monitoring to detect communication problems\n"
+		  << '\n'
+		  << "MODE : rate N [-s SOURCE]  # perform throughput test\n"
+		  << "     | sample SOURCE+      # read one or more samples\n" 
+		  << '\n'
+		  << "N - the number of consecutive samples to take\n" 
+		  << "SOURCE - the MCP3008-channel to sample (0..15)\n" ;
+	return ;
+    }
+  
+    auto monitor = argL->pop_if("-m") ;
+
+    Spi1 host(rpi) ;
+
+    auto arg = argL->pop() ;
+    if (false) ;
     
+    else if (arg ==   "rate")   spi1Rate(&host,monitor,argL) ;
+    else if (arg == "sample") spi1Sample(&host,monitor,argL) ;
+    
+    else throw std::runtime_error("not supported option:<"+arg+'>') ;
+}
+
 // --------------------------------------------------------------------
 
 void Console::Device::Mcp3008::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -354,7 +388,7 @@ void Console::Device::Mcp3008::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
       
     else if (arg == "bang") bangInvoke(rpi,argL) ;
     else if (arg == "spi0") spi0Invoke(rpi,argL) ;
-    else if (arg == "spi1") spi1Sample(rpi,argL) ;
+    else if (arg == "spi1") spi1Invoke(rpi,argL) ;
     
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }

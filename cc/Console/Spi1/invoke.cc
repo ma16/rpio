@@ -63,11 +63,13 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	else if (arg == "rx-msb"  ) set<Rpi::Spi1::RxMsb  >(&c1,argL) ;
 	else if (arg == "rx-post" ) set<Rpi::Spi1::RxPost >(&c0,argL) ;
 	else if (arg == "speed"   ) set<Rpi::Spi1::Speed  >(&c0,argL) ;
-	else if (arg == "tx-cx"   ) set<Rpi::Spi1::TxCs   >(&c0,argL) ;
+	else if (arg == "tx-cs"   ) set<Rpi::Spi1::TxCs   >(&c0,argL) ;
 	else if (arg == "tx-lh"   ) set<Rpi::Spi1::TxLh   >(&c0,argL) ;
 	else if (arg == "tx-hold" ) set<Rpi::Spi1::TxHold >(&c0,argL) ;
 	else if (arg == "tx-len"  ) set<Rpi::Spi1::TxLen  >(&c0,argL) ;
 	else if (arg == "tx-msb"  ) set<Rpi::Spi1::TxMsb  >(&c0,argL) ;
+
+	// [todo] support absolute value, at least 0/reset
 
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }

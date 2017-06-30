@@ -182,6 +182,8 @@ namespace Rpi { struct Spi1
   
   // ------------------------------------------------------------------
 
+  uint32_t xfer(uint32_t tx) ;
+  
   void xfer(std::deque<uint32_t> const &tx,std::vector<uint32_t> *rx,bool continuous) ;
   
 private:

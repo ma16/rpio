@@ -125,7 +125,7 @@ MODE : rate N [-s SOURCE]  # perform throughput test
 N - the number of consecutive samples to take
 SOURCE - the MCP3008-channel to sample (0..15)
 ```
-Note: The peripheral SPI0 controller has to be set up beforehand (see example below).
+Note: The SPI0 controller has to be set up beforehand (see example below).
 
 SPI0 deals with a multiple of 8-bit octets. If monitoring is enabled then 4 octets are transferred. Otherwise only 3 octets. An error code is provided if something went wrong. The error codes are:
 - Bit:0 - Set if the leading 7 (DOUT/MISO) digits are not 1111:110 (Binary).
@@ -136,7 +136,7 @@ This implementation does not (yet) use DMA for SPI0 invocation. SPI0 is used in 
 
 ### Controller Setup (Example)
 
-Set up the SPI controller:
+Set up the SPI0 controller:
 ```
 $ ./rpio gpio mode -l 7,8,9,10,11 0
 $ ./rpio spi0 control ren 0
@@ -204,9 +204,117 @@ $ ./rpio device mcp3008 spi0 sample 8
 ```
 Instead of the maximum count of 1023, the count is only 1018.
 
-A minimum clock speed of 4.5 MHz (divider 54) solves the problem:
+A clock speed of 4.5 MHz (divider 54) solves the problem:
 ```
 $ ./rpio spi0 div 54
 $ ./rpio device mcp3008 spi0 sample 8
 1023 
+```
+
+## Auxilliary Peripheral Controller (SPI1)
+```
+$ ./rpio device mcp3008 spi1
+arguments: [-m] MODE
+
+-m: enable monitoring to detect communication problems
+
+MODE : rate N [-s SOURCE]  # perform throughput test
+     | sample SOURCE+      # read one or more samples
+
+N - the number of consecutive samples to take
+SOURCE - the MCP3008-channel to sample (0..15)
+```
+
+Note: The SPI1 controller has to be set up beforehand (see example below).
+
+If monitoring is enabled then 26 bits are transferred. Otherwise only 17 bits. An error code is provided if something went wrong. The error codes are:
+- Bit:0 - Set if the leading 7 (DOUT/MISO) digits are not 1111:110 (Binary).
+- Bit:1 - Set if the (DOUT/MISO) MSB value does not match the LSB value.
+
+SPI1 does not support DMA. So it is used in direct mode. That is, the transfer is controlled by the CPU, which includes busy loops for polling. Whenever the process is suspended by the operating system, this will affect the transfer (i.e. the timing). A single SPI dialog (SCLK,MOSI,MISO) is however safe to be not interrupted since the SPI serializer provides enough buffer space. The CS signals (CS0,CS1,CS2) can be delayed though.
+
+### Controller Setup (Example)
+
+The SPI1 controller needs to be enabled by Raspbian at boot time.
+```
+$ grep spi1 /boot/config.txt 
+dtoverlay=spi1-1cs
+```
+
+Enabling the controller thru the Mailbox interface ([raspberrypi.org](https://www.raspberrypi.org/forums/viewtopic.php?f=44&t=187187)) didn't work out yet.
+
+Set up the SPI1 controller:
+```
+$ ./rpio gpio mode -l 16,17,18,19,20,21 4
+$ ./rpio spi1 control tx-msb 1 rx-msb 1 speed 92
+```
+
+These commands do:
+* Enable GPIO pins 16..21 for SPI1, i.e. CS2,CS1,CS0,MISO,MOSI and SCLK.
+* Transceive MSB first; set SCLK pulse to 125e+6/(92+1), which is about the maximum clock speed of 1.35 MHz for the MCP3008 at 3 volts.
+
+In the default setup, chip select signals CS0-2 are (concurrently) enabled. That can be changed:
+```
+$ ./rpio spi1 control cs#0 0  #  enable CS0
+$ ./rpio spi1 control cs#0 1  # disable CS0
+$ ./rpio spi1 control cs#1 0  #  enable CS1
+$ ./rpio spi1 control cs#1 1  # disable CS1
+$ ./rpio spi1 control cs#2 0  #  enable CS2
+$ ./rpio spi1 control cs#2 1  # disable CS2
+```
+
+### Sample Data (Example)
+
+Sample all sources:
+```
+$ ./rpio device mcp3008 spi1 sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+1023 0 0 0 0 0 0 0 1023 0 0 0 0 0 0 0
+```
+Pin 0 is connected to the reference voltage. All other pins are connected to ground.
+
+Sample all sources. Monitoring is enabled:
+```
+$ ./rpio device mcp3008 spi1 -m sample 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+(1023,3f7ffff,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (1023,3f7ffff,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0) (0,3f00000,0)
+```
+This provides a 3-tuple for each source: The sampled value, 32-bit DOUT/MISO data that were received (hex) and an error (hex) code (0 on success). 
+
+### Measure Throughput (Example)
+
+As mentioned before, the maximum clock speed for the MCP3008 at 3 volts is 1.35e MHz (according to the datasheet). Hence the SCLK pulse shouldn't be set any higher than 2.5e+8/186.
+```
+$ ./rpio device mcp3008 spi0 rate 100000
+6.59e+04/s
+$ ./rpio device mcp3008 spi0 -m rate 100000
+success: 100000
+4.58e+04/s
+```
+This permits sampling at about 46k/s with monitoring enabled and at about 66k/s w/o monitoring.
+
+We might try to increase the clock speed beyond the specified limits until we get errors:
+```
+$ ./rpio spi1 control speed 15
+$ ./rpio device mcp3008 spi1 -m rate 100000
+success: 100000
+2.33e+05/s
+$ ./rpio spi1 control speed 14
+$ ./rpio device mcp3008 spi1 -m rate 100000
+error 0x2: 2
+success: 99998
+2.43e+05/s
+```
+So, this model of the MCP3008 appears to be still working at 7.8 MHz (divider 15) with 3.3 volts power supply. That's however only half of the truth. Even though the transfer still works, the analog sampling doesn't keep up:
+```
+$ ./rpio spi1 control speed 15
+$ ./rpio device mcp3008 spi1 -m sample 8
+(839,3f68f8b,0) 
+
+```
+Instead of the maximum count of 1023, the count is only 839.
+
+A clock speed of 3.6 MHz (divider 34) solves the problem:
+```
+$ ./rpio spi1 control speed 34
+$ ./rpio device mcp3008 spi1 -m sample 8
+(1023,3f7ffff,0) 
 ```
