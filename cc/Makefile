@@ -9,10 +9,11 @@ CFLAGS=\
 	-g \
 	-I. \
 	-O2 \
+	-pedantic \
 	-std=c++11 \
 	-Wall \
-	-Wextra -pedantic \
 	-Wconversion \
+	-Wextra \
 	-Wsign-conversion \
 	-Wstrict-aliasing
 
