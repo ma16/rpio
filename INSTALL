@@ -1,0 +1,88 @@
+INSTALLATION NOTES
+
+The project provides only the source code and needs to be compiled in order to create an executable tool. The source is written in C++11. The platform must be POSIX compliant (e.g. Raspbian) and needs to support /dev/mem and /dev/vcio. The tool runs in userland. 
+
+Contributions: This project uses the Boost library (see http://www.boost.org).
+
+SETUP INSTRUCTIONS
+
+$ sudo apt-get -y install libboost-dev 
+$ wget https://github.com/ma16/rpio/archive/master.zip
+$ unzip master
+$ cd rpio-master/cc
+$ make -j6
+$ Console/rpio
+
+The last line should give you a diagnostic message with the supported options. The program needs to be executed as root unless the permissions of /dev/mem and /dev/vcio are changed.
+
+Notes:
+* At the time of writing, Raspbian installed libbost1.55. The package installation may take a few minutes.
+* Since a 4-core ARM is used, make is executed with 6 threads (-j6). Still, it may take several minutes until make finishes.
+
+RASPBIAN INSTALLATION
+
+The following description may be helpful if you install Raspbian for the first time. A (fresh) Raspbian image (2017-04-10) is used. The SD card, which will be used on the Raspberry Pi, is prepared beforehand on a Linux desktop (as /dev/sdX where X is a wildcard for the proper device).
+
+Copy Image:
+
+$ wget http://downloads.raspberrypi.org/raspbian/images/raspbian-2017-04-10/2017-04-10-raspbian-jessie.zip
+$ unzip -p 2017-04-10-raspbian-jessie.zip | sudo dd of=/dev/sdX bs=4096 status=progress
+
+Headless Pi with SSHD (WLAN):
+
+$ sudo mkdir -p /media/pi
+$ sudo mount /dev/sdX1 /media/pi
+$ sudo touch /media/pi/ssh
+$ sudo umount /media/pi
+$ sudo mount /dev/sdX2 /media/pi
+sudo tee -a /media/pi/etc/wpa_supplicant/wpa_supplicant.conf << EOF
+network={
+    ssid="APN"
+    psk="PASSWORD"
+}
+EOF
+$ sudo umount /media/pi
+$ sudo rmdir /media/pi
+
+Where /dev/sdX is the SD card; APN and PASSWORD are the WLAN login details.
+
+Boot for the first time:
+
+The SD card is inserted into a Raspberry Pi-2 (BCM2836) and the Pi is booted up. Beside others, the file system is expanded automatially to cover the full SD card size. It may take a moment.
+
+Login if you use the console. Start up a terminal if you use the GUI. Remote connect with ssh if sshd was already set up. The default hostname is raspberrypi, the user is "pi" and the password is "raspberry".
+
+E.g.
+$ ssh pi@raspberrypi
+[raspberry]
+
+Change password:
+
+$ passwd
+[raspberry]
+[new-password]
+[new-password]
+
+In case you need to set up SSH and WLAN (if not already done):
+
+$ sudo /etc/init.d/ssh start
+$ sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf << EOF
+network={
+    ssid="APN"
+    psk="PASSWORD"
+}
+EOF
+
+Change hostname (here: "demopi") to prevent conflicts with other Raspberry Pis (if any):
+
+$ echo demopi | sudo tee /etc/hostname
+$ sudo sed -i s/raspberrypi/demopi/ /etc/hosts
+$ sudo reboot
+$ ssh pi@demopi
+[new-password]
+
+You may want to invoke raspi-config instead to make these changes and for further setups. If your system is connected to the internet, you may want to consider also additional security measures.
+
+REFERENCE
+
+This project including this file is hosted at https://github.com/ma16/rpio.
