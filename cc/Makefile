@@ -32,7 +32,6 @@ LSRC=\
 	Console/Bang/invoke.cc \
 	Console/Clock/invoke.cc \
 	Console/Cp/invoke.cc \
-	Console/Device/Ads1115/Host.cc \
 	Console/Device/Ads1115/invoke.cc \
 	Console/Device/invoke.cc \
 	Console/Device/Mcp3008/invoke.cc \
@@ -64,6 +63,7 @@ LSRC=\
 	Console/SpiSlave/invoke.cc \
 	Console/Throughput/Buffer.cc \
 	Console/Throughput/invoke.cc \
+	Device/Ads1115/Bang.cc \
 	Device/Mcp3008/Bang.cc \
 	Device/Mcp3008/Spi0.cc \
 	Device/Mcp3008/Spi1.cc \
