@@ -5,6 +5,7 @@
 // hide as many details of the Raspberry Pi as possible).
 //
 // Levels: get pin level
+// Mode:   pin function mode
 // Recent: get last recorded timer tick
 // Reset:  set GPIO pin level to Low
 // Set:    set GPIO pin level to High
@@ -33,7 +34,7 @@ struct Bang
 {
     struct Command
     {
-	enum class Choice { Levels,Recent,Reset,Set,Sleep,Time,Wait } ;
+	enum class Choice { Levels,Mode,Recent,Reset,Set,Sleep,Time,Wait } ;
 	
 	Choice choice ;
 	
@@ -43,6 +44,15 @@ struct Bang
 	    friend Bang ;
 	    uint32_t *pins ;
 	    Levels(uint32_t *pins) : pins(pins) {}
+	} ;
+	    
+	class Mode
+	{
+	    friend Command ;
+	    friend Bang ;
+	    Rpi::Pin pin ;
+	    Rpi::Gpio::Mode mode ;
+	    Mode(Rpi::Pin pin,Rpi::Gpio::Mode mode) : pin(pin), mode(mode) {}
 	} ;
 	    
 	class Recent
@@ -101,6 +111,7 @@ struct Bang
 	    friend Bang ;
 	    
 	    Levels levels ;
+	    Mode     mode ;
 	    Recent recent ;
 	    Reset   reset ;
 	    Set       set ;
@@ -109,6 +120,7 @@ struct Bang
 	    Wait     wait ;
 	    
 	    Value(Levels const& levels) : levels(levels) {}
+	    Value(Mode   const&   mode) :   mode  (mode) {}
 	    Value(Recent const& recent) : recent(recent) {}
 	    Value(Reset  const&  reset) : reset  (reset) {}
 	    Value(Set    const&    set) : set      (set) {}
@@ -125,6 +137,11 @@ struct Bang
 	static Command levels(uint32_t *pins)
 	{
 	    return Command(Choice::Levels,Levels(pins)) ;
+	}
+
+	static Command mode(Rpi::Pin pin,Rpi::Gpio::Mode mode)
+	{
+	    return Command(Choice::Mode,Mode(pin,mode)) ;
 	}
 
 	static Command recent(uint32_t *ticks)
@@ -169,6 +186,7 @@ struct Bang
 	switch (c.choice)
 	{
 	case Command::Choice::Levels : levels(c.value.levels) ; break ;
+	case Command::Choice::Mode   :   mode(c.value.  mode) ; break ;
 	case Command::Choice::Recent : recent(c.value.recent) ; break ;
 	case Command::Choice::Reset  :  reset(c.value. reset) ; break ;
 	case Command::Choice::Set    :    set(c.value.   set) ; break ;
@@ -197,6 +215,22 @@ struct Bang
 	void levels(uint32_t *pins)
 	{
 	    q.push_back(Command::levels(pins)) ;
+	}
+
+	void low(Rpi::Pin pin)
+	{
+	    q.push_back(Command::reset(1u<<pin.value())) ; // [todo] drop
+	    q.push_back(Command::mode(pin,Rpi::Gpio::Mode::Out)) ;
+	}
+
+	void mode(Rpi::Pin pin,Rpi::Gpio::Mode mode)
+	{
+	    q.push_back(Command::mode(pin,mode)) ;
+	}
+
+	void off(Rpi::Pin pin)
+	{
+	    q.push_back(Command::mode(pin,Rpi::Gpio::Mode::In)) ;
 	}
 
 	void recent(uint32_t *ticks)
@@ -237,6 +271,11 @@ private:
     void levels(Command::Levels const &c)
     {
 	(*c.pins) = this->gpio.getLevels() ;
+    }
+
+    void mode(Command::Mode const &c)
+    {
+	this->gpio.setMode(c.pin,c.mode) ;
     }
 
     void reset(Command::Reset const &c)

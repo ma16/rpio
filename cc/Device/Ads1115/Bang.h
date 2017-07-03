@@ -24,8 +24,7 @@
 #define INCLUDE_Device_Ads1115_Host_h
 
 #include <Neat/Enum.h>
-#include <Rpi/Counter.h>
-#include <Rpi/Gpio.h>
+#include <RpiExt/Bang.h>
 #include <boost/optional.hpp>
 
 namespace Device { namespace Ads1115 {
@@ -53,12 +52,23 @@ struct Bang
 	T hdsta ; // (min) hold time after repeated START condition.
 	T susto ; // (min) stop condition setup time
 	T sudat ; // (min) data setup time
+	T hddat ; // (min) data hold time
 	T low   ; // (min) SCL clock low period
 	T high  ; // (min) SCL clock high period
 	T fall  ; // (max) clock/data fall time
 	T rise  ; // (max) clock/data rise time
 
-	// clock cycle: 1/400 kHz <= rise + high + fall + low <= 1/10 kHz
+	Timing(
+	    T buf,   T hdsta, T susto, 
+	    T sudat, T hddat, T low,   
+	    T high,  T fall,  T rise)
+	    :
+	    buf    (buf), hdsta(hdsta), susto(susto),
+	    sudat(sudat), hddat(hddat), low    (low),
+	    high  (high), fall  (fall), rise (rise) {}
+
+
+        // clock cycle: 1/400 kHz <= rise + high + fall + low <= 1/10 kHz
 
 	// [todo] verify that SCL period >= 10 kHz (<=100us)
 	// [todo] what is the maximum delay we can expect an ack and how long is the ack?
@@ -67,7 +77,7 @@ struct Bang
     static Timing<float> const& default_timing()
     {
 	static Timing<float> t =
-	{ 6e-7f,6e-7f,6e-7f,1e-7f,13e-7f,6e-7f,3e-7f,3e-7f } ;
+	{ 6e-7f,6e-7f,6e-7f,1e-7f,0,13e-7f,6e-7f,3e-7f,3e-7f } ;
 	return t ;
     }
     
@@ -93,9 +103,32 @@ struct Bang
     boost::optional<uint16_t> readSample() { return read(0) ; }
   
     bool writeConfig(uint16_t word) { return write(1,word) ; }
-  
+
+
+    // start over:
+
+    struct Record
+    {
+	// set configuration
+	uint32_t t0 ;
+	uint32_t ack[4] ;
+    } ;
+
+    enum class Line { Low,Off } ;
+    
+    using Script = std::vector<RpiExt::Bang::Command> ;
+
+    Script makeScript(uint16_t data,Record *record) ;
+    // helper:
+    void sendByte(RpiExt::Bang::Enqueue *q,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
+
+    bool writeConfig2(uint16_t word) ;
+    
+    
 private:
-  
+
+    Rpi::Peripheral *rpi ;
+    
     Rpi::Counter counter ;
 
     Rpi::Gpio gpio ;

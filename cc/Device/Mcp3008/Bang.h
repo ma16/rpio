@@ -4,8 +4,6 @@
 #define INCLUDE_Device_Mcp3008_Bang_h
 
 #include "Circuit.h"
-#include <Rpi/Counter.h>
-#include <Rpi/Gpio.h>
 #include <RpiExt/Bang.h>
 
 namespace Device { namespace Mcp3008 {

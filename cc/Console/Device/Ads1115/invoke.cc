@@ -46,7 +46,17 @@ static void sampleInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 	std::cout << "error" << std::endl ;
     }
 }
+
+static void testInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
+{
+    auto word = Ui::strto<uint16_t>(argL->pop()) ;
+    argL->finalize() ;
+    auto success = host->writeConfig2(word) ;
+    if (!success) 
+	std::cout << "error" << std::endl ;
+}
     
+
 void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") {
@@ -83,21 +93,22 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
     else std::cout << "info: measured frequency: " << f << '\n' ;
 
-    ::Device::Ads1115::Bang::Timing<uint32_t> timing ;
     // ...[future] make timings optional arguments
     auto ticks = [f](float seconds) {
 	return static_cast<uint32_t>(ceil(f * seconds + 1.5)) ; } ;
     // ...ceil since we have to guarantee a minimum delay
     // ...+0.5 to round
     // ...+1.0 since (clock[i+1]-clock[i]) can be zero
-    timing.buf   = ticks(::Device::Ads1115::Bang::default_timing().  buf) ;
-    timing.hdsta = ticks(::Device::Ads1115::Bang::default_timing().hdsta) ;
-    timing.susto = ticks(::Device::Ads1115::Bang::default_timing().susto) ;
-    timing.sudat = ticks(::Device::Ads1115::Bang::default_timing().sudat) ;
-    timing.low   = ticks(::Device::Ads1115::Bang::default_timing().  low) ;
-    timing.high  = ticks(::Device::Ads1115::Bang::default_timing(). high) ;
-    timing.fall  = ticks(::Device::Ads1115::Bang::default_timing(). fall) ;
-    timing.rise  = ticks(::Device::Ads1115::Bang::default_timing(). rise) ;
+    ::Device::Ads1115::Bang::Timing<uint32_t> timing(
+	ticks(::Device::Ads1115::Bang::default_timing().  buf),
+	ticks(::Device::Ads1115::Bang::default_timing().hdsta),
+	ticks(::Device::Ads1115::Bang::default_timing().susto),
+	ticks(::Device::Ads1115::Bang::default_timing().sudat),
+	ticks(::Device::Ads1115::Bang::default_timing().hddat),
+	ticks(::Device::Ads1115::Bang::default_timing().  low),
+	ticks(::Device::Ads1115::Bang::default_timing(). high),
+	ticks(::Device::Ads1115::Bang::default_timing(). fall),
+	ticks(::Device::Ads1115::Bang::default_timing(). rise)) ;
     // [todo] last two are maximum timings!
     
     ::Device::Ads1115::Bang host(rpi,sclPin,sdaPin,addr,timing,monitor) ;
@@ -107,5 +118,8 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if      (arg == "config") configInvoke(&host,argL) ;
     else if (arg ==  "reset")  resetInvoke(&host,argL) ;
     else if (arg == "sample") sampleInvoke(&host,argL) ;
+    
+    else if (arg == "test") testInvoke(&host,argL) ;
+    
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
