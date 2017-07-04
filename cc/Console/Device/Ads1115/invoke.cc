@@ -60,6 +60,13 @@ static void resetInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
     std::cout << success << std::endl ;
 }
     
+static void reset2Invoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
+{
+    argL->finalize() ;
+    /*auto success = */ host->doReset2() ;
+    //std::cout << success << std::endl ;
+}
+    
 static void sampleInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
     argL->finalize() ;
@@ -70,6 +77,21 @@ static void sampleInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
     else {
 	std::cout << "error" << std::endl ;
     }
+}
+
+static void sample2Invoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
+{
+    argL->finalize() ;
+    auto record = host->readSample2() ;
+    unsigned word = 0 ;
+    for (int i=0 ; i<2 ; ++i)
+	for (int j=0 ; j<8 ; ++j)
+	{
+	    word <<= 1 ;
+	    word |= 0 != (record.recv[i][j] & (1u << 23)) ;
+	}
+    std::cout << std::hex << word << std::endl ;
+    // todo
 }
 
 void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -130,11 +152,16 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // ...[future] make timings optional arguments
 
     auto arg = argL->pop() ;
-    if      (arg == "config") configInvoke(&host,argL) ;
-    else if (arg ==  "reset")  resetInvoke(&host,argL) ;
-    else if (arg == "sample") sampleInvoke(&host,argL) ;
+    if (false) ;
     
+    else if (arg == "config")   configInvoke(&host,argL) ;
     else if (arg == "config2") config2Invoke(&host,argL) ;
+    
+    else if (arg ==  "reset")    resetInvoke(&host,argL) ;
+    else if (arg ==  "reset2")  reset2Invoke(&host,argL) ;
+    else if (arg == "sample")   sampleInvoke(&host,argL) ;
+    else if (arg == "sample2") sample2Invoke(&host,argL) ;
+    
     
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }

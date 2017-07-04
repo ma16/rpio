@@ -283,7 +283,7 @@ boost::optional<uint16_t> Device::Ads1115::Bang::read(uint8_t rix)
 }
 
 Device::Ads1115::Bang::Script Device::Ads1115::Bang::
-makeReadScript(Record *record)
+makeReadScript(uint8_t rix,Record *record)
 {
     // (scl,sda) == (off,off)
     RpiExt::Bang::Enqueue q ;
@@ -292,7 +292,7 @@ makeReadScript(Record *record)
     auto byte = static_cast<uint8_t>((this->addr.value()<<1) | 0) ;
     this->sendByte(&q,Line::Low,byte,&record->t0,&record->ack[0]) ;
     // -> register pointer (config register)
-    this->sendByte(&q,Line::Off,1,&record->t0,&record->ack[1]) ;
+    this->sendByte(&q,Line::Off,rix,&record->t0,&record->ack[1]) ;
     this->stop(&q,Line::Off,&record->t0) ;
     this->start(&q) ;
     // -> (address + read-bit)
@@ -358,6 +358,23 @@ makeWriteScript(uint16_t word,Record *record)
 
 // --------------------------------------------------------------------
 
+Device::Ads1115::Bang::Script Device::Ads1115::Bang::
+makeResetScript(Record *record)
+{
+    // (scl,sda) == (off,off)
+    RpiExt::Bang::Enqueue q ;
+    this->start(&q) ;
+    // general address (000:0000,0)B
+    this->sendByte(&q,Line::Low,0,&record->t0,&record->ack[0]) ;
+    // reset command: 0x6
+    this->sendByte(&q,Line::Off,6,&record->t0,&record->ack[1]) ;
+    this->stop(&q,Line::Off,&record->t0) ;
+    return q.vector() ;
+    // (scl,sda) == (off,off)
+}
+
+// --------------------------------------------------------------------
+
 bool /* todo: error code */ Device::Ads1115::Bang::writeConfig2(uint16_t word)
 {
     Record record ;
@@ -375,7 +392,7 @@ Device::Ads1115::Bang::Record Device::Ads1115::Bang::readConfig2()
 {
     Record record ;
 
-    auto q = this->makeReadScript(&record) ;
+    auto q = this->makeReadScript(1,&record) ;
     
     RpiExt::Bang scheduler(this->rpi) ;
 
@@ -383,3 +400,26 @@ Device::Ads1115::Bang::Record Device::Ads1115::Bang::readConfig2()
 
     return record ;
 }
+
+Device::Ads1115::Bang::Record Device::Ads1115::Bang::readSample2()
+{
+    Record record ;
+
+    auto q = this->makeReadScript(0,&record) ;
+    
+    RpiExt::Bang scheduler(this->rpi) ;
+
+    scheduler.execute(q.begin(),q.end()) ;
+
+    return record ;
+}
+
+Device::Ads1115::Bang::Record Device::Ads1115::Bang::doReset2()
+{
+    Record record ;
+    auto q = this->makeResetScript(&record) ;
+    RpiExt::Bang scheduler(this->rpi) ;
+    scheduler.execute(q.begin(),q.end()) ;
+    return record ;
+}
+

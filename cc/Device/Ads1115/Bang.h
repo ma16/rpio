@@ -97,13 +97,11 @@ struct Bang
 	 Timing<uint32_t> const &timing,
 	 bool monitor) ;
 
-    bool doReset() ;
-  
-    boost::optional<uint16_t> readSample() { return read(0) ; }
-  
-
-
     // start over:
+
+    enum class Line { Low,Off } ;
+    
+    using Script = std::vector<RpiExt::Bang::Command> ;
 
     struct Record
     {
@@ -113,19 +111,23 @@ struct Bang
 	uint32_t recv[2][8] ;
     } ;
 
+    bool doReset() ;
+    Script makeResetScript(Record *record) ;
+    Record doReset2() ;
+    
     boost::optional<uint16_t> readConfig() { return read(1) ; }
     Record readConfig2() ;
     
     bool writeConfig(uint16_t word) { return write(1,word) ; }
     bool writeConfig2(uint16_t word) ;
     
-    enum class Line { Low,Off } ;
-    
-    using Script = std::vector<RpiExt::Bang::Command> ;
-
     Script makeWriteScript(uint16_t data,Record *record) ;
-    Script makeReadScript(Record *record) ;
+    Script makeReadScript(uint8_t rix,Record *record) ;
 
+    boost::optional<uint16_t> readSample() { return read(0) ; }
+    Record readSample2() ;
+
+    
     void start(RpiExt::Bang::Enqueue *q) ;
     void stop(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0) ;
 
