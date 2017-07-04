@@ -25,7 +25,6 @@
 
 #include <Neat/Enum.h>
 #include <RpiExt/Bang.h>
-#include <boost/optional.hpp>
 
 namespace Device { namespace Ads1115 {
 
@@ -84,20 +83,16 @@ struct Bang
     enum class Error
     {
 	NoAck = 0,
+	// todo
     } ;
 
-    boost::optional<Error> error() { return this->error_ ; }
-  
     using Addr = Neat::Enum<unsigned,0x7f> ;
 
     Bang(Rpi::Peripheral *rpi,
 	 Rpi::Pin sclPin,
 	 Rpi::Pin sdaPin,
 	 Addr addr,
-	 Timing<uint32_t> const &timing,
-	 bool monitor) ;
-
-    // start over:
+	 Timing<uint32_t> const &timing) ;
 
     enum class Line { Low,Off } ;
     
@@ -111,35 +106,14 @@ struct Bang
 	uint32_t recv[2][8] ;
     } ;
 
-    bool doReset() ;
     Script makeResetScript(Record *record) ;
-    Record doReset2() ;
-    
-    boost::optional<uint16_t> readConfig() { return read(1) ; }
-    Record readConfig2() ;
-    
-    bool writeConfig(uint16_t word) { return write(1,word) ; }
-    bool writeConfig2(uint16_t word) ;
-    
     Script makeWriteScript(uint16_t data,Record *record) ;
     Script makeReadScript(uint8_t rix,Record *record) ;
-
-    boost::optional<uint16_t> readSample() { return read(0) ; }
-    Record readSample2() ;
-
     
-    void start(RpiExt::Bang::Enqueue *q) ;
-    void stop(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0) ;
-
-    
-    void recvBit(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t *levels) ;
-    void sendBit(RpiExt::Bang::Enqueue *q,Line from,Line to,uint32_t *t0) ;
-    
-
-    void recvByte(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t (*levels)[8]) ;
-    void sendByte(RpiExt::Bang::Enqueue *q,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
-
-    
+    Record doReset() ;
+    Record readConfig() ;
+    Record readSample() ;
+    Record writeConfig(uint16_t word) ;
     
 private:
 
@@ -155,25 +129,14 @@ private:
 
     Timing<uint32_t> timing ;
 
-    bool monitor ;
-
-    void start() ; void stop() ;
-  
-    void sclHi() ; void sclLo() ;
-  
-    void sdaLo() ; bool sdaLevel() ; void sdaOff() ;
-  
-    void sendAck() {            sendBit(false) ; }  void sendBit(bool) ; void    sendByte(uint8_t) ; 
-    bool recvAck() { return false == recvBit() ; }  bool recvBit(    ) ; uint8_t recvByte(       ) ;
-
-    unsigned hold(unsigned delay) ;
-  
-    boost::optional<uint16_t> read(uint8_t rix) ;
-  
-    bool write(uint8_t rix,uint16_t data) ;
-
-    boost::optional<Error> error_ ; boost::none_t set(Error error) { error_ = error ; return boost::none ; }
+    void start(RpiExt::Bang::Enqueue *q) ;
+    void stop(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0) ;
     
+    void recvBit(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t *levels) ;
+    void sendBit(RpiExt::Bang::Enqueue *q,Line from,Line to,uint32_t *t0) ;
+
+    void recvByte(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t (*levels)[8]) ;
+    void sendByte(RpiExt::Bang::Enqueue *q,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
 } ;
 
 } }

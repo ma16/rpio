@@ -10,29 +10,9 @@
 
 static void configInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
-    if (argL->empty()) {
-	auto word = host->readConfig() ;
-	if (word) {
-	    std::cout << std::hex << (*word) << std::endl ;
-	}
-	else {
-	    std::cout << "error" << std::endl ;
-	}
-    }
-    else {
-	auto word = Ui::strto<uint16_t>(argL->pop()) ;
-	argL->finalize() ;
-	auto success = host->writeConfig(word) ;
-	if (!success) 
-	    std::cout << "error" << std::endl ;
-    }
-}
-    
-static void config2Invoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
-{
     if (argL->empty())
     {
-	auto record = host->readConfig2() ;
+	auto record = host->readConfig() ;
 	unsigned word = 0 ;
 	for (int i=0 ; i<2 ; ++i)
 	    for (int j=0 ; j<8 ; ++j)
@@ -47,42 +27,21 @@ static void config2Invoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
     {
 	auto word = Ui::strto<uint16_t>(argL->pop()) ;
 	argL->finalize() ;
-	auto success = host->writeConfig2(word) ;
-	if (!success) 
-	    std::cout << "error" << std::endl ;
+	/* auto record = */ host->writeConfig(word) ;
     }
 }
 
 static void resetInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
     argL->finalize() ;
-    auto success = host->doReset() ;
-    std::cout << success << std::endl ;
-}
-    
-static void reset2Invoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
-{
-    argL->finalize() ;
-    /*auto success = */ host->doReset2() ;
+    /*auto success = */ host->doReset() ;
     //std::cout << success << std::endl ;
 }
     
 static void sampleInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
     argL->finalize() ;
-    auto sample = host->readSample() ;
-    if (sample) {
-	std::cout << std::hex << (*sample) << std::endl ;
-    }
-    else {
-	std::cout << "error" << std::endl ;
-    }
-}
-
-static void sample2Invoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
-{
-    argL->finalize() ;
-    auto record = host->readSample2() ;
+    auto record = host->readSample() ;
     unsigned word = 0 ;
     for (int i=0 ; i<2 ; ++i)
 	for (int j=0 ; j<8 ; ++j)
@@ -148,20 +107,16 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	ticks(::Device::Ads1115::Bang::default_timing(). rise)) ;
     // [todo] last two are maximum timings!
     
-    ::Device::Ads1115::Bang host(rpi,sclPin,sdaPin,addr,timing,monitor) ;
+    ::Device::Ads1115::Bang host(rpi,sclPin,sdaPin,addr,timing) ;
     // ...[future] make timings optional arguments
+    (void)monitor ; // todo
 
     auto arg = argL->pop() ;
     if (false) ;
     
-    else if (arg == "config")   configInvoke(&host,argL) ;
-    else if (arg == "config2") config2Invoke(&host,argL) ;
-    
-    else if (arg ==  "reset")    resetInvoke(&host,argL) ;
-    else if (arg ==  "reset2")  reset2Invoke(&host,argL) ;
-    else if (arg == "sample")   sampleInvoke(&host,argL) ;
-    else if (arg == "sample2") sample2Invoke(&host,argL) ;
-    
+    else if (arg == "config") configInvoke(&host,argL) ;
+    else if (arg ==  "reset")  resetInvoke(&host,argL) ;
+    else if (arg == "sample") sampleInvoke(&host,argL) ;
     
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
