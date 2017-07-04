@@ -99,10 +99,8 @@ struct Bang
 
     bool doReset() ;
   
-    boost::optional<uint16_t> readConfig() { return read(1) ; }
     boost::optional<uint16_t> readSample() { return read(0) ; }
   
-    bool writeConfig(uint16_t word) { return write(1,word) ; }
 
 
     // start over:
@@ -112,17 +110,33 @@ struct Bang
 	// set configuration
 	uint32_t t0 ;
 	uint32_t ack[4] ;
+	uint32_t recv[2][8] ;
     } ;
 
+    boost::optional<uint16_t> readConfig() { return read(1) ; }
+    Record readConfig2() ;
+    
+    bool writeConfig(uint16_t word) { return write(1,word) ; }
+    bool writeConfig2(uint16_t word) ;
+    
     enum class Line { Low,Off } ;
     
     using Script = std::vector<RpiExt::Bang::Command> ;
 
-    Script makeScript(uint16_t data,Record *record) ;
-    // helper:
+    Script makeWriteScript(uint16_t data,Record *record) ;
+    Script makeReadScript(Record *record) ;
+
+    void start(RpiExt::Bang::Enqueue *q) ;
+    void stop(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0) ;
+
+    
+    void recvBit(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t *levels) ;
+    void sendBit(RpiExt::Bang::Enqueue *q,Line from,Line to,uint32_t *t0) ;
+    
+
+    void recvByte(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t (*levels)[8]) ;
     void sendByte(RpiExt::Bang::Enqueue *q,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
 
-    bool writeConfig2(uint16_t word) ;
     
     
 private:

@@ -28,6 +28,31 @@ static void configInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
     }
 }
     
+static void config2Invoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
+{
+    if (argL->empty())
+    {
+	auto record = host->readConfig2() ;
+	unsigned word = 0 ;
+	for (int i=0 ; i<2 ; ++i)
+	    for (int j=0 ; j<8 ; ++j)
+	    {
+		word <<= 1 ;
+		word |= 0 != (record.recv[i][j] & (1u << 23)) ;
+	    }
+	std::cout << std::hex << word << std::endl ;
+	// todo
+    }
+    else
+    {
+	auto word = Ui::strto<uint16_t>(argL->pop()) ;
+	argL->finalize() ;
+	auto success = host->writeConfig2(word) ;
+	if (!success) 
+	    std::cout << "error" << std::endl ;
+    }
+}
+
 static void resetInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
     argL->finalize() ;
@@ -46,16 +71,6 @@ static void sampleInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 	std::cout << "error" << std::endl ;
     }
 }
-
-static void testInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
-{
-    auto word = Ui::strto<uint16_t>(argL->pop()) ;
-    argL->finalize() ;
-    auto success = host->writeConfig2(word) ;
-    if (!success) 
-	std::cout << "error" << std::endl ;
-}
-    
 
 void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
@@ -119,7 +134,7 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     else if (arg ==  "reset")  resetInvoke(&host,argL) ;
     else if (arg == "sample") sampleInvoke(&host,argL) ;
     
-    else if (arg == "test") testInvoke(&host,argL) ;
+    else if (arg == "config2") config2Invoke(&host,argL) ;
     
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
