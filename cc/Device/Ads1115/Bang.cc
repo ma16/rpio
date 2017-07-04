@@ -1,240 +1,180 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "Bang.h"
-#include <chrono>
 
-static auto const Lo = Rpi::Gpio::Output::Lo ;
-static auto const Hi = Rpi::Gpio::Output::Hi ;
-
-Device::Ads1115::Bang::Bang(
-    Rpi::Peripheral *rpi,
-    Rpi::Pin sclPin,
-    Rpi::Pin sdaPin,
-    Addr addr,
-    Timing<uint32_t> const &timing)
-    : rpi(rpi),counter(rpi),gpio(rpi),sclPin(sclPin),sdaPin(sdaPin),addr(addr),timing(timing)
-{
-    // init
-    this->gpio.setOutput<Hi>(this->sclPin) ;
-    this->gpio.setMode(this->sclPin,Rpi::Gpio::Mode::Out) ;
-    this->gpio.setMode(this->sdaPin,Rpi::Gpio::Mode::In) ;
-    this->gpio.setOutput<Lo>(this->sdaPin) ;
-    // (Hi,Off)
-  
-    // make sure the ARM counter is on and runs at 100 Mhz
-    if (!this->counter.enabled())
-	throw std::runtime_error("please enable ARM counter") ;
-    if (this->counter.prescaler() != 3)
-	throw std::runtime_error("please set ARM prescaler to <3>") ;
-}
+using Bang = Device::Ads1115::Bang ;
 
 // --------------------------------------------------------------------
 
-void Device::Ads1115::Bang::start(RpiExt::Bang::Enqueue *q)
+void Bang::start(Script *script)
 {
-    // (scl,sda) == (off,off)
-    q->sleep(this->timing.buf) ;
-    q->low(this->sdaPin) ;
-    q->sleep(this->timing.hdsta) ;
-    q->low(this->sclPin) ;
-    // (scl,sda) == (low,low)
+    script->sleep(this->timing.buf) ;
+    script->low(this->sdaPin) ;
+    script->sleep(this->timing.hdsta) ;
+    script->low(this->sclPin) ;
 }
 
-void Device::Ads1115::Bang::stop(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0)
+void Bang::stop(Script *script,Line sda,uint32_t *t0)
 {
-    // (scl,sda) == (fall,*)
-    q->time(t0) ;
+    script->time(t0) ;
     if (sda != Line::Low)
-	q->low(this->sdaPin) ;
-    q->sleep(this->timing.sudat) ; 
-    q->wait(t0,this->timing.low) ;
-    q->off(this->sclPin) ;
-    q->sleep(this->timing.susto) ;
-    q->off(this->sdaPin) ;
-    // (scl,sda) == (off,off)
+	script->low(this->sdaPin) ;
+    script->sleep(this->timing.sudat) ; 
+    script->wait(t0,this->timing.low) ;
+    script->off(this->sclPin) ;
+    script->sleep(this->timing.susto) ;
+    script->off(this->sdaPin) ;
 }
 
 // --------------------------------------------------------------------
 
-void Device::Ads1115::Bang::sendBit(RpiExt::Bang::Enqueue *q,Line from,Line to,uint32_t *t0)
+void Bang::sendBit(Script *script,Line prev,Line next,uint32_t *t0)
 {
-    // (scl,sda) == (low,*)
-    q->time(t0) ;
-    if (from != to)
+    script->time(t0) ;
+    if (prev != next)
     {
-	q->sleep(this->timing.hddat) ; // still holding old SDA
-	if (to == Line::Low) q->low(this->sdaPin) ;
-	else                 q->off(this->sdaPin) ;
-	q->sleep(this->timing.sudat) ; // setting up new SDA
+	script->sleep(this->timing.hddat) ; 
+	if (next == Line::Low)
+	    script->low(this->sdaPin) ;
+	else
+	    script->off(this->sdaPin) ;
+	script->sleep(this->timing.sudat) ; 
     }
-    q->wait(t0,this->timing.low) ;
-    q->off(this->sclPin) ; // todo: rising edge must be <= t_rise
-    q->sleep(this->timing.high) ;
-    q->low(this->sclPin) ; // todo: falling edge must be <= t_fall
-    // (scl,sda) == (low,*)
+    script->wait(t0,this->timing.low) ;
+    script->off(this->sclPin) ; 
+    script->sleep(this->timing.high) ;
+    script->low(this->sclPin) ; 
 }
 
-void Device::Ads1115::Bang::recvBit(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t *levels)
+void Bang::recvBit(Script *script,Line sda,uint32_t *t0,uint32_t *levels)
 {
-    // (scl,sda) == (low,*)
-    q->time(t0) ;
+    script->time(t0) ;
     if (sda != Line::Off)
-	q->off(this->sdaPin) ;
-    q->sleep(this->timing.low) ;
-    q->off(this->sclPin) ; 
-    q->time(t0) ;
-    q->wait(t0,this->timing.sudat) ; // ??
-    q->levels(levels) ;
-    q->wait(t0,this->timing.high) ; 
-    q->low(this->sclPin) ; 
-    // (scl,sda) == (low,off)
+	script->off(this->sdaPin) ;
+    script->sleep(this->timing.low) ;
+    script->off(this->sclPin) ; 
+    script->time(t0) ;
+    script->wait(t0,this->timing.sudat) ; 
+    script->levels(levels) ;
+    script->wait(t0,this->timing.high) ; 
+    script->low(this->sclPin) ; 
 }
 
 // --------------------------------------------------------------------
 
-void Device::Ads1115::Bang::sendByte(
-    RpiExt::Bang::Enqueue *q,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack)
+void Bang::sendByte(
+    Script *script,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack)
 {
-    // (scl,sda) == (low,off)
     auto mask = 1u << 7 ;
     do
     {
-	auto bit = (byte & mask) ? Line::Off : Line::Low ;
-	this->sendBit(q,sda,bit,t0) ;
-	sda = bit ;
+	auto next = (byte & mask) ? Line::Off : Line::Low ;
+	this->sendBit(script,sda,next,t0) ;
+	sda = next ;
 	mask >>= 1 ;
     }
     while (mask != 0) ;
-    this->recvBit(q,sda,t0,ack) ;
-    // (scl,sda) == (lo,off)
+    this->recvBit(script,sda,t0,ack) ;
 }
 
-void Device::Ads1115::Bang::recvByte(
-    RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,Record::Read::Byte *byte)
+void Bang::recvByte(
+    Script *script,Line sda,uint32_t *t0,Record::Read::Byte *byte)
 {
-    // (scl,sda) == (low,*)
-    this->recvBit(q,sda,t0,&byte->at(0)) ;
+    this->recvBit(script,sda,t0,&byte->at(0)) ;
     for (size_t i=1 ; i<8 ; ++i)
-	this->recvBit(q,Line::Off,t0,&byte->at(i)) ;
-    this->sendBit(q,Line::Off,Line::Low,t0) ;
-    // (scl,sda) == (lo,lo)
+	this->recvBit(script,Line::Off,t0,&byte->at(i)) ;
+    this->sendBit(script,Line::Off,Line::Low,t0) ;
 }
 
 // --------------------------------------------------------------------
 
-Device::Ads1115::Bang::Script Device::Ads1115::Bang::
-scriptReset(Record::Reset *record)
+void Bang::reset(Bang::Script *script,Record::Reset *record)
 {
-    // (scl,sda) == (off,off)
-    RpiExt::Bang::Enqueue q ;
-    this->start(&q) ;
-    // general address (000:0000,0)B
-    this->sendByte(&q,Line::Low,0,&record->t0,&record->ackA.at(0)) ;
-    // reset command: 0x6
-    this->sendByte(&q,Line::Off,6,&record->t0,&record->ackA.at(1)) ;
-    this->stop(&q,Line::Off,&record->t0) ;
-    return q.vector() ;
-    // (scl,sda) == (off,off)
+    this->start(script) ;
+    // (general-address:0x0 + write-bit)
+    this->sendByte(script,Line::Low,0x0,&record->t0,&record->ackA.at(0)) ;
+    // -> reset-command:0x6
+    this->sendByte(script,Line::Off,0x6,&record->t0,&record->ackA.at(1)) ;
+    this->stop(script,Line::Off,&record->t0) ;
 }
 
-Device::Ads1115::Bang::Script Device::Ads1115::Bang::
-scriptRead(uint8_t rix,Record::Read *record)
+void Bang::read(Bang::Script *script,Record::Read *record,uint8_t reg)
 {
-    // (scl,sda) == (off,off)
-    RpiExt::Bang::Enqueue q ;
-    this->start(&q) ;
-    // -> (address + write-bit)
+    this->start(script) ;
+    // (address + write-bit)
     auto byte = static_cast<uint8_t>((this->addr.value()<<1) | 0) ;
-    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ackA.at(0)) ;
-    // -> register pointer (config register)
-    this->sendByte(&q,Line::Off,rix,&record->t0,&record->ackA.at(1)) ;
-    this->stop(&q,Line::Off,&record->t0) ;
-    this->start(&q) ;
-    // -> (address + read-bit)
+    this->sendByte(script,Line::Low,byte,&record->t0,&record->ackA.at(0)) ;
+    // -> register pointer
+    this->sendByte(script,Line::Off,reg,&record->t0,&record->ackA.at(1)) ;
+    this->stop(script,Line::Off,&record->t0) ;
+    
+    this->start(script) ;
+    // (address + read-bit)
     byte = static_cast<uint8_t>((this->addr.value()<<1) | 1) ;
-    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ackA.at(2)) ;
-    // <- 16-bit register
-    this->recvByte(&q,Line::Off,&record->t0,&record->byteA.at(0)) ;
-    this->recvByte(&q,Line::Low,&record->t0,&record->byteA.at(1)) ;
-    this->stop(&q,Line::Low,&record->t0) ;
-    return q.vector() ;
-    // (scl,sda) == (off,off)
+    this->sendByte(script,Line::Low,byte,&record->t0,&record->ackA.at(2)) ;
+    // <- 16-bit register-value
+    this->recvByte(script,Line::Off,&record->t0,&record->byteA.at(0)) ;
+    this->recvByte(script,Line::Low,&record->t0,&record->byteA.at(1)) ;
+    this->stop(script,Line::Low,&record->t0) ;
 }
 
-Device::Ads1115::Bang::Script Device::Ads1115::Bang::
-scriptWrite(uint16_t word,Record::Write *record)
+void Bang::write(Bang::Script *script,Record::Write *record,uint16_t word)
 {
-    // (scl,sda) == (off,off)
-    RpiExt::Bang::Enqueue q ;
-    this->start(&q) ;
-    // -> (address + write-bit)
+    this->start(script) ;
+    // (address + write-bit)
     auto byte = static_cast<uint8_t>((this->addr.value()<<1) | 0) ;
-    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ackA.at(0)) ;
-    // -> register pointer (config register)
-    this->sendByte(&q,Line::Off,1,&record->t0,&record->ackA.at(1)) ;
-    // -> 16-bit register
+    this->sendByte(script,Line::Low,byte,&record->t0,&record->ackA.at(0)) ;
+    // -> register-pointer (config-register hard-wired)
+    this->sendByte(script,Line::Off,1,&record->t0,&record->ackA.at(1)) ;
+    // -> 16-bit register-value
     byte = static_cast<uint8_t>(word>>8) ;
-    this->sendByte(&q,Line::Off,byte,&record->t0,&record->ackA.at(2)) ;
+    this->sendByte(script,Line::Off,byte,&record->t0,&record->ackA.at(2)) ;
     byte = static_cast<uint8_t>(word) ;
-    this->sendByte(&q,Line::Off,byte,&record->t0,&record->ackA.at(3)) ;
-    this->stop(&q,Line::Off,&record->t0) ;
-    return q.vector() ;
-    // (scl,sda) == (off,off)
+    this->sendByte(script,Line::Off,byte,&record->t0,&record->ackA.at(3)) ;
+    this->stop(script,Line::Off,&record->t0) ;
 }
 
 // --------------------------------------------------------------------
 
-Device::Ads1115::Bang::Record::Reset Device::Ads1115::Bang::doReset()
+Bang::Record::Reset Bang::reset()
 {
-    Record::Reset record ;
-    auto q = this->scriptReset(&record) ;
-    RpiExt::Bang scheduler(this->rpi) ;
-    scheduler.execute(q.begin(),q.end()) ;
+    Script script ; Record::Reset record ;
+    this->reset(&script,&record) ;
+    auto vector = script.vector() ;
+    RpiExt::Bang(this->rpi).execute(vector.begin(),vector.end()) ;
     return record ;
 }
 
-Device::Ads1115::Bang::Record::Read Device::Ads1115::Bang::readConfig()
+Bang::Record::Read Bang::readConfig()
 {
-    Record::Read record ;
-
-    auto q = this->scriptRead(1,&record) ;
-    
-    RpiExt::Bang scheduler(this->rpi) ;
-
-    scheduler.execute(q.begin(),q.end()) ;
-
+    Script script ; Record::Read record ;
+    this->read(&script,&record,/*config-register:*/0x1) ;
+    auto vector = script.vector() ;
+    RpiExt::Bang(this->rpi).execute(vector.begin(),vector.end()) ;
     return record ;
 }
 
-Device::Ads1115::Bang::Record::Read Device::Ads1115::Bang::readSample()
+Bang::Record::Read Bang::readSample()
 {
-    Record::Read record ;
-
-    auto q = this->scriptRead(0,&record) ;
-    
-    RpiExt::Bang scheduler(this->rpi) ;
-
-    scheduler.execute(q.begin(),q.end()) ;
-
+    Script script ; Record::Read record ;
+    this->read(&script,&record,/*sample-register:*/0x0) ;
+    auto vector = script.vector() ;
+    RpiExt::Bang(this->rpi).execute(vector.begin(),vector.end()) ;
     return record ;
 }
 
-Device::Ads1115::Bang::Record::Write Device::Ads1115::Bang::writeConfig(uint16_t word)
+Bang::Record::Write Bang::writeConfig(uint16_t word)
 {
-    Record::Write record ;
-
-    auto q = this->scriptWrite(word,&record) ;
-    
-    RpiExt::Bang scheduler(this->rpi) ;
-
-    scheduler.execute(q.begin(),q.end()) ;
-
+    Script script ; Record::Write record ;
+    this->write(&script,&record,word) ;
+    auto vector = script.vector() ;
+    RpiExt::Bang(this->rpi).execute(vector.begin(),vector.end()) ;
     return record ;
 }
 
 // --------------------------------------------------------------------
 
-uint16_t Device::Ads1115::Bang::fetch(Record::Read const &record) const
+uint16_t Bang::fetch(Record::Read const &record) const
 {
     uint16_t word = 0 ;
     uint32_t mask = (1u << this->sdaPin.value()) ;
@@ -248,7 +188,7 @@ uint16_t Device::Ads1115::Bang::fetch(Record::Read const &record) const
     return word ;
 }
 
-Device::Ads1115::Bang::Error Device::Ads1115::Bang::verify(Record::Reset const &record) const 
+Bang::Error Bang::verify(Record::Reset const &record) const 
 {
     Error error ;
     uint32_t mask = (1u << this->sdaPin.value()) ;
@@ -257,7 +197,7 @@ Device::Ads1115::Bang::Error Device::Ads1115::Bang::verify(Record::Reset const &
     return error ;
 }
 
-Device::Ads1115::Bang::Error Device::Ads1115::Bang::verify(Record::Read const &record) const 
+Bang::Error Bang::verify(Record::Read const &record) const 
 {
     Error error ;
     uint32_t mask = (1u << this->sdaPin.value()) ;
@@ -267,7 +207,7 @@ Device::Ads1115::Bang::Error Device::Ads1115::Bang::verify(Record::Read const &r
     return error ;
 }
 
-Device::Ads1115::Bang::Error Device::Ads1115::Bang::verify(Record::Write const &record) const 
+Bang::Error Bang::verify(Record::Write const &record) const 
 {
     Error error ;
     uint32_t mask = (1u << this->sdaPin.value()) ;

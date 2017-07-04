@@ -30,7 +30,7 @@ static void configInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 static void resetInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
     argL->finalize() ;
-    auto record = host->doReset() ;
+    auto record = host->reset() ;
     auto success = host->verify(record).success() ;
     std::cout << (success ? "success\n" : "error\n") ;
 }
@@ -84,20 +84,36 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // ...+0.5 to round
     // ...+1.0 since (clock[i+1]-clock[i]) can be zero
     ::Device::Ads1115::Bang::Timing<uint32_t> timing(
-	ticks(::Device::Ads1115::Bang::default_timing().  buf),
-	ticks(::Device::Ads1115::Bang::default_timing().hdsta),
-	ticks(::Device::Ads1115::Bang::default_timing().susto),
-	ticks(::Device::Ads1115::Bang::default_timing().sudat),
-	ticks(::Device::Ads1115::Bang::default_timing().hddat),
-	ticks(::Device::Ads1115::Bang::default_timing().  low),
-	ticks(::Device::Ads1115::Bang::default_timing(). high),
-	ticks(::Device::Ads1115::Bang::default_timing(). fall),
-	ticks(::Device::Ads1115::Bang::default_timing(). rise)) ;
-    // [todo] last two are maximum timings!
+	ticks(::Device::Ads1115::Bang::fast_timing().  buf),
+	ticks(::Device::Ads1115::Bang::fast_timing().hdsta),
+	ticks(::Device::Ads1115::Bang::fast_timing().susto),
+	ticks(::Device::Ads1115::Bang::fast_timing().sudat),
+	ticks(::Device::Ads1115::Bang::fast_timing().hddat),
+	ticks(::Device::Ads1115::Bang::fast_timing().  low),
+	ticks(::Device::Ads1115::Bang::fast_timing(). high)) ;
+
+    std::cerr << timing.buf << ' '
+	      << timing.hdsta << ' '
+	      << timing.susto << ' '
+	      << timing.sudat << ' '
+	      << timing.hddat << ' '
+	      << timing.low << ' '
+	      << timing.high << '\n' ;
     
     ::Device::Ads1115::Bang host(rpi,sclPin,sdaPin,addr,timing) ;
     // ...[future] make timings optional arguments
 
+    /* [todo]
+    this->gpio.setOutput<Lo>(this->sclPin) ;
+    this->gpio.setOutput<Lo>(this->sdaPin) ;
+  
+    // make sure the ARM counter is on and runs at 100 Mhz
+    if (!this->counter.enabled())
+	throw std::runtime_error("please enable ARM counter") ;
+    if (this->counter.prescaler() != 3)
+	throw std::runtime_error("please set ARM prescaler to <3>") ;
+    */
+    
     auto arg = argL->pop() ;
     if (false) ;
     

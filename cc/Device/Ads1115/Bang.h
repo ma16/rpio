@@ -51,37 +51,31 @@ struct Bang
 	T hddat ; // (min) data hold time
 	T low   ; // (min) SCL clock low period
 	T high  ; // (min) SCL clock high period
-	T fall  ; // (max) clock/data fall time [todo]
-	T rise  ; // (max) clock/data rise time [todo]
 
-	Timing(
-	    T buf,   T hdsta, T susto, 
-	    T sudat, T hddat, T low,   
-	    T high,  T fall,  T rise)
-	    :
-	    buf    (buf), hdsta(hdsta), susto(susto),
-	    sudat(sudat), hddat(hddat), low    (low),
-	    high  (high), fall  (fall), rise (rise) {}
-
-
-        // clock cycle: 1/400 kHz <= rise + high + fall + low <= 1/10 kHz [todo]
-
-	// [todo] verify that SCL period >= 10 kHz (<=100us)
-	// [todo] what is the maximum delay we can expect an ack and how long is the ack?
+	/* there are also maximum fall and raise time constraints for 
+	   the SCL edges (300ns) which we could verify, however, not 
+	   at this moment. */
+	
+	Timing(T buf,T hdsta,T susto,T sudat,T hddat,T low,T high) :
+	    buf    (buf), hdsta(hdsta), susto(susto), sudat(sudat),
+	    hddat(hddat), low    (low), high  (high) {}
     } ;
 
-    static Timing<float> const& default_timing()
+    static Timing<float> const& fast_timing()
     {
 	static Timing<float> t =
-	{ 6e-7f,6e-7f,6e-7f,1e-7f,0,13e-7f,6e-7f,3e-7f,3e-7f } ;
+	{ 6e-7f,6e-7f,6e-7f,1e-7f,0,13e-7f,6e-7f } ;
+	//{ 0,0,0,0,0,0,0 } ;
 	return t ;
+        // clock cycle: 1/400 kHz <= rise + high + fall + low <= 1/10 kHz
     }
     
     Bang(Rpi::Peripheral *rpi,
 	 Rpi::Pin      sclPin,
 	 Rpi::Pin      sdaPin,
 	 Addr            addr,
-	 Timing<uint32_t> const &timing) ;
+	 Timing<uint32_t> const &timing) 
+	: rpi(rpi),sclPin(sclPin),sdaPin(sdaPin),addr(addr),timing(timing) {}
 
     enum class Line
     {
@@ -89,8 +83,6 @@ struct Bang
 	Off, // pin not connected (tri-state/open-drain)
     } ;
     
-    using Script = std::vector<RpiExt::Bang::Command> ;
-
     struct Record
     {
 	struct Reset
@@ -130,13 +122,8 @@ struct Bang
     Error verify(Record::Reset const&) const ;
     Error verify(Record::Read  const&) const ;
     Error verify(Record::Write const&) const ;
-
     
-    Script scriptReset(Record::Reset *record) ;
-    Script scriptWrite(uint16_t data,Record::Write *record) ;
-    Script scriptRead(uint8_t rix,Record::Read *record) ;
-    
-    Record::Reset doReset() ;
+    Record::Reset reset() ;
     Record::Read readConfig() ;
     Record::Read readSample() ;
     Record::Write writeConfig(uint16_t word) ;
@@ -145,24 +132,26 @@ private:
 
     Rpi::Peripheral *rpi ;
     
-    Rpi::Counter counter ;
-
-    Rpi::Gpio gpio ;
-
     Rpi::Pin sclPin,sdaPin ;
 
     Addr addr ;
 
     Timing<uint32_t> timing ;
 
-    void start(RpiExt::Bang::Enqueue *q) ;
-    void stop(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0) ;
-    
-    void recvBit(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t *levels) ;
-    void sendBit(RpiExt::Bang::Enqueue *q,Line from,Line to,uint32_t *t0) ;
+    using Script = RpiExt::Bang::Enqueue ;
 
-    void recvByte(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,Record::Read::Byte*) ;
-    void sendByte(RpiExt::Bang::Enqueue *q,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
+    void start(Script*) ;
+    void stop (Script*,Line sda,uint32_t *t0) ;
+    
+    void recvBit(Script*,Line sda,uint32_t *t0,uint32_t *levels) ;
+    void sendBit(Script*,Line from,Line to,uint32_t *t0) ;
+
+    void recvByte(Script*,Line sda,uint32_t *t0,Record::Read::Byte*) ;
+    void sendByte(Script*,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
+
+    void reset(Script*,Record::Reset*) ;
+    void read (Script*,Record::Read*,uint8_t reg) ;
+    void write(Script*,Record::Write*,uint16_t data) ;
 } ;
 
 } }
