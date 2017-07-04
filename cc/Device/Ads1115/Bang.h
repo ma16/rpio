@@ -1,23 +1,19 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 // --------------------------------------------------------------------
-// The ADS1115 is an I2C driven 15-bit (+sign) ADC with 2x2 channels
-// and a maximum sampling rate of somewhat below 1k/s.
+// The ADS1115 is an I2C driven 15-bit (+sign) ADC with 2x2 or 4x1
+// multiplexed channels and a maximum sampling rate of somewhat below
+// 1k/s.
 //
-// This implementation does just support its "single-shot" mode with
-// an up to 400khz bus clock
+// This implementation does only support the "single-shot" mode with
+// an up to 400khz bus clock (bit-banged).
 //
-// This implementation does _not_ support:
+// This implementation does not support:
 // --continuous mode
 // --comparator configuration
 // --high speed I2C bus clock
 //
-// The state of the host is defined by the two pins Scl and Sda:
-//
-// SCL : Lo | Hi   [todo] run SCL also with Lo/Off
-// SDA : Lo | Off
-// 
-// Please refer to the ADS1115 data sheet for more details.
+// Please refer to the ADS1115 datasheet for more details.
 // --------------------------------------------------------------------
 
 #ifndef INCLUDE_Device_Ads1115_Host_h
@@ -43,7 +39,8 @@ struct Bang
     // 111 | IN-3 |  GND
 
     using Sample = int16_t ;
-    // ...signed digital sample value
+
+    using Addr = Neat::Enum<unsigned,0x7f> ;
 
     template<typename T> struct Timing 
     {
@@ -54,8 +51,8 @@ struct Bang
 	T hddat ; // (min) data hold time
 	T low   ; // (min) SCL clock low period
 	T high  ; // (min) SCL clock high period
-	T fall  ; // (max) clock/data fall time
-	T rise  ; // (max) clock/data rise time
+	T fall  ; // (max) clock/data fall time [todo]
+	T rise  ; // (max) clock/data rise time [todo]
 
 	Timing(
 	    T buf,   T hdsta, T susto, 
@@ -67,7 +64,7 @@ struct Bang
 	    high  (high), fall  (fall), rise (rise) {}
 
 
-        // clock cycle: 1/400 kHz <= rise + high + fall + low <= 1/10 kHz
+        // clock cycle: 1/400 kHz <= rise + high + fall + low <= 1/10 kHz [todo]
 
 	// [todo] verify that SCL period >= 10 kHz (<=100us)
 	// [todo] what is the maximum delay we can expect an ack and how long is the ack?
@@ -80,40 +77,69 @@ struct Bang
 	return t ;
     }
     
-    enum class Error
-    {
-	NoAck = 0,
-	// todo
-    } ;
-
-    using Addr = Neat::Enum<unsigned,0x7f> ;
-
     Bang(Rpi::Peripheral *rpi,
-	 Rpi::Pin sclPin,
-	 Rpi::Pin sdaPin,
-	 Addr addr,
+	 Rpi::Pin      sclPin,
+	 Rpi::Pin      sdaPin,
+	 Addr            addr,
 	 Timing<uint32_t> const &timing) ;
 
-    enum class Line { Low,Off } ;
+    enum class Line
+    {
+	Low, // pin connected to ground
+	Off, // pin not connected (tri-state/open-drain)
+    } ;
     
     using Script = std::vector<RpiExt::Bang::Command> ;
 
     struct Record
     {
-	// set configuration
-	uint32_t t0 ;
-	uint32_t ack[4] ;
-	uint32_t recv[2][8] ;
+	struct Reset
+	{
+	    uint32_t t0 ;
+	    std::array<uint32_t,2> ackA ;
+	} ;
+	struct Read
+	{
+	    uint32_t t0 ;
+	    std::array<uint32_t,3> ackA ;
+	    using Byte = std::array<uint32_t,8> ;
+	    std::array<Byte,2> byteA ;
+	} ;
+	struct Write
+	{
+	    uint32_t t0 ;
+	    std::array<uint32_t,4> ackA ;
+	} ;
     } ;
 
-    Script makeResetScript(Record *record) ;
-    Script makeWriteScript(uint16_t data,Record *record) ;
-    Script makeReadScript(uint8_t rix,Record *record) ;
+    uint16_t fetch(Record::Read const &record) const ;
+
+    struct Error
+    {
+	uint8_t noAck_0 : 1 ; 
+	uint8_t noAck_1 : 1 ;
+	uint8_t noAck_2 : 1 ;
+	uint8_t noAck_3 : 1 ;
+	Error() : noAck_0(0),noAck_1(0),noAck_2(0),noAck_3(0) {}
+	bool success() const
+	{
+	    return 0 == (noAck_0 | noAck_1 | noAck_2 | noAck_3) ;
+	}
+    } ;
+
+    Error verify(Record::Reset const&) const ;
+    Error verify(Record::Read  const&) const ;
+    Error verify(Record::Write const&) const ;
+
     
-    Record doReset() ;
-    Record readConfig() ;
-    Record readSample() ;
-    Record writeConfig(uint16_t word) ;
+    Script scriptReset(Record::Reset *record) ;
+    Script scriptWrite(uint16_t data,Record::Write *record) ;
+    Script scriptRead(uint8_t rix,Record::Read *record) ;
+    
+    Record::Reset doReset() ;
+    Record::Read readConfig() ;
+    Record::Read readSample() ;
+    Record::Write writeConfig(uint16_t word) ;
     
 private:
 
@@ -135,7 +161,7 @@ private:
     void recvBit(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t *levels) ;
     void sendBit(RpiExt::Bang::Enqueue *q,Line from,Line to,uint32_t *t0) ;
 
-    void recvByte(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t (*levels)[8]) ;
+    void recvByte(RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,Record::Read::Byte*) ;
     void sendByte(RpiExt::Bang::Enqueue *q,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
 } ;
 

@@ -110,12 +110,12 @@ void Device::Ads1115::Bang::sendByte(
 }
 
 void Device::Ads1115::Bang::recvByte(
-    RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,uint32_t (*levels)[8])
+    RpiExt::Bang::Enqueue *q,Line sda,uint32_t *t0,Record::Read::Byte *byte)
 {
     // (scl,sda) == (low,*)
-    this->recvBit(q,sda,t0,(*levels)+0) ;
-    for (int i=1 ; i<8 ; ++i)
-	this->recvBit(q,Line::Off,t0,(*levels)+i) ;
+    this->recvBit(q,sda,t0,&byte->at(0)) ;
+    for (size_t i=1 ; i<8 ; ++i)
+	this->recvBit(q,Line::Off,t0,&byte->at(i)) ;
     this->sendBit(q,Line::Off,Line::Low,t0) ;
     // (scl,sda) == (lo,lo)
 }
@@ -123,60 +123,60 @@ void Device::Ads1115::Bang::recvByte(
 // --------------------------------------------------------------------
 
 Device::Ads1115::Bang::Script Device::Ads1115::Bang::
-makeResetScript(Record *record)
+scriptReset(Record::Reset *record)
 {
     // (scl,sda) == (off,off)
     RpiExt::Bang::Enqueue q ;
     this->start(&q) ;
     // general address (000:0000,0)B
-    this->sendByte(&q,Line::Low,0,&record->t0,&record->ack[0]) ;
+    this->sendByte(&q,Line::Low,0,&record->t0,&record->ackA.at(0)) ;
     // reset command: 0x6
-    this->sendByte(&q,Line::Off,6,&record->t0,&record->ack[1]) ;
+    this->sendByte(&q,Line::Off,6,&record->t0,&record->ackA.at(1)) ;
     this->stop(&q,Line::Off,&record->t0) ;
     return q.vector() ;
     // (scl,sda) == (off,off)
 }
 
 Device::Ads1115::Bang::Script Device::Ads1115::Bang::
-makeReadScript(uint8_t rix,Record *record)
+scriptRead(uint8_t rix,Record::Read *record)
 {
     // (scl,sda) == (off,off)
     RpiExt::Bang::Enqueue q ;
     this->start(&q) ;
     // -> (address + write-bit)
     auto byte = static_cast<uint8_t>((this->addr.value()<<1) | 0) ;
-    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ack[0]) ;
+    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ackA.at(0)) ;
     // -> register pointer (config register)
-    this->sendByte(&q,Line::Off,rix,&record->t0,&record->ack[1]) ;
+    this->sendByte(&q,Line::Off,rix,&record->t0,&record->ackA.at(1)) ;
     this->stop(&q,Line::Off,&record->t0) ;
     this->start(&q) ;
     // -> (address + read-bit)
     byte = static_cast<uint8_t>((this->addr.value()<<1) | 1) ;
-    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ack[2]) ;
+    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ackA.at(2)) ;
     // <- 16-bit register
-    this->recvByte(&q,Line::Off,&record->t0,&record->recv[0]) ;
-    this->recvByte(&q,Line::Low,&record->t0,&record->recv[1]) ;
+    this->recvByte(&q,Line::Off,&record->t0,&record->byteA.at(0)) ;
+    this->recvByte(&q,Line::Low,&record->t0,&record->byteA.at(1)) ;
     this->stop(&q,Line::Low,&record->t0) ;
     return q.vector() ;
     // (scl,sda) == (off,off)
 }
 
 Device::Ads1115::Bang::Script Device::Ads1115::Bang::
-makeWriteScript(uint16_t word,Record *record)
+scriptWrite(uint16_t word,Record::Write *record)
 {
     // (scl,sda) == (off,off)
     RpiExt::Bang::Enqueue q ;
     this->start(&q) ;
     // -> (address + write-bit)
     auto byte = static_cast<uint8_t>((this->addr.value()<<1) | 0) ;
-    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ack[0]) ;
+    this->sendByte(&q,Line::Low,byte,&record->t0,&record->ackA.at(0)) ;
     // -> register pointer (config register)
-    this->sendByte(&q,Line::Off,1,&record->t0,&record->ack[1]) ;
+    this->sendByte(&q,Line::Off,1,&record->t0,&record->ackA.at(1)) ;
     // -> 16-bit register
     byte = static_cast<uint8_t>(word>>8) ;
-    this->sendByte(&q,Line::Off,byte,&record->t0,&record->ack[2]) ;
+    this->sendByte(&q,Line::Off,byte,&record->t0,&record->ackA.at(2)) ;
     byte = static_cast<uint8_t>(word) ;
-    this->sendByte(&q,Line::Off,byte,&record->t0,&record->ack[3]) ;
+    this->sendByte(&q,Line::Off,byte,&record->t0,&record->ackA.at(3)) ;
     this->stop(&q,Line::Off,&record->t0) ;
     return q.vector() ;
     // (scl,sda) == (off,off)
@@ -184,20 +184,20 @@ makeWriteScript(uint16_t word,Record *record)
 
 // --------------------------------------------------------------------
 
-Device::Ads1115::Bang::Record Device::Ads1115::Bang::doReset()
+Device::Ads1115::Bang::Record::Reset Device::Ads1115::Bang::doReset()
 {
-    Record record ;
-    auto q = this->makeResetScript(&record) ;
+    Record::Reset record ;
+    auto q = this->scriptReset(&record) ;
     RpiExt::Bang scheduler(this->rpi) ;
     scheduler.execute(q.begin(),q.end()) ;
     return record ;
 }
 
-Device::Ads1115::Bang::Record Device::Ads1115::Bang::readConfig()
+Device::Ads1115::Bang::Record::Read Device::Ads1115::Bang::readConfig()
 {
-    Record record ;
+    Record::Read record ;
 
-    auto q = this->makeReadScript(1,&record) ;
+    auto q = this->scriptRead(1,&record) ;
     
     RpiExt::Bang scheduler(this->rpi) ;
 
@@ -206,11 +206,11 @@ Device::Ads1115::Bang::Record Device::Ads1115::Bang::readConfig()
     return record ;
 }
 
-Device::Ads1115::Bang::Record Device::Ads1115::Bang::readSample()
+Device::Ads1115::Bang::Record::Read Device::Ads1115::Bang::readSample()
 {
-    Record record ;
+    Record::Read record ;
 
-    auto q = this->makeReadScript(0,&record) ;
+    auto q = this->scriptRead(0,&record) ;
     
     RpiExt::Bang scheduler(this->rpi) ;
 
@@ -219,11 +219,11 @@ Device::Ads1115::Bang::Record Device::Ads1115::Bang::readSample()
     return record ;
 }
 
-Device::Ads1115::Bang::Record Device::Ads1115::Bang::writeConfig(uint16_t word)
+Device::Ads1115::Bang::Record::Write Device::Ads1115::Bang::writeConfig(uint16_t word)
 {
-    Record record ;
+    Record::Write record ;
 
-    auto q = this->makeWriteScript(word,&record) ;
+    auto q = this->scriptWrite(word,&record) ;
     
     RpiExt::Bang scheduler(this->rpi) ;
 
@@ -232,3 +232,48 @@ Device::Ads1115::Bang::Record Device::Ads1115::Bang::writeConfig(uint16_t word)
     return record ;
 }
 
+// --------------------------------------------------------------------
+
+uint16_t Device::Ads1115::Bang::fetch(Record::Read const &record) const
+{
+    uint16_t word = 0 ;
+    uint32_t mask = (1u << this->sdaPin.value()) ;
+    for (size_t i=0 ; i<2 ; ++i)
+	for (size_t j=0 ; j<8 ; ++j)
+	{
+	    word = (uint16_t)(word << 1) ;
+	    if (0u != (record.byteA[i][j] & mask))
+		word = (uint16_t)(word | 1u) ;
+	}
+    return word ;
+}
+
+Device::Ads1115::Bang::Error Device::Ads1115::Bang::verify(Record::Reset const &record) const 
+{
+    Error error ;
+    uint32_t mask = (1u << this->sdaPin.value()) ;
+    if (0 != (record.ackA.at(0) & mask)) error.noAck_0 = 1u ;
+    if (0 != (record.ackA.at(1) & mask)) error.noAck_1 = 1u ;
+    return error ;
+}
+
+Device::Ads1115::Bang::Error Device::Ads1115::Bang::verify(Record::Read const &record) const 
+{
+    Error error ;
+    uint32_t mask = (1u << this->sdaPin.value()) ;
+    if (0 != (record.ackA.at(0) & mask)) error.noAck_0 = 1u ;
+    if (0 != (record.ackA.at(1) & mask)) error.noAck_1 = 1u ;
+    if (0 != (record.ackA.at(2) & mask)) error.noAck_2 = 1u ;
+    return error ;
+}
+
+Device::Ads1115::Bang::Error Device::Ads1115::Bang::verify(Record::Write const &record) const 
+{
+    Error error ;
+    uint32_t mask = (1u << this->sdaPin.value()) ;
+    if (0 != (record.ackA.at(0) & mask)) error.noAck_0 = 1u ;
+    if (0 != (record.ackA.at(1) & mask)) error.noAck_1 = 1u ;
+    if (0 != (record.ackA.at(2) & mask)) error.noAck_2 = 1u ;
+    if (0 != (record.ackA.at(3) & mask)) error.noAck_3 = 1u ;
+    return error ;
+}

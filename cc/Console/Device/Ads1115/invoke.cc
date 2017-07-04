@@ -13,44 +13,35 @@ static void configInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
     if (argL->empty())
     {
 	auto record = host->readConfig() ;
-	unsigned word = 0 ;
-	for (int i=0 ; i<2 ; ++i)
-	    for (int j=0 ; j<8 ; ++j)
-	    {
-		word <<= 1 ;
-		word |= 0 != (record.recv[i][j] & (1u << 23)) ;
-	    }
-	std::cout << std::hex << word << std::endl ;
-	// todo
+	auto success = host->verify(record).success() ;
+	std::cout << (success ? "success: " : "error: ") ;
+	std::cout << std::hex << host->fetch(record) << '\n' ;
     }
     else
     {
 	auto word = Ui::strto<uint16_t>(argL->pop()) ;
 	argL->finalize() ;
-	/* auto record = */ host->writeConfig(word) ;
+	auto record = host->writeConfig(word) ;
+	auto success = host->verify(record).success() ;
+	std::cout << (success ? "success\n" : "error\n") ;
     }
 }
 
 static void resetInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
     argL->finalize() ;
-    /*auto success = */ host->doReset() ;
-    //std::cout << success << std::endl ;
+    auto record = host->doReset() ;
+    auto success = host->verify(record).success() ;
+    std::cout << (success ? "success\n" : "error\n") ;
 }
     
 static void sampleInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
     argL->finalize() ;
     auto record = host->readSample() ;
-    unsigned word = 0 ;
-    for (int i=0 ; i<2 ; ++i)
-	for (int j=0 ; j<8 ; ++j)
-	{
-	    word <<= 1 ;
-	    word |= 0 != (record.recv[i][j] & (1u << 23)) ;
-	}
-    std::cout << std::hex << word << std::endl ;
-    // todo
+    auto success = host->verify(record).success() ;
+    std::cout << (success ? "success: " : "error: ") ;
+    std::cout << std::hex << host->fetch(record) << '\n' ;
 }
 
 void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -61,8 +52,6 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << " SCL: Pi's pin to feed ADS's SCL pin\n"
 		  << " SDA: Pi's pin to  r/w ADS's SDA pin\n"
 		  << "ADDR: 0..127\n"
-		  << '\n'
-		  << "-m: enable monitoring to detect communication errors\n"
 		  << '\n'
 		  << "MODE : config       # read configuration register\n"
 		  << "     | config WORD  # write configuration register\n"
@@ -75,7 +64,6 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto sclPin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto sdaPin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto addr = Ui::strto(argL->pop(),::Device::Ads1115::Bang::Addr()) ;
-    auto monitor = argL->pop_if("-m") ;
 
     auto f = Rpi::Counter(rpi).frequency() ;
     if (argL->pop_if("-f"))
@@ -109,7 +97,6 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     ::Device::Ads1115::Bang host(rpi,sclPin,sdaPin,addr,timing) ;
     // ...[future] make timings optional arguments
-    (void)monitor ; // todo
 
     auto arg = argL->pop() ;
     if (false) ;
