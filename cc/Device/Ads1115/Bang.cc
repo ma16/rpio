@@ -118,7 +118,17 @@ void Bang::read(Bang::Script *script,Record::Read *record,uint8_t reg)
     this->stop(script,Line::Low,&record->t0) ;
 }
 
-void Bang::write(Bang::Script *script,Record::Write *record,uint16_t word)
+void Bang::readConfig(Bang::Script *script,Record::Read *record)
+{
+    this->read(script,record,/*config-register:*/0x1) ;
+}
+
+void Bang::readSample(Bang::Script *script,Record::Read *record)
+{
+    this->read(script,record,/*sample-register:*/0x0) ;
+}
+
+void Bang::writeConfig(Bang::Script *script,Record::Write *record,uint16_t word)
 {
     this->start(script) ;
     // (address + write-bit)
@@ -140,35 +150,31 @@ Bang::Record::Reset Bang::reset()
 {
     Script script ; Record::Reset record ;
     this->reset(&script,&record) ;
-    auto vector = script.vector() ;
-    RpiExt::Bang(this->rpi).execute(vector.begin(),vector.end()) ;
+    RpiExt::Bang(this->rpi).execute(script.vector()) ;
     return record ;
 }
 
 Bang::Record::Read Bang::readConfig()
 {
     Script script ; Record::Read record ;
-    this->read(&script,&record,/*config-register:*/0x1) ;
-    auto vector = script.vector() ;
-    RpiExt::Bang(this->rpi).execute(vector.begin(),vector.end()) ;
+    this->readConfig(&script,&record) ;
+    RpiExt::Bang(this->rpi).execute(script.vector()) ;
     return record ;
 }
 
 Bang::Record::Read Bang::readSample()
 {
     Script script ; Record::Read record ;
-    this->read(&script,&record,/*sample-register:*/0x0) ;
-    auto vector = script.vector() ;
-    RpiExt::Bang(this->rpi).execute(vector.begin(),vector.end()) ;
+    this->readSample(&script,&record) ;
+    RpiExt::Bang(this->rpi).execute(script.vector()) ;
     return record ;
 }
 
 Bang::Record::Write Bang::writeConfig(uint16_t word)
 {
     Script script ; Record::Write record ;
-    this->write(&script,&record,word) ;
-    auto vector = script.vector() ;
-    RpiExt::Bang(this->rpi).execute(vector.begin(),vector.end()) ;
+    this->writeConfig(&script,&record,word) ;
+    RpiExt::Bang(this->rpi).execute(script.vector()) ;
     return record ;
 }
 

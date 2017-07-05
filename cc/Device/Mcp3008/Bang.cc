@@ -78,7 +78,7 @@ Device::Mcp3008::Bang::query(Circuit::Source source,bool monitor)
     
     RpiExt::Bang scheduler(this->rpi) ;
 
-    scheduler.execute(q.begin(),q.end()) ;
+    scheduler.execute(q) ;
 
     return record ;
 } 

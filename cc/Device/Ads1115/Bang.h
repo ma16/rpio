@@ -38,8 +38,6 @@ struct Bang
     // 110 | IN-2 |  GND
     // 111 | IN-3 |  GND
 
-    using Sample = int16_t ;
-
     using Addr = Neat::Enum<unsigned,0x7f> ;
 
     template<typename T> struct Timing 
@@ -65,6 +63,7 @@ struct Bang
     {
 	static Timing<float> t =
 	{ 6e-7f,6e-7f,6e-7f,1e-7f,0,13e-7f,6e-7f } ;
+	//{ 6e-6f,6e-6f,6e-6f,1e-6f,0,13e-6f,6e-6f } ;
 	//{ 0,0,0,0,0,0,0 } ;
 	return t ;
         // clock cycle: 1/400 kHz <= rise + high + fall + low <= 1/10 kHz
@@ -105,6 +104,8 @@ struct Bang
     } ;
 
     uint16_t fetch(Record::Read const &record) const ;
+    int16_t sample(Record::Read const &record) const
+    { return static_cast<int16_t>(this->fetch(record)) ; }
 
     struct Error
     {
@@ -123,6 +124,15 @@ struct Bang
     Error verify(Record::Read  const&) const ;
     Error verify(Record::Write const&) const ;
     
+    using Script = RpiExt::Bang::Enqueue ;
+
+    void reset      (Script*,Record::Reset*) ;
+    void readConfig (Script*,Record::Read*) ;
+    void readSample (Script*,Record::Read*) ;
+    void writeConfig(Script*,Record::Write*,uint16_t word) ;
+
+    // [todo] only for the function below we need the actual peripherals
+    
     Record::Reset reset() ;
     Record::Read readConfig() ;
     Record::Read readSample() ;
@@ -138,8 +148,6 @@ private:
 
     Timing<uint32_t> timing ;
 
-    using Script = RpiExt::Bang::Enqueue ;
-
     void start(Script*) ;
     void stop (Script*,Line sda,uint32_t *t0) ;
     
@@ -148,10 +156,8 @@ private:
 
     void recvByte(Script*,Line sda,uint32_t *t0,Record::Read::Byte*) ;
     void sendByte(Script*,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
-
-    void reset(Script*,Record::Reset*) ;
+    
     void read (Script*,Record::Read*,uint8_t reg) ;
-    void write(Script*,Record::Write*,uint16_t data) ;
 } ;
 
 } }

@@ -44,7 +44,7 @@ static void bangRate(Rpi::Peripheral *rpi,Bang *host,bool monitor,Ui::ArgL *argL
     auto t0 = std::chrono::steady_clock::now() ;
     for (decltype(n) i=0 ; i<n ; ++i)
     {
-	scheduler.execute(script.begin(),script.end()) ;
+	scheduler.execute(script) ;
 	v[i] = record ;
 	// the alternative is to compile a long script which already
 	// includes all the iterations. this is however not that fast

@@ -197,10 +197,10 @@ struct Bang
 	}
     }
     
-    template<typename InputIt> void execute(InputIt first, InputIt recent)
+    void execute(std::vector<Command> const &v)
     {
-	for (InputIt i=first ; i!=recent ; ++i)
-	    this->execute(*i) ;
+	for (auto &c : v)
+	    this->execute(c) ;
     }
     
     struct Enqueue // helper for convenience
@@ -306,9 +306,12 @@ private:
     
     void sleep(Command::Sleep const &c)
     {
-	auto t0 = this->t = this->counter.clock() ;
-	while (this->t - t0 < c.span)
-	    this->t = this->counter.clock() ;
+	if (c.span > 0)
+	{
+	    auto t0 = this->t = this->counter.clock() ;
+	    while (this->t - t0 < c.span)
+		this->t = this->counter.clock() ;
+	}
     }
 
 } ; }

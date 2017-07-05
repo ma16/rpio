@@ -8,6 +8,51 @@
 #include <deque>
 #include <iostream>
 
+static void
+rateInvoke(Rpi::Peripheral *rpi,Device::Ads1115::Bang *host,Ui::ArgL *argL)
+{
+    auto n = Ui::strto<size_t>(argL->pop()) ;
+    argL->finalize() ;
+
+    Device::Ads1115::Bang::Script setup_queue ;
+    Device::Ads1115::Bang::Record::Write setup_record ;
+    host->writeConfig(&setup_queue,&setup_record,0x8583) ;
+    auto setup_script = setup_queue.vector() ;
+    
+    Device::Ads1115::Bang::Script status_queue ;
+    Device::Ads1115::Bang::Record::Read status_record ;
+    host->readConfig(&status_queue,&status_record) ;
+    auto status_script = status_queue.vector() ;
+
+    Device::Ads1115::Bang::Script sample_queue ;
+    Device::Ads1115::Bang::Record::Read sample_record ;
+    host->readSample(&sample_queue,&sample_record) ;
+    auto sample_script = sample_queue.vector() ;
+
+    RpiExt::Bang scheduler(rpi) ;
+    
+    int64_t total = 0 ;
+    auto t0 = std::chrono::steady_clock::now() ;
+    for (decltype(n) i=0 ; i<n ; ++i)
+    {
+	// [todo] check for errors
+	scheduler.execute(setup_script) ;
+	do scheduler.execute(status_script) ;
+	while (0 == (0x8000 & host->fetch(status_record))) ;
+	// [todo] timeout
+	scheduler.execute(sample_script) ;
+	total += host->sample(sample_record) ;
+    }
+    auto t1 = std::chrono::steady_clock::now() ;
+
+    auto rate = n/std::chrono::duration<double>(t1-t0).count() ;
+    auto avg = 2.048 / 0x8000 * static_cast<double>(total) / n  ;
+
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    std::cout << rate << "/s (" << avg << ")\n" ;
+}
+    
 static void configInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
 {
     if (argL->empty())
@@ -55,9 +100,9 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << '\n'
 		  << "MODE : config       # read configuration register\n"
 		  << "     | config WORD  # write configuration register\n"
+		  << "     | rate N       # determine sample-rate\n"
 		  << "     | reset        # write reset command\n"
-		  << "     | sample       # read sample register\n"
-		  << std::flush ;
+		  << "     | sample       # read sample register\n" ;
 	return ;
     }
   
@@ -79,7 +124,8 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     // ...[future] make timings optional arguments
     auto ticks = [f](float seconds) {
-	return static_cast<uint32_t>(ceil(f * seconds + 1.5)) ; } ;
+      return seconds <= 0.0 ? 0u :
+      static_cast<uint32_t>(ceil(f * seconds + 1.5)) ; } ;
     // ...ceil since we have to guarantee a minimum delay
     // ...+0.5 to round
     // ...+1.0 since (clock[i+1]-clock[i]) can be zero
@@ -118,6 +164,7 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (false) ;
     
     else if (arg == "config") configInvoke(&host,argL) ;
+    else if (arg ==  "rate")    rateInvoke(rpi,&host,argL) ;
     else if (arg ==  "reset")  resetInvoke(&host,argL) ;
     else if (arg == "sample") sampleInvoke(&host,argL) ;
     
