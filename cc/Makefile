@@ -63,7 +63,9 @@ LSRC=\
 	Console/SpiSlave/invoke.cc \
 	Console/Throughput/Buffer.cc \
 	Console/Throughput/invoke.cc \
-	Device/Ads1115/Bang.cc \
+	Device/Ads1115/Bang/Generator.cc \
+	Device/Ads1115/Bang/Host.cc \
+	Device/Ads1115/Bang/Record.cc \
 	Device/Mcp3008/Bang.cc \
 	Device/Mcp3008/Spi0.cc \
 	Device/Mcp3008/Spi1.cc \

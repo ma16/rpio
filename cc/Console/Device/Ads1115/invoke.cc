@@ -1,27 +1,31 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
+#include <Device/Ads1115/Bang/Host.h>
+#include <Device/Ads1115/Bang/Generator.h>
 #include "../invoke.h"
-#include <Device/Ads1115/Bang.h>
 #include <Neat/cast.h>
 #include <Ui/strto.h>
 #include <chrono>
 #include <deque>
 #include <iostream>
 
-static void
-rateInvoke(Rpi::Peripheral *rpi,Device::Ads1115::Bang *host,Ui::ArgL *argL)
+using namespace Device::Ads1115::Bang ;
+
+static void rateInvoke(Rpi::Peripheral *rpi,Config const &config,Ui::ArgL *argL)
 {
     auto n = Ui::strto<size_t>(argL->pop()) ;
     argL->finalize() ;
 
+    ::Device::Ads1115::Bang::Generator gen(config) ;
+    
     Device::Ads1115::Bang::Record::Write setup_record ;
-    auto setup_script = host->gen.writeConfig(&setup_record,0x8583) ;
+    auto setup_script = gen.writeConfig(&setup_record,0x8583) ;
     
     Device::Ads1115::Bang::Record::Read status_record ;
-    auto status_script = host->gen.readConfig(&status_record) ;
+    auto status_script = gen.readConfig(&status_record) ;
 
     Device::Ads1115::Bang::Record::Read sample_record ;
-    auto sample_script = host->gen.readSample(&sample_record) ;
+    auto sample_script = gen.readSample(&sample_record) ;
 
     RpiExt::Bang scheduler(rpi) ;
     
@@ -32,10 +36,10 @@ rateInvoke(Rpi::Peripheral *rpi,Device::Ads1115::Bang *host,Ui::ArgL *argL)
 	// [todo] check for errors
 	scheduler.execute(setup_script) ;
 	do scheduler.execute(status_script) ;
-	while (0 == (0x8000 & host->fetch(status_record))) ;
+	while (0 == (0x8000 & status_record.fetch(config.sdaPin))) ;
 	// [todo] timeout
 	scheduler.execute(sample_script) ;
-	total += host->sample(sample_record) ;
+	total += static_cast<int16_t>(sample_record.fetch(config.sdaPin)) ;
     }
     auto t1 = std::chrono::steady_clock::now() ;
 
@@ -47,40 +51,43 @@ rateInvoke(Rpi::Peripheral *rpi,Device::Ads1115::Bang *host,Ui::ArgL *argL)
     std::cout << rate << "/s (" << avg << ")\n" ;
 }
     
-static void configInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
+static void configInvoke(Rpi::Peripheral *rpi,Config const &config,Ui::ArgL *argL)
 {
+    Host host(rpi,config) ;
     if (argL->empty())
     {
-	auto record = host->readConfig() ;
-	auto success = host->verify(record).success() ;
+	auto record = host.readConfig() ;
+	auto success = record.verify(config.sdaPin).success() ;
 	std::cout << (success ? "success: " : "error: ") ;
-	std::cout << std::hex << host->fetch(record) << '\n' ;
+	std::cout << std::hex << record.fetch(config.sdaPin) << '\n' ;
     }
     else
     {
 	auto word = Ui::strto<uint16_t>(argL->pop()) ;
 	argL->finalize() ;
-	auto record = host->writeConfig(word) ;
-	auto success = host->verify(record).success() ;
+	auto record = host.writeConfig(word) ;
+	auto success = record.verify(config.sdaPin).success() ;
 	std::cout << (success ? "success\n" : "error\n") ;
     }
 }
 
-static void resetInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
+static void resetInvoke(Rpi::Peripheral *rpi,Config const &config,Ui::ArgL *argL)
 {
     argL->finalize() ;
-    auto record = host->reset() ;
-    auto success = host->verify(record).success() ;
+    Host host(rpi,config) ;
+    auto record = host.reset() ;
+    auto success = record.verify(config.sdaPin).success() ;
     std::cout << (success ? "success\n" : "error\n") ;
 }
     
-static void sampleInvoke(Device::Ads1115::Bang *host,Ui::ArgL *argL)
+static void sampleInvoke(Rpi::Peripheral *rpi,Config const &config,Ui::ArgL *argL)
 {
     argL->finalize() ;
-    auto record = host->readSample() ;
-    auto success = host->verify(record).success() ;
+    Host host(rpi,config) ;
+    auto record = host.readSample() ;
+    auto success = record.verify(config.sdaPin).success() ;
     std::cout << (success ? "success: " : "error: ") ;
-    std::cout << std::hex << host->fetch(record) << '\n' ;
+    std::cout << static_cast<int16_t>(record.fetch(config.sdaPin)) << '\n' ;
 }
 
 void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -102,7 +109,7 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     auto sclPin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto sdaPin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    auto addr = Ui::strto(argL->pop(),::Device::Ads1115::Bang::Addr()) ;
+    auto addr = Ui::strto(argL->pop(),::Device::Ads1115::Circuit::Addr()) ;
 
     auto f = Rpi::Counter(rpi).frequency() ;
     if (argL->pop_if("-f"))
@@ -123,14 +130,15 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // ...ceil since we have to guarantee a minimum delay
     // ...+0.5 to round
     // ...+1.0 since (clock[i+1]-clock[i]) can be zero
-    ::Device::Ads1115::Bang::Timing<uint32_t> timing(
-	ticks(::Device::Ads1115::Bang::fast_timing().  buf),
-	ticks(::Device::Ads1115::Bang::fast_timing().hdsta),
-	ticks(::Device::Ads1115::Bang::fast_timing().susto),
-	ticks(::Device::Ads1115::Bang::fast_timing().sudat),
-	ticks(::Device::Ads1115::Bang::fast_timing().hddat),
-	ticks(::Device::Ads1115::Bang::fast_timing().  low),
-	ticks(::Device::Ads1115::Bang::fast_timing(). high)) ;
+    ::Device::Ads1115::Circuit::Timing<uint32_t> timing(
+	ticks(::Device::Ads1115::Circuit::fast_timing().  buf),
+	ticks(::Device::Ads1115::Circuit::fast_timing().hdsta),
+	ticks(::Device::Ads1115::Circuit::fast_timing().susto),
+	ticks(::Device::Ads1115::Circuit::fast_timing().sudat),
+	ticks(::Device::Ads1115::Circuit::fast_timing().hddat),
+	ticks(::Device::Ads1115::Circuit::fast_timing().  low),
+	ticks(::Device::Ads1115::Circuit::fast_timing(). high)) ;
+    // ...[future] make timings optional arguments
 
     std::cerr << timing.buf << ' '
 	      << timing.hdsta << ' '
@@ -139,10 +147,6 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << timing.hddat << ' '
 	      << timing.low << ' '
 	      << timing.high << '\n' ;
-
-    ::Device::Ads1115::Bang::Generator gen(sclPin,sdaPin,addr,timing) ;
-    ::Device::Ads1115::Bang host(rpi,gen) ;
-    // ...[future] make timings optional arguments
 
     /* [todo]
     this->gpio.setOutput<Lo>(this->sclPin) ;
@@ -155,13 +159,15 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	throw std::runtime_error("please set ARM prescaler to <3>") ;
     */
     
+    Config config(sclPin,sdaPin,addr,timing) ;
+
     auto arg = argL->pop() ;
     if (false) ;
     
-    else if (arg == "config") configInvoke(&host,argL) ;
-    else if (arg ==  "rate")    rateInvoke(rpi,&host,argL) ;
-    else if (arg ==  "reset")  resetInvoke(&host,argL) ;
-    else if (arg == "sample") sampleInvoke(&host,argL) ;
+    else if (arg == "config") configInvoke(rpi,config,argL) ;
+    else if (arg ==  "rate")    rateInvoke(rpi,config,argL) ;
+    else if (arg ==  "reset")  resetInvoke(rpi,config,argL) ;
+    else if (arg == "sample") sampleInvoke(rpi,config,argL) ;
     
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
