@@ -14,20 +14,14 @@ rateInvoke(Rpi::Peripheral *rpi,Device::Ads1115::Bang *host,Ui::ArgL *argL)
     auto n = Ui::strto<size_t>(argL->pop()) ;
     argL->finalize() ;
 
-    Device::Ads1115::Bang::Script setup_queue ;
     Device::Ads1115::Bang::Record::Write setup_record ;
-    host->writeConfig(&setup_queue,&setup_record,0x8583) ;
-    auto setup_script = setup_queue.vector() ;
+    auto setup_script = host->gen.writeConfig(&setup_record,0x8583) ;
     
-    Device::Ads1115::Bang::Script status_queue ;
     Device::Ads1115::Bang::Record::Read status_record ;
-    host->readConfig(&status_queue,&status_record) ;
-    auto status_script = status_queue.vector() ;
+    auto status_script = host->gen.readConfig(&status_record) ;
 
-    Device::Ads1115::Bang::Script sample_queue ;
     Device::Ads1115::Bang::Record::Read sample_record ;
-    host->readSample(&sample_queue,&sample_record) ;
-    auto sample_script = sample_queue.vector() ;
+    auto sample_script = host->gen.readSample(&sample_record) ;
 
     RpiExt::Bang scheduler(rpi) ;
     
@@ -145,8 +139,9 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << timing.hddat << ' '
 	      << timing.low << ' '
 	      << timing.high << '\n' ;
-    
-    ::Device::Ads1115::Bang host(rpi,sclPin,sdaPin,addr,timing) ;
+
+    ::Device::Ads1115::Bang::Generator gen(sclPin,sdaPin,addr,timing) ;
+    ::Device::Ads1115::Bang host(rpi,gen) ;
     // ...[future] make timings optional arguments
 
     /* [todo]

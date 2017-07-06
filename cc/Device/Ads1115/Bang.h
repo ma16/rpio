@@ -50,9 +50,15 @@ struct Bang
 	T low   ; // (min) SCL clock low period
 	T high  ; // (min) SCL clock high period
 
-	/* there are also maximum fall and raise time constraints for 
-	   the SCL edges (300ns) which we could verify, however, not 
-	   at this moment. */
+	/* notes:
+	   - susta (repeated START condition setup time) is the same
+	     as buf time
+	   - there are also maximum fall and raise time constraints for
+	     the SCL edges (300ns) which we could verify, however, not 
+	     at this moment.
+	   - the implementation doesn't verify the clock cycle, which 
+	     should be: 1/400 kHz <= (high + low) <= 1/10 kHz
+	*/
 	
 	Timing(T buf,T hdsta,T susto,T sudat,T hddat,T low,T high) :
 	    buf    (buf), hdsta(hdsta), susto(susto), sudat(sudat),
@@ -61,21 +67,12 @@ struct Bang
 
     static Timing<float> const& fast_timing()
     {
+	// values from datasheet (in seconds):
 	static Timing<float> t =
 	{ 6e-7f,6e-7f,6e-7f,1e-7f,0,13e-7f,6e-7f } ;
-	//{ 6e-6f,6e-6f,6e-6f,1e-6f,0,13e-6f,6e-6f } ;
-	//{ 0,0,0,0,0,0,0 } ;
 	return t ;
-        // clock cycle: 1/400 kHz <= rise + high + fall + low <= 1/10 kHz
     }
     
-    Bang(Rpi::Peripheral *rpi,
-	 Rpi::Pin      sclPin,
-	 Rpi::Pin      sdaPin,
-	 Addr            addr,
-	 Timing<uint32_t> const &timing) 
-	: rpi(rpi),sclPin(sclPin),sdaPin(sdaPin),addr(addr),timing(timing) {}
-
     enum class Line
     {
 	Low, // pin connected to ground
@@ -123,41 +120,65 @@ struct Bang
     Error verify(Record::Reset const&) const ;
     Error verify(Record::Read  const&) const ;
     Error verify(Record::Write const&) const ;
+
+    struct Generator
+    {
+	Generator(
+	    Rpi::Pin sclPin,
+	    Rpi::Pin sdaPin,
+	    Addr addr,
+	    Timing<uint32_t> const &timing) 
+	    :
+	    sclPin(sclPin),sdaPin(sdaPin),addr(addr),timing(timing) {}
+
+	using Script = std::vector<RpiExt::Bang::Command> ;
+	
+	Script reset      (Record::Reset*) ;
+	Script readConfig (Record::Read*) ;
+	Script readSample (Record::Read*) ;
+	Script writeConfig(Record::Write*,uint16_t word) ;
+	
+    private:
+
+	friend Bang ;
+	
+	Rpi::Pin sclPin,sdaPin ;
+
+	Addr addr ;
+
+	Timing<uint32_t> timing ;
+
+	using Draft = RpiExt::Bang::Enqueue ;
+
+	void start(Draft*) ;
+	void stop (Draft*,Line sda,uint32_t *t0) ;
     
-    using Script = RpiExt::Bang::Enqueue ;
+	void recvBit(Draft*,Line sda,uint32_t *t0,uint32_t *levels) ;
+	void sendBit(Draft*,Line from,Line to,uint32_t *t0) ;
 
-    void reset      (Script*,Record::Reset*) ;
-    void readConfig (Script*,Record::Read*) ;
-    void readSample (Script*,Record::Read*) ;
-    void writeConfig(Script*,Record::Write*,uint16_t word) ;
-
-    // [todo] only for the function below we need the actual peripherals
+	void recvByte(Draft*,Line sda,uint32_t *t0,Record::Read::Byte*) ;
+	void sendByte(Draft*,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
+    
+	void read(Draft*,Record::Read*,uint8_t reg) ;
+	
+	void reset      (Draft*,Record::Reset*) ;
+	void readConfig (Draft*,Record::Read*) ;
+	void readSample (Draft*,Record::Read*) ;
+	void writeConfig(Draft*,Record::Write*,uint16_t word) ;
+    } ;
     
     Record::Reset reset() ;
     Record::Read readConfig() ;
     Record::Read readSample() ;
     Record::Write writeConfig(uint16_t word) ;
     
-private:
+//private:
+
+    Bang(Rpi::Peripheral *rpi,Generator const &gen) : rpi(rpi),gen(gen) {}
 
     Rpi::Peripheral *rpi ;
+    Generator gen ;
     
-    Rpi::Pin sclPin,sdaPin ;
-
-    Addr addr ;
-
-    Timing<uint32_t> timing ;
-
-    void start(Script*) ;
-    void stop (Script*,Line sda,uint32_t *t0) ;
-    
-    void recvBit(Script*,Line sda,uint32_t *t0,uint32_t *levels) ;
-    void sendBit(Script*,Line from,Line to,uint32_t *t0) ;
-
-    void recvByte(Script*,Line sda,uint32_t *t0,Record::Read::Byte*) ;
-    void sendByte(Script*,Line sda,uint8_t byte,uint32_t *t0,uint32_t *ack) ;
-    
-    void read (Script*,Record::Read*,uint8_t reg) ;
 } ;
 
 } }
