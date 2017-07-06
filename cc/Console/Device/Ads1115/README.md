@@ -87,24 +87,24 @@ Mode:
 * 0x0100: Power-down single-shot mode (default)
 
 Programmable gain amplifier in +/- volts (PGA):
-0x0000: 6.144
-0x0200: 4.096
-0x0400: 2.048 (default)
-0x0600: 1.024
-0x0800: 0.512
-0x0a00: 0.256
-0x0c00: 0.256
-0x0e00: 0.256
+* 0x0000: 6.144
+* 0x0200: 4.096
+* 0x0400: 2.048 (default)
+* 0x0600: 1.024
+* 0x0800: 0.512
+* 0x0a00: 0.256
+* 0x0c00: 0.256
+* 0x0e00: 0.256
 
 Multplexer (MUX) to sample channels:
-0x0000: 0,1 (default)
-0x1000: 0,3
-0x2000: 1,3
-0x3000: 2,3
-0x4000: 0,GND
-0x5000: 1,GND
-0x6000: 2,GND
-0x7000: 3,GND
+* 0x0000: 0,1 (default)
+* 0x1000: 0,3
+* 0x2000: 1,3
+* 0x3000: 2,3
+* 0x4000: 0,GND
+* 0x5000: 1,GND
+* 0x6000: 2,GND
+* 0x7000: 3,GND
 
 The single-ended circuit covers only half of the ADS1115 input scale because it does not produce differentially negative inputs; therefore, one bit of resolution is lost.
 
