@@ -9,22 +9,23 @@
 #include <deque>
 #include <iostream>
 
-using namespace Device::Ads1115::Bang ;
+using namespace Device::Ads1115 ; // Circuit
+using namespace Bang ; // Config,Record,Generator,Host
 
 static void rateInvoke(Rpi::Peripheral *rpi,Config const &config,Ui::ArgL *argL)
 {
     auto n = Ui::strto<size_t>(argL->pop()) ;
     argL->finalize() ;
 
-    ::Device::Ads1115::Bang::Generator gen(config) ;
+    Generator gen(config) ;
     
-    Device::Ads1115::Bang::Record::Write setup_record ;
+    Record::Write setup_record ;
     auto setup_script = gen.writeConfig(&setup_record,0x8583) ;
     
-    Device::Ads1115::Bang::Record::Read status_record ;
+    Record::Read status_record ;
     auto status_script = gen.readConfig(&status_record) ;
 
-    Device::Ads1115::Bang::Record::Read sample_record ;
+    Record::Read sample_record ;
     auto sample_script = gen.readSample(&sample_record) ;
 
     RpiExt::Bang scheduler(rpi) ;
@@ -37,7 +38,7 @@ static void rateInvoke(Rpi::Peripheral *rpi,Config const &config,Ui::ArgL *argL)
 	scheduler.execute(setup_script) ;
 	do scheduler.execute(status_script) ;
 	while (0 == (0x8000 & status_record.fetch(config.sdaPin))) ;
-	// [todo] timeout
+	// [todo] incorporate timeout
 	scheduler.execute(sample_script) ;
 	total += static_cast<int16_t>(sample_record.fetch(config.sdaPin)) ;
     }
@@ -95,8 +96,8 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (argL->empty() || argL->peek() == "help") {
 	std::cout << "arguments: SCL SDA ADDR [-m] MODE\n"
 		  << '\n'
-		  << " SCL: Pi's pin to feed ADS's SCL pin\n"
-		  << " SDA: Pi's pin to  r/w ADS's SDA pin\n"
+		  << " SCL: Pi's pin to set the ADS1115's SCL pin\n"
+		  << " SDA: Pi's pin to r/w the ADS1115's SDA pin\n"
 		  << "ADDR: 0..127\n"
 		  << '\n'
 		  << "MODE : config       # read configuration register\n"
@@ -108,56 +109,32 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
   
     auto sclPin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    Rpi::Gpio(rpi).setOutput<Rpi::Gpio::Output::Lo>(sclPin) ;
+    
     auto sdaPin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    auto addr = Ui::strto(argL->pop(),::Device::Ads1115::Circuit::Addr()) ;
+    Rpi::Gpio(rpi).setOutput<Rpi::Gpio::Output::Lo>(sdaPin) ;
+    
+    auto addr = Ui::strto(argL->pop(),Circuit::Addr()) ;
 
     auto f = Rpi::Counter(rpi).frequency() ;
-    if (argL->pop_if("-f"))
-    {
-	auto g = Ui::strto<double>(argL->pop()) ;
-	if (g/f < 0.95 || 1.05 < g/f)
-	    std::cout << "warning: "
-		      << "frequency given:" << g << ' '
-		      << "but measured:"    << f << '\n' ;
-	f = g ;
-    }
-    else std::cout << "info: measured frequency: " << f << '\n' ;
-
-    // ...[future] make timings optional arguments
+    if (f > 1e-4)
+	std::cerr << "warning:frequency too small: " << f << "/s\n" ;
+    
     auto ticks = [f](float seconds) {
-      return seconds <= 0.0 ? 0u :
-      static_cast<uint32_t>(ceil(f * seconds + 1.5)) ; } ;
+	return seconds <= 0.0 ? 0u :
+	static_cast<uint32_t>(ceil(f * seconds + 1.5)) ; } ;
     // ...ceil since we have to guarantee a minimum delay
     // ...+0.5 to round
     // ...+1.0 since (clock[i+1]-clock[i]) can be zero
-    ::Device::Ads1115::Circuit::Timing<uint32_t> timing(
-	ticks(::Device::Ads1115::Circuit::fast_timing().  buf),
-	ticks(::Device::Ads1115::Circuit::fast_timing().hdsta),
-	ticks(::Device::Ads1115::Circuit::fast_timing().susto),
-	ticks(::Device::Ads1115::Circuit::fast_timing().sudat),
-	ticks(::Device::Ads1115::Circuit::fast_timing().hddat),
-	ticks(::Device::Ads1115::Circuit::fast_timing().  low),
-	ticks(::Device::Ads1115::Circuit::fast_timing(). high)) ;
+    Circuit::Timing<uint32_t> timing(
+	ticks(Circuit::fast_timing().  buf),
+	ticks(Circuit::fast_timing().hdsta),
+	ticks(Circuit::fast_timing().susto),
+	ticks(Circuit::fast_timing().sudat),
+	ticks(Circuit::fast_timing().hddat),
+	ticks(Circuit::fast_timing().  low),
+	ticks(Circuit::fast_timing(). high)) ;
     // ...[future] make timings optional arguments
-
-    std::cerr << timing.buf << ' '
-	      << timing.hdsta << ' '
-	      << timing.susto << ' '
-	      << timing.sudat << ' '
-	      << timing.hddat << ' '
-	      << timing.low << ' '
-	      << timing.high << '\n' ;
-
-    /* [todo]
-    this->gpio.setOutput<Lo>(this->sclPin) ;
-    this->gpio.setOutput<Lo>(this->sdaPin) ;
-  
-    // make sure the ARM counter is on and runs at 100 Mhz
-    if (!this->counter.enabled())
-	throw std::runtime_error("please enable ARM counter") ;
-    if (this->counter.prescaler() != 3)
-	throw std::runtime_error("please set ARM prescaler to <3>") ;
-    */
     
     Config config(sclPin,sdaPin,addr,timing) ;
 

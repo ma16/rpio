@@ -40,7 +40,7 @@ namespace Circuit
 	     the SCL edges (300ns) which we could verify, however, not 
 	     at this moment.
 	   - the implementation doesn't verify the clock cycle, which 
-	     should be: 1/400 kHz <= (high + low) <= 1/10 kHz
+	     should be: 10 kHz <= 1/(high+low) <= 400 kHz
 	*/
 	
 	Timing(T buf,T hdsta,T susto,T sudat,T hddat,T low,T high) :

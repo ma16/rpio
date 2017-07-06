@@ -1,21 +1,5 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-// --------------------------------------------------------------------
-// The ADS1115 is an I2C driven 15-bit (+sign) ADC with 2x2 or 4x1
-// multiplexed channels and a maximum sampling rate of somewhat below
-// 1k/s.
-//
-// This implementation does only support the "single-shot" mode with
-// an up to 400khz bus clock (bit-banged).
-//
-// This implementation does not support:
-// --continuous mode
-// --comparator configuration
-// --high speed I2C bus clock
-//
-// Please refer to the ADS1115 datasheet for more details.
-// --------------------------------------------------------------------
-
 #ifndef INCLUDE_Device_Ads1115_Bang_Generator_h
 #define INCLUDE_Device_Ads1115_Bang_Generator_h
 
@@ -37,7 +21,7 @@ struct Generator
     Script readSample (Record::Read*) ;
     Script writeConfig(Record::Write*,uint16_t word) ;
 	
-//private:
+private:
 
     Config config ;
 
