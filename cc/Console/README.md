@@ -12,8 +12,7 @@ BASE : --base ADDRESS  # use 0x20000000 (ARMv6) or 0x3f000000
 If BASE is not given then the peripheral address is derived from
 the processor's model name (i.e. ARMv6/7/8) in /proc/cpuinfo.
 
-MODE : bang        # generic bit-banging
-     | clock       # r/w clock sources
+MODE | clock       # r/w clock sources
      | cp          # clock-pulse generator (GPIO Clock)
      | dma         # DMA setup and tests
      | device      # control a certain device
