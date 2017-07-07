@@ -46,7 +46,6 @@ LSRC=\
 	Console/Gpio/invoke.cc \
 	Console/Intr/invoke.cc \
 	Console/Mbox/invoke.cc \
-	Console/Memory/Lib.cc \
 	Console/Poke/invoke.cc \
 	Console/Pwm/invoke.cc \
 	Console/Pwm/Lib.cc \
@@ -103,6 +102,7 @@ LSRC=\
 	Rpi/Spi1.cc \
 	Rpi/Timer.cc \
 	RpiExt/Bang.cc \
+	RpiExt/VcMem.cc \
 	Ui/ArgL.cc \
 	Ui/strto.cc \
 

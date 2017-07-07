@@ -1,17 +1,13 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Console_Memory_Lib_h_
-#define _Console_Memory_Lib_h_
-
-// --------------------------------------------------------------------
-// command line arguments
-// --------------------------------------------------------------------
+#ifndef INCLUDE_RpiExt_VcMem_h
+#define INCLUDE_RpiExt_VcMem_h
 
 #include <Rpi/Bus/Memory.h>
 #include <Rpi/Peripheral.h>
 #include <Ui/ArgL.h>
 
-namespace Console { namespace Memory { namespace Lib
+namespace RpiExt { namespace VcMem
 {
   using Memory = Rpi::Bus::Memory ;
   
@@ -27,6 +23,6 @@ namespace Console { namespace Memory { namespace Lib
 
   Memory::shared_ptr read(std::string const &fname,Memory::Factory *mem) ;
   
-} } } 
+} } 
 
-#endif // _Console_Memory_Lib_h_
+#endif // INCLUDE_RpiExt_VcMem_h

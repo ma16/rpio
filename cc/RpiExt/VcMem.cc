@@ -1,6 +1,6 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "Lib.h"
+#include "VcMem.h"
 #include <Linux/Shm.h>
 #include <Neat/cast.h>
 #include <Neat/stream.h>
@@ -11,7 +11,7 @@
 #include <fstream>
 #include <iomanip> // setw
 
-Rpi::Bus::Coherency Console::Memory::Lib::getCo(Ui::ArgL *argL)
+Rpi::Bus::Coherency RpiExt::VcMem::getCo(Ui::ArgL *argL)
 {
   auto i = argL->pop_if({"--co-0","--co-4","--co-8","--co-c"}) ;
   if (!i)
@@ -27,20 +27,20 @@ Rpi::Bus::Coherency Console::Memory::Lib::getCo(Ui::ArgL *argL)
     
 // --------------------------------------------------------------------
 
-Rpi::Bus::Memory::Factory::shared_ptr Console::Memory::Lib::defaultFactory() 
+Rpi::Bus::Memory::Factory::shared_ptr RpiExt::VcMem::defaultFactory() 
 {
   auto vcio = Rpi::Mbox::Vcio::shared_ptr(new Rpi::Mbox::Vcio()) ;
   auto iface = Rpi::Mbox::Interface::make(vcio) ;
   return Rpi::Bus::Memory::Factory::shared_ptr(new Rpi::GpuMem::Factory(iface,0x1000,Rpi::Mbox::Property::Memory::Mode::deserialize(0x4))) ;
 }
 
-Rpi::Bus::Memory::Factory::shared_ptr Console::Memory::Lib::getFactory(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+Rpi::Bus::Memory::Factory::shared_ptr RpiExt::VcMem::getFactory(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
   auto type = argL->pop({"arm","gpu"}) ;
   switch (type) {
   case 0:
     {
-      auto co = Console::Memory::Lib::getCo(argL) ;
+      auto co = RpiExt::VcMem::getCo(argL) ;
       auto stick = argL->pop_if("-s") ;
       return Rpi::ArmMem::Factory::shared_ptr(new Rpi::ArmMem::Factory(co,stick)) ;
     }
@@ -51,7 +51,7 @@ Rpi::Bus::Memory::Factory::shared_ptr Console::Memory::Lib::getFactory(Rpi::Peri
       auto mode = Rpi::Mbox::Property::Memory::Mode::deserialize(u32) ;
       Rpi::Mbox::Interface::shared_ptr iface ;
       if (argL->pop_if("-d")) {
-	auto co = Console::Memory::Lib::getCo(argL) ;
+	auto co = RpiExt::VcMem::getCo(argL) ;
 	iface = Rpi::Mbox::Interface::make(Rpi::Mbox::Queue(rpi),co) ;
       }
       else {
@@ -64,10 +64,10 @@ Rpi::Bus::Memory::Factory::shared_ptr Console::Memory::Lib::getFactory(Rpi::Peri
   abort() ;
 }
 
-Rpi::Bus::Memory::Factory::shared_ptr Console::Memory::Lib::getFactory(Rpi::Peripheral *rpi,Ui::ArgL *argL,Rpi::Bus::Memory::Factory::shared_ptr def) 
+Rpi::Bus::Memory::Factory::shared_ptr RpiExt::VcMem::getFactory(Rpi::Peripheral *rpi,Ui::ArgL *argL,Rpi::Bus::Memory::Factory::shared_ptr def) 
 {
   if (argL->pop_if("--memf"))
-    return Console::Memory::Lib::getFactory(rpi,argL) ;
+    return RpiExt::VcMem::getFactory(rpi,argL) ;
   return def ;
 }
 
@@ -96,7 +96,7 @@ static void readIn(std::istream *is,Rpi::Bus::Memory *mem)
   }
 }
 
-Rpi::Bus::Memory::shared_ptr Console::Memory::Lib::read(std::string const &fname,Rpi::Bus::Memory::Factory *mem)
+Rpi::Bus::Memory::shared_ptr RpiExt::VcMem::read(std::string const &fname,Rpi::Bus::Memory::Factory *mem)
 {
   std::ifstream is ; Neat::open(&is,fname) ;
   auto nbytes = Neat::demote<size_t>(Neat::size(&is).as_unsigned()) ; 
@@ -110,7 +110,7 @@ Rpi::Bus::Memory::shared_ptr Console::Memory::Lib::read(std::string const &fname
 
 static Rpi::Bus::Memory::shared_ptr make_arm(Ui::ArgL *argL)
 {
-  auto co = Console::Memory::Lib::getCo(argL) ;
+  auto co = RpiExt::VcMem::getCo(argL) ;
   auto stick = argL->pop_if("-s") ;
   auto nbytes = Ui::strto<uint32_t>(argL->pop()) ;
   auto is = getIn(argL) ;
@@ -126,7 +126,7 @@ static Rpi::Bus::Memory::shared_ptr make_gpu(Rpi::Peripheral *rpi,Ui::ArgL *argL
   auto mode = Rpi::Mbox::Property::Memory::Mode::deserialize(u32) ;
   Rpi::Mbox::Interface::shared_ptr iface ;
   if (argL->pop_if("-d")) {
-    auto co = Console::Memory::Lib::getCo(argL) ;
+    auto co = RpiExt::VcMem::getCo(argL) ;
     iface = Rpi::Mbox::Interface::make(Rpi::Mbox::Queue(rpi),co) ;
   }
   else {
@@ -164,7 +164,7 @@ struct VcRange : Rpi::Bus::Memory
   uintptr_t addr_ ; uint32_t nbytes_ ;
 } ;
 
-Rpi::Bus::Memory::shared_ptr Console::Memory::Lib::getMemory(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+Rpi::Bus::Memory::shared_ptr RpiExt::VcMem::getMemory(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
   auto type = argL->pop({"arm","bus","gpu"}) ;
   switch (type) {

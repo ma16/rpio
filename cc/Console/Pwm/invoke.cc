@@ -1,13 +1,12 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "../rpio.h"
 #include "Lib.h"
-#include <Console/Dma/Lib.h>
-#include <Console/Memory/Lib.h>
+#include "../rpio.h"
 #include <Neat/stream.h>
 #include <Posix/base.h>
 #include <Rpi/GpuMem.h>
 #include <Rpi/Timer.h>
+#include <RpiExt/VcMem.h>
 #include <Ui/ostream.h>
 #include <Ui/strto.h>
 #include <iomanip>
@@ -96,9 +95,9 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
   auto ti = Console::Dma::Lib::optTi(argL,Rpi::Dma::Ti::send(Rpi::Pwm::permap())) ;
 
-  auto allof = Console::Memory::Lib::getFactory(rpi,argL,Console::Memory::Lib::defaultFactory()) ;
+  auto allof = RpiExt::VcMem::getFactory(rpi,argL,RpiExt::VcMem::defaultFactory()) ;
   
-  auto data = Console::Memory::Lib::read(argL->pop(),allof.get()) ;
+  auto data = RpiExt::VcMem::read(argL->pop(),allof.get()) ;
 
   argL->finalize() ;
 
@@ -176,8 +175,8 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   tid.destDreq()= true ;
   
   auto mem = (argL->pop_if("--mem"))
-    ? Console::Memory::Lib::getFactory(rpi,argL)
-    : Console::Memory::Lib::defaultFactory() ;
+    ? RpiExt::VcMem::getFactory(rpi,argL)
+    : RpiExt::VcMem::defaultFactory() ;
   
   auto nwords = Ui::strto<uint32_t>(argL->pop()) ;
   
