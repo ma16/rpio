@@ -28,8 +28,6 @@ CC=$(CXX) $(INCLUDE) $(CFLAGS)
 LD=$(CXX) $(LDFLAGS)
 
 LSRC=\
-	Console/Bang/Host.cc \
-	Console/Bang/invoke.cc \
 	Console/Clock/invoke.cc \
 	Console/Cp/invoke.cc \
 	Console/Device/Ads1115/invoke.cc \
@@ -102,9 +100,10 @@ LSRC=\
 	Rpi/Spi1.cc \
 	Rpi/Timer.cc \
 	RpiExt/Bang.cc \
+	RpiExt/Serialize.cc \
 	RpiExt/VcMem.cc \
 	Ui/ArgL.cc \
-	Ui/strto.cc \
+	Ui/strto.cc
 
 BSRC=\
 	Console/rpio.cc

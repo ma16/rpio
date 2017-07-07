@@ -3,18 +3,18 @@
 #include "../invoke.h"
 #include "Pwm.h"
 #include "Spi0.h"
-#include <Console/Bang/Host.h>
+#include <RpiExt/Serialize.h>
 #include <Ui/strto.h>
 #include <iostream>
 
-static std::vector<Console::Bang::Host::Edge> make(
+static std::vector<RpiExt::Serialize::Edge> make(
     size_t nleds,uint32_t grb,uint32_t pins,
     Console::Ws2812b::Timing::Ticks const &ticks)
 {
     auto const Lo = Rpi::Gpio::Output::Lo ;
     auto const Hi = Rpi::Gpio::Output::Hi ;
 
-    using Edge = Console::Bang::Host::Edge ;
+    using Edge = RpiExt::Serialize::Edge ;
     std::deque<Edge> q ;
     
     // reset
@@ -55,7 +55,7 @@ static void bang(Rpi::Peripheral *rpi,
     // bit banging specific
     auto freq = (argL->pop_if("-f"))
 	? Ui::strto<double>(argL->pop()) 
-	: Console::Bang::Host::frequency(counter) ;
+	: RpiExt::Serialize::frequency(counter) ;
     // [future] abort if frequency<1E+6
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto max = Ui::strto<uint64_t>(argL->option("-r","1")) ;
@@ -64,8 +64,8 @@ static void bang(Rpi::Peripheral *rpi,
     argL->finalize() ;
   
     auto ticks = Console::Ws2812b::Timing::compute(timing,freq) ;
-    Console::Bang::Host host(gpio,counter) ;
-    std::vector<Console::Bang::Host::Edge> v =
+    RpiExt::Serialize host(gpio,counter) ;
+    std::vector<RpiExt::Serialize::Edge> v =
 	make(nleds,grb,(1u<<pin.value()),ticks) ;
   
     if (debug) {

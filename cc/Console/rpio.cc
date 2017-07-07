@@ -28,8 +28,7 @@ int main(int argc,char **argv)
 		<< "If BASE is not given then the peripheral address is derived from\n"
 		<< "the processor's model name (i.e. ARMv6/7/8) in /proc/cpuinfo.\n"
 		<< '\n'
-		<< "MODE : bang        # generic bit-banging\n"
-		<< "     | clock       # r/w clock sources\n"
+		<< "MODE | clock       # r/w clock sources\n"
 		<< "     | cp          # clock-pulse generator (GPIO Clock)\n"
 		<< "     | dma         # DMA setup and tests\n"
 		<< "     | device      # control a certain device\n"
@@ -54,7 +53,6 @@ int main(int argc,char **argv)
     std::string arg = argL.pop() ;
     if (false) ;
   
-    else if (arg ==       "bang") Console::      Bang::invoke(rpi.get(),&argL) ;
     else if (arg ==      "clock") Console::     Clock::invoke(rpi.get(),&argL) ;
     else if (arg ==         "cp") Console::        Cp::invoke(rpi.get(),&argL) ;
     else if (arg ==     "device") Console::    Device::invoke(rpi.get(),&argL) ;

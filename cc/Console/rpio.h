@@ -8,7 +8,6 @@
 
 namespace Console
 {
-    namespace       Bang { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace      Clock { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace     Device { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace         Cp { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }

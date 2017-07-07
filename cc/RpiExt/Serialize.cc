@@ -1,10 +1,10 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "Host.h"
+#include "Serialize.h"
 #include <chrono>
 #include <deque>
 
-double Console::Bang::Host::frequency(Rpi::Counter counter)
+double RpiExt::Serialize::frequency(Rpi::Counter counter)
 {
     auto c0 = counter.clock() ;
     using clock = std::chrono::steady_clock ;
@@ -16,7 +16,7 @@ double Console::Bang::Host::frequency(Rpi::Counter counter)
     return static_cast<double>(c1-c0) * 10 ;
 }
   
-bool Console::Bang::Host::send(uint32_t *t0,Edge const &edge)
+bool RpiExt::Serialize::send(uint32_t *t0,Edge const &edge)
 {
     auto t1 = this->counter.clock() ;
     while (t1 - (*t0) < edge.t_min)
@@ -28,7 +28,7 @@ bool Console::Bang::Host::send(uint32_t *t0,Edge const &edge)
     return success ;
 }
 
-bool Console::Bang::Host::send(std::vector<Edge> const &v)
+bool RpiExt::Serialize::send(std::vector<Edge> const &v)
 {
     auto success = true ;
     auto t = this->counter.clock() ;

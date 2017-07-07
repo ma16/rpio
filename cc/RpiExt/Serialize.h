@@ -1,15 +1,15 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Console_Bang_Host_h_
-#define _Console_Bang_Host_h_
+#ifndef INCLUDE_RpiExt_Serialize_h
+#define INCLUDE_RpiExt_Serialize_h
 
 #include <Rpi/Counter.h>
 #include <Rpi/Gpio.h>
 #include <vector>
 
-namespace Console { namespace Bang {
+namespace RpiExt { 
 
-struct Host
+struct Serialize
 {
     static double frequency(Rpi::Counter counter) ;
     
@@ -29,7 +29,7 @@ struct Host
 
     // ...all tick values must also be <= int32_t:max (?!)
     
-    Host(Rpi::Gpio gpio,Rpi::Counter counter) : gpio(gpio),counter(counter) {}
+    Serialize(Rpi::Gpio gpio,Rpi::Counter counter) : gpio(gpio),counter(counter) {}
 
     bool send(std::vector<Edge> const &v) ;
     // ...the counter's prescaler must match the timing
@@ -40,6 +40,6 @@ private:
 
     bool send(uint32_t *t0,Edge const &edge) ;
     
-} ; } } 
+} ; } 
 
-#endif // _Console_Bang_Host_h_
+#endif // INCLUDE_RpiExt_Serialize_h
