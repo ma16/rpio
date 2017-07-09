@@ -37,8 +37,6 @@ LSRC=\
 	Console/Device/Max7219/invoke.cc \
 	Console/Device/Max7219/Parser.cc \
 	Console/Device/Ws2812b/invoke.cc \
-	Console/Device/Ws2812b/Pwm.cc \
-	Console/Device/Ws2812b/Spi0.cc \
 	Console/Dma/Lib.cc \
 	Console/Dma/invoke.cc \
 	Console/Gpio/invoke.cc \
@@ -66,6 +64,8 @@ LSRC=\
 	Device/Mcp3008/Bang.cc \
 	Device/Mcp3008/Spi0.cc \
 	Device/Mcp3008/Spi1.cc \
+	Device/Ws2812b/Pwm.cc \
+	Device/Ws2812b/Spi0.cc \
 	Linux/base.cc \
 	Linux/PhysMem.cc \
 	Linux/Shm.cc \
