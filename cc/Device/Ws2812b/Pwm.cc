@@ -1,6 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "Pwm.h"
+#include <cassert>
 
 void Device::Ws2812b::Pwm::BitStream::push_back(bool bit,uint32_t nticks)
 {
@@ -8,7 +9,7 @@ void Device::Ws2812b::Pwm::BitStream::push_back(bool bit,uint32_t nticks)
 	this->push_back(bit) ;
 }
 
-void Device::Ws2812b::Pwm::BitStream::push_back(Timing::Nticks const &t,uint32_t rgb)
+void Device::Ws2812b::Pwm::BitStream::push_back(Nticks const &t,uint32_t rgb)
 {
     for (uint32_t mask=(1u<<23) ; mask!=0 ; mask>>=1) {
 	if (0 == (rgb & mask)) {
@@ -22,7 +23,7 @@ void Device::Ws2812b::Pwm::BitStream::push_back(Timing::Nticks const &t,uint32_t
     }
 }
   
-void Device::Ws2812b::Pwm::BitStream::push_back(Timing::Nticks const &t,uint32_t rgb,size_t n)
+void Device::Ws2812b::Pwm::BitStream::push_back(Nticks const &t,uint32_t rgb,size_t n)
 {
     for (unsigned i=0 ; i<n ; ++i)
 	this->push_back(t,rgb) ;

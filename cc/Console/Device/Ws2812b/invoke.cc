@@ -1,6 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
+#include <Device/Ws2812b/Circuit.h>
 #include <Device/Ws2812b/Spi0.h>
 #include <Device/Ws2812b/Pwm.h>
 #include <RpiExt/Serialize.h>
@@ -9,7 +10,7 @@
 
 static std::vector<RpiExt::Serialize::Edge> make(
     size_t nleds,uint32_t grb,uint32_t pins,
-    Device::Ws2812b::Timing::Ticks const &ticks)
+    Device::Ws2812b::Circuit::Ticks const &ticks)
 {
     auto const Lo = Rpi::Gpio::Output::Lo ;
     auto const Hi = Rpi::Gpio::Output::Hi ;
@@ -47,58 +48,90 @@ static std::vector<RpiExt::Serialize::Edge> make(
 static void bang(Rpi::Peripheral *rpi,
 		 unsigned nleds,
 		 unsigned grb,
-		 Device::Ws2812b::Timing::Seconds const &timing,
+		 Device::Ws2812b::Circuit::Seconds const &timing,
 		 Ui::ArgL *argL)
 {
     Rpi::Gpio gpio(rpi) ;
     Rpi::Counter counter(rpi) ;
-    // bit banging specific
-    auto freq = (argL->pop_if("-f"))
-	? Ui::strto<double>(argL->pop()) 
-	: RpiExt::Serialize::frequency(counter) ;
-    // [future] abort if frequency<1E+6 or doesn't seem reasonable
+    
+    auto freq = counter.frequency() ;
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    auto max = Ui::strto<uint64_t>(argL->option("-r","1")) ;
-    // ...stop if nretries+1==max; infinite if zero
+    auto max_retries = Ui::strto<uint64_t>(argL->option("-r","1")) ;
     auto debug = argL->pop_if("-d") ;
     argL->finalize() ;
   
-    auto ticks = Device::Ws2812b::Timing::compute(timing,freq) ;
+    auto ticks = Device::Ws2812b::Circuit::asTicks(timing,freq) ;
+    if (debug)
+    {
+	std::cout << "f=" << freq << '\n'
+		  << "timing (seconds)="
+		  << Device::Ws2812b::Circuit::toStr(timing) << '\n'
+		  << "timing (ticks)="
+		  << Device::Ws2812b::Circuit::toStr(ticks)  << '\n' ;
+    }
+  
     RpiExt::Serialize host(gpio,counter) ;
     std::vector<RpiExt::Serialize::Edge> v =
 	make(nleds,grb,(1u<<pin.value()),ticks) ;
   
-    if (debug)
-    {
-	std::cout << "f=" << freq << '\n'
-		  << "timing (seconds)=" << Device::Ws2812b::Timing::toStr(timing) << '\n'
-		  << "timing (ticks)=" << Device::Ws2812b::Timing::toStr(ticks) << '\n' ;
-    }
-  
-    decltype(max) retries = 0 ;
+    decltype(max_retries) i = 0 ;
     bool success ;
-    do success = host.send(v) ;
-    while (retries++ < max && !success) ;
+    do {
+	++i ;
+	success = host.send(v) ;
+    }
+    while (!success && ((max_retries==0) || (i<max_retries))) ;
+    if (!success)
+	std::cout << "failed\n" ;
     if (debug)
-	std::cout << "retries: " << (retries-1) << "\n" ;
+	std::cout << "iterations: " <<  i << "\n" ;
+}
+
+static std::string toStr(Device::Ws2812b::Pwm::Nticks const &n)
+{
+    std::ostringstream os ;
+    os << "0-bit:(" << n.t0h << ',' << n.t0l << ") 1-bit:(" << n.t1h << ',' << n.t1l << ") latch:" << n.res ;
+    return os.str() ;
+}
+  
+static Device::Ws2812b::Pwm::Nticks computeNticks(
+    Device::Ws2812b::Circuit::Seconds const &s,double f)
+{
+    Device::Ws2812b::Pwm::Nticks n = {
+	static_cast<uint32_t>((s.t0h_min+s.t0h_max)/2*f+0.5),
+	static_cast<uint32_t>((s.t0l_min+s.t0l_max)/2*f+0.5),
+	static_cast<uint32_t>((s.t1h_min+s.t1h_max)/2*f+0.5),
+	static_cast<uint32_t>((s.t1l_min+s.t1l_max)/2*f+0.5),
+	static_cast<uint32_t>(ceil(s.res_min*f)),
+    } ;
+#if 1   
+    // ...[todo] make sure no overflows occur
+    if (((n.t0h/f < s.t0h_min) || (s.t0h_max < n.t0h/f)) ||
+	((n.t0l/f < s.t0l_min) || (s.t0l_max < n.t0l/f)) ||
+	((n.t1h/f < s.t1h_min) || (s.t1h_max < n.t1h/f)) ||
+	((n.t1l/f < s.t1l_min) || (s.t1l_max < n.t1l/f)))
+	throw std::runtime_error("Nticks:cannot compute") ;
+#endif
+    return n ;
 }
 
 static void pwm(Rpi::Peripheral *rpi,
 		unsigned nleds,
 		unsigned grb,
-		Device::Ws2812b::Timing::Seconds const &timing,
+		Device::Ws2812b::Circuit::Seconds const &timing,
 		Ui::ArgL *argL)
 {
     auto channel = Ui::strto(argL->pop(),Rpi::Pwm::Index()) ;
     auto freq = Ui::strto<double>(argL->pop()) ;
     auto debug = argL->pop_if("-d") ;
     argL->finalize() ;
-    auto nticks = Device::Ws2812b::Timing::computeNticks(timing,freq) ;
+    auto nticks = computeNticks(timing,freq) ;
     if (debug)
     {
 	std::cout << "f=" << freq << '\n'
-		  << "timing (seconds)=" << Device::Ws2812b::Timing::toStr(timing) << '\n'
-		  << "timing (ticks)=" << Device::Ws2812b::Timing::toStr(nticks) << '\n' ;
+		  << "timing (seconds)="
+		  << Device::Ws2812b::Circuit::toStr(timing) << '\n'
+		  << "timing (ticks)=" << toStr(nticks) << '\n' ;
     }
     Device::Ws2812b::Pwm pwm(rpi,channel,nticks) ;
     pwm.send(nleds,grb) ;
@@ -107,7 +140,7 @@ static void pwm(Rpi::Peripheral *rpi,
 static void spi0(Rpi::Peripheral *rpi,
 		 unsigned nleds,
 		 unsigned grb,
-		 Device::Ws2812b::Timing::Seconds const&,
+		 Device::Ws2812b::Circuit::Seconds const&,
 		 Ui::ArgL *argL)
 {
     auto tps = Ui::strto<double>(argL->pop()) ;
@@ -116,16 +149,36 @@ static void spi0(Rpi::Peripheral *rpi,
     spi.send(nleds,grb) ;
 }
 
+static Device::Ws2812b::Circuit::Seconds get(Ui::ArgL *argL)
+{
+    if (argL->pop_if("--timing"))
+    {
+	Device::Ws2812b::Circuit::Seconds s(
+	    Ui::strto<float>(argL->pop()),
+	    Ui::strto<float>(argL->pop()),
+	    Ui::strto<float>(argL->pop()),
+	    Ui::strto<float>(argL->pop()),
+	    Ui::strto<float>(argL->pop()),
+	    Ui::strto<float>(argL->pop()),
+	    Ui::strto<float>(argL->pop()),
+	    Ui::strto<float>(argL->pop()),
+	    Ui::strto<float>(argL->pop())) ;
+	return s ;
+    }
+
+    return Device::Ws2812b::Circuit::strict ;
+}
+  
 void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") {
-	std::cout << "arguments: NLEDS GRB TIMING MODE\n"
+	std::cout << "arguments: NLEDS GRB [TIMING] MODE\n"
 		  << '\n'
-		  << "MODE : bang PINS [-f FREQ] [-r RETRY] [-d]\n"
+		  << "MODE : bang PINS [-r RETRY] [-d]\n"
 		  << "     | pwm FREQ CHANNEL [-d]\n"
 		  << "     | spi0 TPS\n"
 		  << '\n'
-		  << "TIMING : --relaxed | (--timing T1..T9)\n"
+		  << "TIMING : --timing T1..T9\n"
 		  << '\n'
 		  << "T1 = the 0-bit's High-level minimum-duration\n"
 		  << "T2 = the 0-bit's High-level maximum-duration\n"
@@ -138,8 +191,7 @@ void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "T9 = the latch (reset) duration\n"
 		  << '\n'
 		  << "All values in seconds\n"
-		  << "--relaxed = (experimental) relaxed timing values\n"
-		  << "Otherwise the values from the datasheet are taken\n"
+		  << "Default values are the ones on the datasheet.\n"
 		  << std::flush ;
 	// [todo] read from file, read chains, read various chains
 	return ;
@@ -148,7 +200,7 @@ void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto nleds = Ui::strto<unsigned>(argL->pop()) ;
     auto   grb = Ui::strto<unsigned>(argL->pop()) ;
   
-    auto timing = ::Device::Ws2812b::Timing::get(argL) ;
+    auto timing = get(argL) ;
   
     std::string arg = argL->pop() ;
     if (false) ;

@@ -1,21 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "Serialize.h"
-#include <chrono>
-#include <deque>
 
-double RpiExt::Serialize::frequency(Rpi::Counter counter)
-{
-    auto c0 = counter.clock() ;
-    using clock = std::chrono::steady_clock ;
-    auto t0 = clock::now() ;
-    using ms = std::chrono::milliseconds ;
-    while (std::chrono::duration_cast<ms>(clock::now()-t0).count() < 100)
-	;
-    auto c1 = counter.clock() ;
-    return static_cast<double>(c1-c0) * 10 ;
-}
-  
 bool RpiExt::Serialize::send(uint32_t *t0,Edge const &edge)
 {
     auto t1 = this->counter.clock() ;

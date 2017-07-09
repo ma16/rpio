@@ -1,5 +1,38 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
+// This is a simple serializer. That is, a vector of (Level,Min,Low)-
+// tuples is serialized.
+//
+// * A level can be high or low.
+// * The signal level is hold at least for a minimum amount of time.
+// * A flag is set if the signal level lasts for more then a maximum
+//   amount of time.
+//
+// All timing values are considered to match ARM counter ticks.
+//
+//   __   ________________   __
+//     \ /                \ /
+//      x                  x
+//   __/ \________________/ \__
+//
+//   t0   t1             t2  t3
+//
+// * The time t0 is taken immediately before the new level is set.
+// * The signal level is set (causing a rising of falling edge).
+// * The time t1 is taken immediately after the signal was set.
+// * The time t2 is taken (repeatedly) until (t2-t1) >= min.
+// * The signal level is set (causing an inverse edge).
+// * The time t3 is taken immediately after the signal was set.
+// * An error flag is raised if (t3 - t0) > max
+//
+// For the next tuple, the timer values are re-used: t0=t2,t1=t3.
+//
+// A bit-banged operation may fail any time due to process suspension.
+// Besides, cache faults and interrupts may occur. The caller may try
+// again from the beginning, if a maximum timing was exceeded. Anyway,
+// with this implementation, signal levels of less than 1us appear to
+// be diffcult to achieve.
+
 #ifndef INCLUDE_RpiExt_Serialize_h
 #define INCLUDE_RpiExt_Serialize_h
 
@@ -11,8 +44,6 @@ namespace RpiExt {
 
 struct Serialize
 {
-    static double frequency(Rpi::Counter counter) ;
-    
     struct Edge
     {
 	Rpi::Gpio::Output output ;
@@ -27,12 +58,9 @@ struct Serialize
 	: output(output),pins(pins),t_min(t_min),t_max(t_max) {}
     } ;
 
-    // ...all tick values must also be <= int32_t:max (?!)
-    
     Serialize(Rpi::Gpio gpio,Rpi::Counter counter) : gpio(gpio),counter(counter) {}
 
     bool send(std::vector<Edge> const &v) ;
-    // ...the counter's prescaler must match the timing
   
 private:
 
