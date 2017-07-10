@@ -1,12 +1,15 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
+#include <Device/Ws2812b/BitStream.h>
 #include <Device/Ws2812b/Circuit.h>
 #include <Device/Ws2812b/Spi0.h>
-#include <Device/Ws2812b/Pwm.h>
+#include <RpiExt/Pwm.h>
 #include <RpiExt/Serialize.h>
 #include <Ui/strto.h>
 #include <iostream>
+
+// --------------------------------------------------------------------
 
 static std::vector<RpiExt::Serialize::Edge> make(
     size_t nleds,uint32_t grb,uint32_t pins,
@@ -87,17 +90,19 @@ static void bang(Rpi::Peripheral *rpi,
 	std::cout << "iterations: " <<  i << "\n" ;
 }
 
-static std::string toStr(Device::Ws2812b::Pwm::Nticks const &n)
+// --------------------------------------------------------------------
+
+static std::string toStr(Device::Ws2812b::BitStream::Ticks const &n)
 {
     std::ostringstream os ;
     os << "0-bit:(" << n.t0h << ',' << n.t0l << ") 1-bit:(" << n.t1h << ',' << n.t1l << ") latch:" << n.res ;
     return os.str() ;
 }
   
-static Device::Ws2812b::Pwm::Nticks computeNticks(
+static Device::Ws2812b::BitStream::Ticks computeTicks(
     Device::Ws2812b::Circuit::Seconds const &s,double f)
 {
-    Device::Ws2812b::Pwm::Nticks n = {
+    Device::Ws2812b::BitStream::Ticks n = {
 	static_cast<uint32_t>((s.t0h_min+s.t0h_max)/2*f+0.5),
 	static_cast<uint32_t>((s.t0l_min+s.t0l_max)/2*f+0.5),
 	static_cast<uint32_t>((s.t1h_min+s.t1h_max)/2*f+0.5),
@@ -110,7 +115,7 @@ static Device::Ws2812b::Pwm::Nticks computeNticks(
 	((n.t0l/f < s.t0l_min) || (s.t0l_max < n.t0l/f)) ||
 	((n.t1h/f < s.t1h_min) || (s.t1h_max < n.t1h/f)) ||
 	((n.t1l/f < s.t1l_min) || (s.t1l_max < n.t1l/f)))
-	throw std::runtime_error("Nticks:cannot compute") ;
+	throw std::runtime_error("Ticks:cannot compute") ;
 #endif
     return n ;
 }
@@ -125,17 +130,20 @@ static void pwm(Rpi::Peripheral *rpi,
     auto freq = Ui::strto<double>(argL->pop()) ;
     auto debug = argL->pop_if("-d") ;
     argL->finalize() ;
-    auto nticks = computeNticks(timing,freq) ;
+    auto ticks = computeTicks(timing,freq) ;
     if (debug)
     {
 	std::cout << "f=" << freq << '\n'
 		  << "timing (seconds)="
 		  << Device::Ws2812b::Circuit::toStr(timing) << '\n'
-		  << "timing (ticks)=" << toStr(nticks) << '\n' ;
+		  << "timing (ticks)=" << toStr(ticks) << '\n' ;
     }
-    Device::Ws2812b::Pwm pwm(rpi,channel,nticks) ;
-    pwm.send(nleds,grb) ;
+    // [todo] make sure there is a clock-pulse
+    auto v = Device::Ws2812b::BitStream::make(ticks,grb,nleds) ;
+    RpiExt::Pwm(rpi,channel).send(v) ;
 }
+
+// --------------------------------------------------------------------
 
 static void spi0(Rpi::Peripheral *rpi,
 		 unsigned nleds,
@@ -148,6 +156,8 @@ static void spi0(Rpi::Peripheral *rpi,
     Device::Ws2812b::Spi0 spi(Rpi::Spi0(rpi),Device::Ws2812b::Spi0::Timing(),tps) ;
     spi.send(nleds,grb) ;
 }
+
+// --------------------------------------------------------------------
 
 static Device::Ws2812b::Circuit::Seconds get(Ui::ArgL *argL)
 {
@@ -175,7 +185,7 @@ void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout << "arguments: NLEDS GRB [TIMING] MODE\n"
 		  << '\n'
 		  << "MODE : bang PINS [-r RETRY] [-d]\n"
-		  << "     | pwm FREQ CHANNEL [-d]\n"
+		  << "     | pwm CHANNEL FREQ [-d]\n"
 		  << "     | spi0 TPS\n"
 		  << '\n'
 		  << "TIMING : --timing T1..T9\n"
@@ -192,6 +202,8 @@ void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << '\n'
 		  << "All values in seconds\n"
 		  << "Default values are the ones on the datasheet.\n"
+		  << '\n'
+		  << "-d : display some debug information\n"
 		  << std::flush ;
 	// [todo] read from file, read chains, read various chains
 	return ;
