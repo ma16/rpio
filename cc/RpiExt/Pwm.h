@@ -16,12 +16,20 @@ namespace RpiExt {
 
 struct Pwm
 {
+    struct Error : Neat::Error
+    {
+      Error(std::string const &s) : Neat::Error("RpiExt:Pwm:" + s) {}
+    } ;
+
     void start() ;
   
     void wait() ;
   
     void send(std::vector<uint32_t> const&) ; // [todo] some kind of bitset?
 
+    // guess frequency by flooding the FIFO for the given duration
+    double frequency(double duration) ;
+    
     Pwm(Rpi::Peripheral *rpi,Rpi::Pwm::Index index)
 	: timer(rpi),pwm(rpi),index(index) {}
     

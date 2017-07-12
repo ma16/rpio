@@ -9,9 +9,6 @@
 namespace Console { namespace Pwm { namespace Lib
 {
   struct Error : Neat::Error { Error(std::string const &s) : Neat::Error("Console:Pwm:Lib:" + s) {} } ;
-  
-  // guess frequency by flooding the FIFO in the given duration
-  double frequency(Rpi::Pwm *pwm,double duration) ;
 
   unsigned send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t const data[],unsigned nwords) ;
   // ...undefined bahavior if the other channel runs in fifo mode too

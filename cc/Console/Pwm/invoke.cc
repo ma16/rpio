@@ -7,6 +7,7 @@
 #include <Rpi/GpuMem.h>
 #include <Rpi/Timer.h>
 #include <RpiExt/VcMem.h>
+#include <RpiExt/Pwm.h>
 #include <Ui/ostream.h>
 #include <Ui/strto.h>
 #include <iomanip>
@@ -236,7 +237,7 @@ static void freq(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     duration = Ui::strto<double>(argL->pop()) ;
   argL->finalize() ;
   Rpi::Pwm pwm(rpi) ;
-  double f = Console::Pwm::Lib::frequency(&pwm,duration) ;
+  double f = RpiExt::Pwm(rpi,Rpi::Pwm::Index::make<0>()).frequency(duration) ;
   std::cout.setf(std::ios::scientific) ;
   std::cout.precision(2) ;
   std::cout << f << std::endl ;

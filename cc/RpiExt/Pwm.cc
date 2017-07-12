@@ -2,6 +2,7 @@
 
 #include "Pwm.h"
 #include <cassert>
+#include <chrono>
 
 void RpiExt::Pwm::start()
 {
@@ -85,3 +86,76 @@ void RpiExt::Pwm::send_fifo(uint32_t const *rgb,unsigned n)
 	    throw std::runtime_error("Pwm:write error even if not full") ;
     }
 }
+
+double RpiExt::Pwm::frequency(double duration)
+{
+    // backup pwm settings
+    auto saved_ctrl = this->pwm.getControl() ;
+    // prepare pwm test
+    auto nbits = this->pwm.getRange(this->index) ;
+    Rpi::Pwm::Control c ;
+    // pwen = 0
+    c.clrf1() = 1 ; 
+    this->pwm.setControl(c) ;
+    this->pwm.resetStatus(this->pwm.getStatus()) ;
+    // fill queue
+    while (0 == this->pwm.getStatus().cfull())
+	this->pwm.write(0) ;
+    // enable pwm
+    c = Rpi::Pwm::Control() ;
+    auto x = c.get(this->index) ;
+    x.mode = 1 ; // serialize
+    x.usef = 1 ; 
+    x.sbit = 1 ; // (for debugging/monitoring and nbits>32)
+    x.pwen = 1 ;
+    c.set(this->index,x) ;
+    using clock = std::chrono::steady_clock ;
+    auto t0 = clock::now() ;
+    this->pwm.setControl(c) ;
+    // write pwm queue until time has passed
+    using Seconds = std::chrono::duration<double,std::chrono::seconds::period> ;
+    auto t1 = clock::now() ;
+    auto count = 0u ;
+    while (std::chrono::duration_cast<Seconds>(t1-t0).count() < duration)
+    {
+	auto status = this->pwm.getStatus() ;
+	if (0 == status.cfull())
+	{
+	    if (0 != status.cempt())
+		throw Error("fifo underrun") ;
+	    // [note] there is actually no safe way to detect an underrun
+	    this->pwm.write(0) ;
+	    ++count ;
+	}
+	t1 = clock::now() ;
+    }
+    auto freq = 0.0 ;
+    // ...assume that no clock is running unless at least one entry has
+    // been read from the queue (which should have happened even if d=0)
+    if ((count>0) || (0 == this->pwm.getStatus().cfull()))
+    {
+	// get clock "exactly" after queue has read
+	// ...well, "exactly" might be rather fuzzy in userland
+	auto status = this->pwm.getStatus() ;
+	if (0 == status.cfull())
+	{
+	    if (0 != status.cempt())
+		throw Error("fifo underrun") ;
+	    this->pwm.write(0) ;
+	    ++count ;
+	}
+	while (0 != this->pwm.getStatus().cfull())
+	    ;
+	t1 = clock::now() ;
+	freq = static_cast<double>(nbits) * (count-1) / std::chrono::duration_cast<Seconds>(t1-t0).count() ;
+    }
+    // recover
+    x.pwen = 0 ;
+    c.set(this->index,x) ;
+    c.clrf1() = 1 ;
+    this->pwm.setControl(c) ;
+    this->pwm.resetStatus(this->pwm.getStatus()) ;
+    this->pwm.setControl(saved_ctrl) ;
+    return freq ;
+}
+

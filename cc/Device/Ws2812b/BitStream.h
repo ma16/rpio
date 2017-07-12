@@ -6,21 +6,50 @@
 #include <cstdint>
 #include <cstddef>
 #include <deque>
+#include <string>
 #include <vector>
 
 namespace Device { namespace Ws2812b {
 
 struct BitStream
 {
-    struct Ticks
+    template<typename T> struct Timing
     {
-	uint32_t t0h ; // for 0-bit; High-level
-	uint32_t t0l ; // for 0-bit;  Low-level
-	uint32_t t1h ; // for 1-bit; High-level
-	uint32_t t1l ; // for 1-bit;  Low-level
-	uint32_t res ; // duration to latch (reset) the data into WS2812Bs
+	struct Pulse
+	{
+	    T hi,lo ; // duration of an HL-pulse
+	    constexpr Pulse(T hi,T lo) : hi(hi),lo(lo) {}
+	} ;
+	Pulse bit_0 ; // for a 0-bit
+	Pulse bit_1 ; // for a 1-bit
+	T reset ; // min time to latch data into WS2812B chain
+
+	constexpr Timing(Pulse bit_0,Pulse bit_1,T reset) :
+	    bit_0(bit_0),bit_1(bit_1),reset(reset) {}
+
+	std::string toStr() const ;
+	// ...only implemented for float and size_t
     } ;
-    
+
+    using Seconds = Timing<float> ;
+
+    // timing defaults by datasheet
+    constexpr static Seconds strict()
+    {
+	return Seconds(
+	    Seconds::Pulse(40e-8f,85e-8f),
+	    Seconds::Pulse(80e-8f,45e-8f),
+	    50e-6f) ;
+    }
+
+    // this implementatio uses ticks however; the tick duration is left
+    // to the client, i.e. to the configuration of the PWM peripheral
+    using Ticks = Timing<size_t> ;
+
+    // the only bit-stream implementation (at the moment)
+    // is for PWM and for multiple LEDs using the same color
+    // the returned vector can be used as argument for
+    // RpiExt::Pwm::send()
     static std::vector<uint32_t> make(Ticks const&,uint32_t grb,size_t n) ;
 
 private:
@@ -39,6 +68,10 @@ private:
     void push(uint32_t grb,size_t n) ;
 
     std::vector<uint32_t> copy() const ;
+
+    // [todo] all these private functions and the related includes can
+    // be hidden in the implementation file (visibility + compile time).
+    
 } ;
 
 } } 
