@@ -3,8 +3,8 @@
 #ifndef INCLUDE_Device_Ws2812b_BitStream_h
 #define INCLUDE_Device_Ws2812b_BitStream_h
 
-#include <Rpi/Timer.h>
-#include <Rpi/Pwm.h>
+#include <cstdint>
+#include <cstddef>
 #include <deque>
 #include <vector>
 
