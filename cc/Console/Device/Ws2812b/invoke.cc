@@ -3,9 +3,9 @@
 #include "../invoke.h"
 #include <Device/Ws2812b/BitStream.h>
 #include <Device/Ws2812b/Circuit.h>
-#include <Device/Ws2812b/Spi0.h>
 #include <RpiExt/Pwm.h>
 #include <RpiExt/Serialize.h>
+#include <RpiExt/Spi0.h>
 #include <Ui/strto.h>
 #include <iostream>
 
@@ -186,19 +186,24 @@ static void pwm(Rpi::Peripheral *rpi,unsigned nleds,unsigned grb,Ui::ArgL *argL)
 		  << "timing (ticks)="      <<     ticks.toStr() << '\n' 
 		  << "effective (seconds)=" << effective.toStr() << '\n' ;
     }
-    auto v = Device::Ws2812b::BitStream::make(ticks,grb,nleds) ;
+    auto v = Device::Ws2812b::BitStream::make32(ticks,grb,nleds) ;
     pwm.send(v) ;
+    // [todo] we may encounter a timeout (process suspension)
 }
 
 // --------------------------------------------------------------------
 
 static void spi0(Rpi::Peripheral *rpi,unsigned nleds,unsigned grb,Ui::ArgL *argL)
 {
-    auto tps = Ui::strto<double>(argL->pop()) ;
+    auto seconds = getPwm(argL) ;
+    auto f = Ui::strto<double>(argL->pop()) ;
+    // [todo] measure/guess frequency
+    // [todo] debug
     argL->finalize() ;
-    auto timing = Device::Ws2812b::Spi0::Timing() ;
-    Device::Ws2812b::Spi0 spi(rpi,timing,tps) ;
-    spi.send(nleds,grb) ;
+    auto ticks = computeTicks(seconds,f) ;
+    auto v = Device::Ws2812b::BitStream::make8(ticks,grb,nleds) ;
+    RpiExt::Spi0(rpi).xfer(v) ;
+    // [todo] we may encounter a timeout (process suspension)
 }
 
 // --------------------------------------------------------------------
@@ -209,8 +214,8 @@ void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout << "arguments: NLEDS GRB MODE\n"
 		  << '\n'
 		  << "MODE : bang [-t TIMING] [-f FREQ] PINS [-r RETRY] [-d]\n"
-		  << "     | pwm  [-t TIMING] [-r FREQ] CHANNEL FREQ [-d]\n"
-		  << "     | spi0 TPS\n"
+		  << "     | pwm  [-t TIMING] [-f FREQ] CHANNEL [-d]\n"
+		  << "     | spi0 [-t TIMING] FREQ\n"
 		  << '\n'
 		  << "TIMING : -t T1..T5\n"
 		  << '\n'
@@ -224,7 +229,7 @@ void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "All values in seconds\n"
 		  << "Default values are the ones on the datasheet.\n"
 		  << '\n'
-		  << "-d : display some debug information\n"
+		  << "-d : display debug information\n"
 		  << std::flush ;
 	// [todo] read from file, read chains, read various chains
 	return ;

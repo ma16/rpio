@@ -65,7 +65,6 @@ LSRC=\
 	Device/Mcp3008/Spi0.cc \
 	Device/Mcp3008/Spi1.cc \
 	Device/Ws2812b/BitStream.cc \
-	Device/Ws2812b/Spi0.cc \
 	Linux/base.cc \
 	Linux/PhysMem.cc \
 	Linux/Shm.cc \
@@ -102,6 +101,7 @@ LSRC=\
 	RpiExt/Bang.cc \
 	RpiExt/Pwm.cc \
 	RpiExt/Serialize.cc \
+	RpiExt/Spi0.cc \
 	RpiExt/VcMem.cc \
 	Ui/ArgL.cc \
 	Ui/strto.cc

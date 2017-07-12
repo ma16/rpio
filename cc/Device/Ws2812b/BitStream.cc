@@ -52,18 +52,21 @@ void Device::Ws2812b::BitStream::push(uint32_t grb,size_t n)
 	this->pushWord(grb) ;
 }
 
-std::vector<uint32_t> Device::Ws2812b::BitStream::copy() const
+template<typename T> std::vector<T>
+Device::Ws2812b::BitStream::pack() const
 {
-    auto n = (this->q.size()+31) / 32 ;
-    std::vector<uint32_t> v ;
+    // only for T: uint8_t and uint32_t
+    auto bpw = 8 * sizeof(T) ;
+    auto n = (this->q.size()+(bpw-1)) / bpw ;
+    std::vector<T> v ;
     v.reserve(n+2) ;
     unsigned i = 0 ;
-    uint32_t bits = 0 ;
+    T bits = 0 ;
     for (auto bit : this->q)
     {
-	bits <<= 1 ;
-	bits |= bit ;
-	if (++i < 32)
+	bits = static_cast<T>(bits << 1) ;
+	bits = static_cast<T>(bits | bit) ;
+	if (++i < bpw)
 	    continue ;
 	v.push_back(bits) ;
 	i = 0 ;
@@ -71,7 +74,7 @@ std::vector<uint32_t> Device::Ws2812b::BitStream::copy() const
     if (i != 0)
     {
 	// last word padded with zeros (extends ticks.reset)
-	bits <<= (32-i) ;
+	bits = static_cast<T>(bits << (bpw-i)) ;
 	v.push_back(bits) ;
     }
     // [defect] PWM needs two additional words (extends ticks.reset)
@@ -81,7 +84,7 @@ std::vector<uint32_t> Device::Ws2812b::BitStream::copy() const
 }
 
 std::vector<uint32_t> Device::Ws2812b::BitStream::
-make(Ticks const &ticks,uint32_t grb,size_t n)
+make32(Ticks const &ticks,uint32_t grb,size_t n)
 {
     BitStream bs(ticks) ;
     bs.pushBit(0,ticks.reset) ;
@@ -92,5 +95,20 @@ make(Ticks const &ticks,uint32_t grb,size_t n)
     // safe bet).
     bs.push(grb,n) ;
     bs.pushBit(0,ticks.reset) ;
-    return bs.copy() ;
+    return bs.pack<uint32_t>() ;
+}
+
+std::vector<uint8_t> Device::Ws2812b::BitStream::
+make8(Ticks const &ticks,uint32_t grb,size_t n)
+{
+    BitStream bs(ticks) ;
+    bs.pushBit(0,ticks.reset) ;
+    // ...the datasheet doesn't really say how to start a dialogue.
+    // By observation: the data-line has to be low for a little while
+    // before the transmission can start (about 2 pixel-times).
+    // Anyway, we use the reset/latch time here (which should be a
+    // safe bet).
+    bs.push(grb,n) ;
+    bs.pushBit(0,ticks.reset) ;
+    return bs.pack<uint8_t>() ;
 }

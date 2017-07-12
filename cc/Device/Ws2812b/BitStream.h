@@ -46,11 +46,11 @@ struct BitStream
     // to the client, i.e. to the configuration of the PWM peripheral
     using Ticks = Timing<size_t> ;
 
-    // the only bit-stream implementation (at the moment)
-    // is for PWM and for multiple LEDs using the same color
-    // the returned vector can be used as argument for
-    // RpiExt::Pwm::send()
-    static std::vector<uint32_t> make(Ticks const&,uint32_t grb,size_t n) ;
+    // the returned vector can be used for RpiExt::Pwm::send()
+    static std::vector<uint32_t> make32(Ticks const&,uint32_t grb,size_t n) ;
+
+    // the returned vector can be used for RpiExt::Spi0::xfer()
+    static std::vector<uint8_t> make8(Ticks const&,uint32_t grb,size_t n) ;
 
 private:
     
@@ -67,7 +67,7 @@ private:
   
     void push(uint32_t grb,size_t n) ;
 
-    std::vector<uint32_t> copy() const ;
+    template<typename T> std::vector<T> pack() const ;
 
     // [todo] all these private functions and the related includes can
     // be hidden in the implementation file (visibility + compile time).
