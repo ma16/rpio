@@ -20,6 +20,19 @@ void RpiExt::Pwm::wait()
 {
     while (0 == this->pwm.getStatus().cempt())
 	;
+    // [defect] 
+    // There seems to be no way to figure out when the PWM peripheral
+    // actually completes processing of all the FIFO entries. Even if
+    // the status flag indicates an empty FIFO, the serializer may
+    // still be busy. As it appears, the serializer reads two FIFO
+    // entries ahead.
+    // So, what the client needs to do, is to put two additional words
+    // into the FIFO. These words may be transmitted, or not. The
+    // client should keep that in mind and set the levels
+    // appropriately. Also, the last word is always transmitted again
+    // if the FIFO runs empty (and if the serializer gets to this point
+    // at all).
+    // [todo] document this defect properly
     auto c = this->pwm.getControl() ;
     auto x = c.get(index) ;
     x.pwen = 0 ;
