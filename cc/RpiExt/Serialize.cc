@@ -17,10 +17,11 @@ bool RpiExt::Serialize::send(uint32_t *t0,Edge const &edge)
 bool RpiExt::Serialize::send(std::vector<Edge> const &v)
 {
     auto success = true ;
+    auto p = v.cbegin() ;
     auto t = this->counter.clock() ;
-    for (auto &edge: v)
+    while (success && (p != v.end()))
     {
-	success = success && this->send(&t,edge) ;
+	success = this->send(&t,*p++) ;
     }
     return success ;
 }

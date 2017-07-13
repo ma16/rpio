@@ -50,11 +50,9 @@ struct Serialize
 	uint32_t pins ;
 	uint32_t t_min ;
 	uint32_t t_max ;
-	Edge(
-	    Rpi::Gpio::Output output,
-	    uint32_t pins,
-	    uint32_t t_min,
-	    uint32_t t_max)
+	Edge(uint32_t pins,
+	     uint32_t t_min,uint32_t t_max,
+	     Rpi::Gpio::Output output)
 	: output(output),pins(pins),t_min(t_min),t_max(t_max) {}
     } ;
 
