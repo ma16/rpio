@@ -2,7 +2,7 @@
 
 The ADS1115 is an I2C driven 15-bit (+sign) ADC with 2x2 or 4x1 multiplexed channels and a maximum sampling rate of somewhat above 100/s. 
 
-Please refer to the ADS1115 datasheet for details.
+Please refer to the ADS1115 [datasheet](https://www.ti.com/lit/ds/symlink/ads1115.pdf) for details.
 
 ## I2C (Brief Abstract)
 
