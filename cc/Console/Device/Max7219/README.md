@@ -93,7 +93,7 @@ Value | Mode
 000F | Activated for digits 0-3
 00FF | Activated for digits 0-7
 
-Note, you can see that the bits correlate with the activated digits, i.e. bit 0 corresponds to digit 0, bit 1 corresponds to digit 1, etc. The circuit that was used for a test actually supported not only the four values of the datasheet, but all possible values from 0..FF.
+Note, you can see that the bits correlate with the activated digits, i.e. bit 0 corresponds to digit 0, bit 1 corresponds to digit 1, etc. The circuit that was used for a test actually supported not only the four values of the datasheet, but all possible values from 00 to FF.
 
 #### Intensity
 
@@ -177,7 +177,7 @@ The implementation is bit-banged. The ARM counter, which is used as clock, needs
 $ ./rpio clock set on 0
 ```
 
-We need three pins for communication with the circuit. Those pins' must operate in Output mode. We use pins 22, 23 and 24 in this example:
+We need three pins for communication with the circuit. Those pins must operate in Output mode. We use pins 22, 23 and 24 in this example:
 ```
 $ ./rpio gpio mode -l 22,23,24 o
 ```
@@ -210,9 +210,10 @@ These commands do:
 * Set lowest brightness
 * Activate all digits
 * Disable shutdown-mode
+
 After execution of the third line, the display should turn from off to on.
 
-So, what we've got here is almost the same as the test mode. However, the lights schouldn't be that bright. So let's increase the brightness step by step to its maximum:
+So, what we've got here is almost the same as the test mode. However, the lights shouldn't be that bright. So let's increase the brightness step by step to its maximum:
 
 ```
 $ seq 1 1 15 | while read i ; do c=`printf "0x0a0%x" $i`; \
@@ -236,7 +237,7 @@ $ ./rpio clock set on 0
 $ ./rpio gpio mode -l 22,23,24 o
 ```
 
-Run the circuit's display-test:
+Run the circuits' display-test:
 
 ```
 $ ./rpio device max7219 22 23 24 -d 0x0f01
@@ -248,7 +249,7 @@ $ ./rpio device max7219 22 23 24 -d 0x0000
 
 In the first line, the display-test is activated for the first circuit. The next four lines are Nops. However, since the circuits are daisy chained, the display-test is shiftet from one to the next. All displays should be on.
 
-The alternative is to send five commands at once and load them together. We use this to return from the display-test.
+The alternative is to send five commands at once and load them together. We use this to return from the display-test:
 
 ```
 ./rpio device max7219 22 23 24 -d 0x0f00 0x0f00 0x0f00 0x0f00 0x0f00
