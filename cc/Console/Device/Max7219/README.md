@@ -93,6 +93,8 @@ Value | Mode
 000F | Activated for digits 0-3
 00FF | Activated for digits 0-7
 
+Note, you can see that the bits correlate with the activated digits, i.e. bit 0 corresponds to digit 0, bit 1 corresponds to digit 1, etc. The circuit that was used for a test actually supported not only the four values of the datasheet, but all possible values from 0..FF.
+
 #### Intensity
 
 The intensity depends on the value of the last nibble (mask:000F).
