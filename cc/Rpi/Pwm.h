@@ -3,39 +3,6 @@
 #ifndef _Rpi_Pwm_h_
 #define _Rpi_Pwm_h_
 
-// --------------------------------------------------------------------
-// Pulse Width Modulation (PWM)
-//
-// see BCM2835 ARM Peripherals: chapter 9.1: Pulse Width Modulator
-//
-// Highlights:
-// --PWM or bit-stream-serialization (BSS)
-// --DMA support
-// --Two channels are available
-// --The clock (frequency) is configurable (see Cp class).
-//
-// PWM: The ratio (R) and the period (P) are given. The period is
-//   the number of clock-pulses that define a cycle. The ratio is
-//   the number of clock-pulses at the beginning of a cycle the
-//   output is set to High. R=1/P is the lowest PWM (R=0/P would be
-//   permanently Low) and R=(P-1)/P is the highest PWM (R=P/P would
-//   be permanently High).
-//
-// PWM supports a "coherent" mode which make the output sequence
-//   of Highs and Lows (within a cycle) evenly distributed.
-//
-//   Example: R/P = 3/10
-//      default: 0 0 0 0 0 0 0 1 1 1
-//     coherent: 0 1 0 0 1 0 0 1 0 0
-//
-// BSS serializes the bits of a given 32-bit word.
-//
-// PWM or BSS in DMA-mode serializes consecutively all the delivered
-//   32-bit words. An internal 16 x 32-bit FIFO is used to buffer the
-//   values. A DMA signal line (DREQ=5) is provided to pace the data
-//   transfer.
-// --------------------------------------------------------------------
-
 #include "Bus/Address.h"
 #include "Dma/Ti.h"
 #include <Neat/Bit.h>
