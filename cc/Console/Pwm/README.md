@@ -17,9 +17,7 @@ R | Output Signal
 P-1 | highest sensible PWM
 P | Permanently High
 
-As default, the output is set to Low for (P-R) clock-pulses and then to High for R clock-pulses. However, a *coherent* operation is also supported which spreads the Lows and High (within a cycle) evenly.
-
-For example: (R,P) = (3,10)
+As default, the output is set to Low for (P-R) clock-pulses and then to High for R clock-pulses. However, a *coherent* operation is also supported which spreads the Lows and Highs (within a cycle) evenly. For example: (R,P) = (3,10)
 
 ```
    default cycle: 0 0 0 0 0 0 0 1 1 1
@@ -62,17 +60,6 @@ Example:
 
 ```
 $ ./rpio pwm status
-DMA-Control: enable=0 panic=7 dreq=7
-
-sta2 sta1 berr gap2 gap1 rerr werr empt full
---------------------------------------------
-   0    0    0    0    0    0    0    1    0 (0x2)
-
-# msen usef pola sbit rptl mode pwen     data    range
-------------------------------------------------------
-0    0    1    0    0    0    1    0        0       20
-1    0    0    0    0    0    0    0        0       20
-pi@demopi:~/tmp $ sudo ./rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 sta2 sta1 berr gap2 gap1 rerr werr empt full
