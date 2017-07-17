@@ -1,9 +1,9 @@
-# Peripheral Clock Pulse (GPIO Clock)
+# Peripheral Clock Manager
 
 ## Synopsis
 
 ```
-$ ./rpio cp help
+$ ./rpio cm help
 arguments: MODE [help]
 
 MODE : set     # set up clock parameters

@@ -10,7 +10,7 @@ namespace Console
 {
     namespace      Clock { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace     Device { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace         Cp { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
+    namespace         Cm { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace        Dma { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace       Gpio { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace       Intr { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }

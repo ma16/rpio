@@ -1,10 +1,10 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Rpi_Cp_h_
-#define _Rpi_Cp_h_
+#ifndef _Rpi_Cm_h_
+#define _Rpi_Cm_h_
 
 // --------------------------------------------------------------------
-// Clock-Pulse (Cp)
+// Clock-Manager
 //
 // see BCM2835 ARM Peripherals: chapter 6.3: General Purpose GPIO Clocks
 //
@@ -15,9 +15,9 @@
 
 #include "Peripheral.h"
 
-namespace Rpi { struct Cp 
+namespace Rpi { struct Cm 
 {
-  Cp(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x101>())) {}
+  Cm(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x101>())) {}
   
   // ----------------------------------------------------------------
   // There are three programmable clock-pulse generators (GPCLK0/1/2)
@@ -196,4 +196,4 @@ private:
   
 } ; }
 
-#endif // _Rpi_Cp_h_
+#endif // _Rpi_Cm_h_

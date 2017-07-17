@@ -1,8 +1,8 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "Cp.h"
+#include "Cm.h"
 
-void Rpi::Cp::enable(Index i) 
+void Rpi::Cm::enable(Index i) 
 {
   auto c = getControl(i) ;
   c.enable = true ;
@@ -10,7 +10,7 @@ void Rpi::Cp::enable(Index i)
   set(i,c) ;
 }
 
-void Rpi::Cp::disable(Index i) 
+void Rpi::Cm::disable(Index i) 
 {
   auto c = getControl(i) ;
   c.enable = false ;
@@ -18,7 +18,7 @@ void Rpi::Cp::disable(Index i)
   // the generator might still be busy (for a while)
 }
 
-void Rpi::Cp::kill(Index i) 
+void Rpi::Cm::kill(Index i) 
 { 
   auto c = getControl(i) ;
   c.kill = true ; set(i,c) ;
@@ -26,7 +26,7 @@ void Rpi::Cp::kill(Index i)
   c.kill = false ; set(i,c) ;
 } 
 
-void Rpi::Cp::set(Index i,Control::Source source,Divider::Intgr intgr,Divider::Fract fract,Control::Mash mash)
+void Rpi::Cm::set(Index i,Control::Source source,Divider::Intgr intgr,Divider::Fract fract,Control::Mash mash)
 {
   auto c = getControl(i) ;
   // disable the generator if currently enabled

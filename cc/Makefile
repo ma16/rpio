@@ -29,7 +29,7 @@ LD=$(CXX) $(LDFLAGS)
 
 LSRC=\
 	Console/Clock/invoke.cc \
-	Console/Cp/invoke.cc \
+	Console/Cm/invoke.cc \
 	Console/Device/invoke.cc \
 	Console/Device/Ads1115/invoke.cc \
 	Console/Device/Mcp3008/invoke.cc \
@@ -78,8 +78,8 @@ LSRC=\
 	Posix/Signal.cc \
 	Rpi/ArmMem.cc \
 	Rpi/Bus/Alloc.cc \
+	Rpi/Cm.cc \
 	Rpi/Counter.cc \
-	Rpi/Cp.cc \
 	Rpi/Dma/Channel.cc \
 	Rpi/Function.cc \
 	Rpi/Gpio.cc \

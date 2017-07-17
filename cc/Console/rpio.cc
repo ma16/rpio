@@ -29,7 +29,7 @@ int main(int argc,char **argv)
 		<< "the processor's model name (i.e. ARMv6/7/8) in /proc/cpuinfo.\n"
 		<< '\n'
 		<< "MODE | clock       # r/w clock sources\n"
-		<< "     | cp          # clock-pulse generator (GPIO Clock)\n"
+		<< "     | cm          # clock-manager\n"
 		<< "     | dma         # DMA setup and tests\n"
 		<< "     | device      # control a certain device\n"
 		<< "     | gpio        # r/w GPIO\n"
@@ -54,7 +54,7 @@ int main(int argc,char **argv)
     if (false) ;
   
     else if (arg ==      "clock") Console::     Clock::invoke(rpi.get(),&argL) ;
-    else if (arg ==         "cp") Console::        Cp::invoke(rpi.get(),&argL) ;
+    else if (arg ==         "cm") Console::        Cm::invoke(rpi.get(),&argL) ;
     else if (arg ==     "device") Console::    Device::invoke(rpi.get(),&argL) ;
     else if (arg ==        "dma") Console::       Dma::invoke(rpi.get(),&argL) ;
     else if (arg ==       "gpio") Console::      Gpio::invoke(rpi.get(),&argL) ;

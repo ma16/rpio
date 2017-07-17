@@ -13,7 +13,7 @@ If BASE is not given then the peripheral address is derived from
 the processor's model name (i.e. ARMv6/7/8) in /proc/cpuinfo.
 
 MODE | clock       # r/w clock sources
-     | cp          # clock-pulse generator (GPIO Clock)
+     | cm          # clock-manager
      | dma         # DMA setup and tests
      | device      # control a certain device
      | gpio        # r/w GPIO
