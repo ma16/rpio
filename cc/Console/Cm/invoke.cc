@@ -100,7 +100,7 @@ static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void switchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") { 
-	std::cout << "arguments: INDEX MODE\n"
+	std::cout << "arguments: ALIAS MODE\n"
 		  << '\n'
 		  << "MODE: off | on | toggle | kill\n"
 		  << std::flush ;

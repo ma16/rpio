@@ -20,7 +20,7 @@ Offset | Bits | Access | Name | Description
 
 #### Clock Source
 
-There are a 16 clock sources for each generator. The frequency of a clock-source is not defined in the datasheet.
+Basically, 16 clock-sources are available. However, the frequency of a clock-source is not defined in the datasheet.
 
 In order to determine a frequency, the source is applied for the PWM clock-generator; the PWM peripheral is switched into FIFO mode; and the time to clock-out a bit-stream is taken. The values below were measured on Pi-0/2/3 with different configurations. Treat them with caution. 
 
@@ -94,7 +94,7 @@ pwm    1   0  15  1000     0    1
 
 ```
 # ./rpio cm switch help
-arguments: INDEX MODE
+arguments: ALIAS MODE
 
 MODE: off | on | toggle | kill
 ```
