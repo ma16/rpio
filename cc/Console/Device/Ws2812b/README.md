@@ -96,12 +96,12 @@ dtparam=audio=off
 
 The PWM clock needs to be set-up beforehand:
 ```
-$ ./rpio cm set 3 -i 200 -m 0 -s 6
-$ ./rpio cm switch 3 on
+$ ./rpio cm set pwm -i 200 -m 0 -s 6
+$ ./rpio cm switch pwm on
 ```
 In the example above, PLLD (@500.0 MHz) is employed with a divider of 200. So the effective PWM clock is 2.5 MHz. You can measure the clock by command:
 ```
-$ ./rpio pwm freq
+$ ./rpio pwm frequency
 2.50e+06
 ```
 
