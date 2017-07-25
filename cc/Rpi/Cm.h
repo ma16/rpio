@@ -5,6 +5,7 @@
 //
 // see BCM2835 ARM Peripherals: chapter 6.3: General Purpose GPIO Clocks
 // see elinux.org/BCM2835_registers#CM
+// see www.raspberrypi.org/forums/viewtopic.php?p=1187723#p1187723
 // --------------------------------------------------------------------
 
 #ifndef _Rpi_Cm_h_

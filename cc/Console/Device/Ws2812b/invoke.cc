@@ -177,6 +177,10 @@ static void pwm(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     RpiExt::Pwm pwm(rpi,channel) ;    
 
     auto f = pwm.frequency(0.1) ;
+    // [TODO] this goes out on the PWM line; we may want suppress this
+    // or may make it optional since it may confuse the user that
+    // monitors the output on an analyzer !!!
+    
     // ...[todo] may throw an Error on underrun.
     // So deal with underrun or prevent it.
     if (f < 1e+6)

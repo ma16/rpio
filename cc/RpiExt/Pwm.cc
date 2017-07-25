@@ -3,6 +3,8 @@
 #include "Pwm.h"
 #include <cassert>
 #include <chrono>
+#include <iostream> // [debug]
+#include <Neat/chrono.h>
 
 void RpiExt::Pwm::start()
 {
@@ -87,73 +89,123 @@ void RpiExt::Pwm::send_fifo(uint32_t const *rgb,unsigned n)
     }
 }
 
-double RpiExt::Pwm::frequency(double duration)
+double RpiExt::Pwm::frequency(double seconds)
 {
+    // ...well, "exactly" might be rather fuzzy in userland
+    
+    // [todo] channel parameter
     // backup pwm settings
     auto saved_ctrl = this->pwm.getControl() ;
     // prepare pwm test
     auto nbits = this->pwm.getRange(this->index) ;
-    Rpi::Pwm::Control c ;
-    // pwen = 0
-    c.clrf1() = 1 ; 
-    this->pwm.setControl(c) ;
+
+    {
+	auto c = Rpi::Pwm::Control() ;
+	auto x = c.get(this->index) ;
+	x.pwen = 0 ;
+	c.set(this->index,x) ;
+	c.clrf1() = 1 ; 
+	this->pwm.setControl(c) ;
+	// [defect] don't call setControl() twice in a row
+    }
+    
     this->pwm.resetStatus(this->pwm.getStatus()) ;
-    // fill queue
-    while (0 == this->pwm.getStatus().cfull())
-	this->pwm.write(0) ;
-    // enable pwm
-    c = Rpi::Pwm::Control() ;
+    
+    // We cannot determine when a pwm transmission is completed
+    // (neither by sta, gap nor empt). Hence:
+    // * we fill the fifo until full
+    // * get the current time t0
+    // * start transmission and top up the fifo for a while
+    // * top up the fifo until full
+    // * get the current time ti
+
+    // [todo] that should work much better with DMA
+    
+    // start pwm
+    auto c = Rpi::Pwm::Control() ;
     auto x = c.get(this->index) ;
     x.mode = 1 ; // serialize
     x.usef = 1 ; 
     x.sbit = 1 ; // (for debugging/monitoring and nbits>32)
     x.pwen = 1 ;
     c.set(this->index,x) ;
-    using clock = std::chrono::steady_clock ;
-    auto t0 = clock::now() ;
     this->pwm.setControl(c) ;
+
+    // fill queue
+    this->pwm.write(0x55000033) ; // [todo]
+    while (0 == this->pwm.getStatus().cfull())
+	this->pwm.write(0x55555555) ;
+    // [todo] make sure that's not indefinite!!
+
+    // don't fill the queue before PWM is enabled; it appears to
+    // immediately deque two fifo entries which messes up our timing
+    
+    // start
+    //using clock = std::chrono::steady_clock ;
+    //using clock = std::chrono::high_resolution_clock ;
+    //auto span = Neat::chrono::bySeconds<clock::duration>(seconds) ;
+    //auto t0 = clock::now() ;
+    auto t0 = this->timer.cLo() ;
+    auto span = static_cast<uint32_t>(seconds * 1000 * 1000 + .5) ;
+    // ...[todo] maybe the ARM counter is the better choice?
+
     // write pwm queue until time has passed
-    using Seconds = std::chrono::duration<double,std::chrono::seconds::period> ;
-    auto t1 = clock::now() ;
     auto count = 0u ;
-    while (std::chrono::duration_cast<Seconds>(t1-t0).count() < duration)
+    auto ti = t0 ;
+    uint32_t mask = 0 ;
+    while (ti - t0 < span)
     {
-	auto status = this->pwm.getStatus() ;
-	if (0 == status.cfull())
+	auto c = 0u ;
+	while (true)
 	{
+	    auto status = this->pwm.getStatus() ;
+	    if (0 != status.cfull())
+		break ;
 	    if (0 != status.cempt())
 		throw Error("fifo underrun") ;
-	    // [note] there is actually no safe way to detect an underrun
-	    this->pwm.write(0) ;
-	    ++count ;
+	    // ...[note] there is actually no safe way to detect an underrun
+	    // ...[todo] recover
+	    this->pwm.write(mask) ; mask = ~mask ;
+	    if (++c < 0x100)
+		break ;
 	}
-	t1 = clock::now() ;
+	count += c ;
+	//ti = clock::now() ;
+	ti = this->timer.cLo() ;
     }
-    auto freq = 0.0 ;
-    // ...assume that no clock is running unless at least one entry has
-    // been read from the queue (which should have happened even if d=0)
-    if ((count>0) || (0 == this->pwm.getStatus().cfull()))
+
+    double freq ;
+    if ((count == 0) && (0 != this->pwm.getStatus().cfull()))
     {
-	// get clock "exactly" after queue has read
-	// ...well, "exactly" might be rather fuzzy in userland
-	auto status = this->pwm.getStatus() ;
-	if (0 == status.cfull())
-	{
-	    if (0 != status.cempt())
-		throw Error("fifo underrun") ;
-	    this->pwm.write(0) ;
-	    ++count ;
-	}
+	// either the given duration was too short, or the frequency is
+	// zero, for instance because the clock-manager isn't enabled.
+	freq = 0.0 ;
+    }
+    else
+    {
+	// the PWM might be in the middle of a word, which may mess up
+	// our measurement (for long words) since ti assumes that
+	// the complete word was serialized.
 	while (0 != this->pwm.getStatus().cfull())
 	    ;
-	t1 = clock::now() ;
-	freq = static_cast<double>(nbits) * (count-1) / std::chrono::duration_cast<Seconds>(t1-t0).count() ;
+	++count ;
+	//ti = clock::now() ;
+	ti = this->timer.cLo() ;
+	//auto elapsed = Neat::chrono::toSeconds(ti - t0) ;
+	auto elapsed = (ti - t0) / 1000.0 / 1000.0 ;
+	freq = static_cast<double>(nbits) * count / elapsed ;
+	std::cerr << "### " << elapsed << ' ' << count << std::endl ;
     }
     // recover
+#if 0    
     x.pwen = 0 ;
     c.set(this->index,x) ;
     c.clrf1() = 1 ;
     this->pwm.setControl(c) ;
+    // it appears that two "subsequent" writes to the control register
+    // may result in a BERR and have weird consequences (one or the
+    // other command fails) [observed on Pi-2]
+#endif    
     this->pwm.resetStatus(this->pwm.getStatus()) ;
     this->pwm.setControl(saved_ctrl) ;
     return freq ;

@@ -36,14 +36,14 @@ static void set(Rpi::Pwm *pwm,Rpi::Pwm::Index i,Type type,Ui::ArgL *argL)
     pwm->setControl(control) ;
 }
 
-static void ctrl(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     {
 	std::cout
 	    << "arguments: COMMAND+\n"
 	    << '\n'
-	    << "Commands:\n"
+	    << "General commands:\n"
 	    << "clear         # clear FIFO\n"
 	    << "dma   BOOL    # enable/disable DMA signals\n"
 	    << "dreq    U8    # threshold for DMA DREQ signal\n"
@@ -325,15 +325,17 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void freq(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    if (!argL->empty() && argL->peek() == "help") {
-	std::cout << "arguments: [DELAY]\n"
-		  << '\n'
-		  << "DELAY = seconds to sample (default 0.1)\n"
-		  << '\n'
-		  << "you may want to set up the range register (#0) beforehand\n"
-		  << std::flush ;
+    if (!argL->empty() && argL->peek() == "help")
+    {
+	std::cout
+	    << "arguments: [DURATION]\n"
+	    << '\n'
+	    << "DURATION = time in seconds to sample (default 0.1)\n"
+	    << '\n'
+	    << "you may want to set up the range register beforehand\n"
+	    ;
 	return ;
     }
     auto duration = 0.1 ;
@@ -456,12 +458,14 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	return ;
     }
     std::string arg = argL->pop() ;
-    if      (arg ==   "control")   ctrl(rpi,argL) ; 
-    else if (arg ==       "dma")    dma(rpi,argL) ; 
-    else if (arg ==     "dummy")  dummy(rpi,argL) ; 
-    else if (arg == "frequency")   freq(rpi,argL) ; 
-    else if (arg ==      "send")   send(rpi,argL) ; 
-    else if (arg ==    "status") status(rpi,argL) ; 
+    if (false) ;
+    
+    else if (arg ==   "control")     control(rpi,argL) ; 
+    else if (arg ==       "dma")         dma(rpi,argL) ; 
+    else if (arg ==     "dummy")       dummy(rpi,argL) ; 
+    else if (arg == "frequency")   frequency(rpi,argL) ; 
+    else if (arg ==      "send")        send(rpi,argL) ; 
+    else if (arg ==    "status")      status(rpi,argL) ; 
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
 

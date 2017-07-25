@@ -6,7 +6,7 @@ For details refer to §9 in BCM2835 ARM Peripherals: Pulse Width Modulator.
 
 The peripheral may either operate as pulse-width-modulator (PWM) or as a generic bit-stream-serializer (BSS). Two output channels are available. There is a FIFO to buffer incoming values. DMA is supported. The clock-pulse is configurable.
 
-### PWM Mode
+### PWM Signal
 
 The *period* (P) and the *ratio* (R) are given. Both are defined as a number of clock-pulses. The period is the duration of a single cylce which repeats again and again. The ratio is the number of clock-pulses when the output signal is High (within a cycle, i.e. R<=P). So the ratio reflects the average strength of the output signal, i.e. the proportion of High-to-Low.
 
@@ -17,10 +17,12 @@ R | Output Signal
 P-1 | highest sensible PWM
 P | Permanently High
 
-As default, the output is set to Low for (P-R) clock-pulses and then to High for R clock-pulses. However, a *coherent* operation is also supported which spreads the Lows and Highs (within a cycle) evenly. For example: (R,P) = (3,10)
+In *mark-space* operation (M/S), the output is set to Low for (*P*-*R*) clock-pulses and then to High for *R* clock-pulses.
+
+A *coherent* operation is also supported which spreads the Lows and Highs (within a cycle) evenly. For example: (*R*,*P*) = (3,10)
 
 ```
-   default cycle: 0 0 0 0 0 0 0 1 1 1
+       M/S cycle: 0 0 0 0 0 0 0 1 1 1
   coherent cycle: 0 1 0 0 1 0 0 1 0 0
 ```
 
@@ -35,6 +37,16 @@ An internal 16 x 32-bit FIFO is used to buffer incoming values. The values are s
 ### DMA
 
 DMA writes 32-bit words into the FIFO. A DMA signal line (DREQ=5) is provided to pace the data transfer.
+
+### Clock Source and Frequency
+
+The datasheet simply states:
+
+**PWM clock source and frequency is controlled in CPRMAN.**
+
+It doesn't say what *CPRMAN* is or how to set it. And the Raspberry Pi Foundation announced there won't be an update of the datasheet. That would make the whole PWM peripheral quite useless for application developers. 
+
+Luckily there are people who dug into the topic a bit deeper. It is assumed that *CPRMAN* is the abbrevation for *Clock Power Reset MANager*; which isn't much help either. However, the people contributing to the eLinux provided a description for the [clock-manager](../Cm) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
 
 ## Synopsis
 
@@ -78,7 +90,7 @@ sta2 sta1 berr gap2 gap1 rerr werr empt full
 $ ./rpio pwm control help
 arguments: COMMAND+
 
-Commands:
+General commands:
 clear         # clear FIFO
 dma   BOOL    # enable/disable DMA signals
 dreq    U8    # threshold for DMA DREQ signal
@@ -100,9 +112,15 @@ usef.CH BOOL  # use FIFO
 CH must be either 0 or 1, e.g. pola.1 for channel 1
 ```
 
+### Frequency
+
+Feed the FIFO and wait until the serializer gets idle. The frequency results from the number of Words fed into the FIFO, multiplied by the number of configured bits per Word, divided by the measured time. Since PWM can be set-p by any clock-source, this is a simple way to determine the base frequency of each clock-source (see clock-manager).
+
+
+
 ### Send
 
-Feed a binary file of 32-bit word into the FIFO. A proper set-up is required beforhand.
+Feed a binary file of 32-bit words into the FIFO. A proper set-up is required beforhand.
 
 ```
 $ ./rpio pwm send help
