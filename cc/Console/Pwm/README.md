@@ -4,18 +4,27 @@
 
 For details refer to [BCM2835 ARM Peripherals](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf): Pulse Width Modulator (§9).
 
-The peripheral may either operate as pulse-width-modulator (PWM) or as a generic bit-stream-serializer (BSS). Two output channels are available. There is a FIFO to buffer incoming values. DMA is supported. The clock-pulse is configurable.
+Highlights:
+* Two output channels.
+* Operates either 
+* * as pulse-width-modulator (PWM) or
+* * as generic bit-stream-serializer.
+* 16-word FIFO-size (32-bit words).
+* DMA pacing.
+* Clock-pulse configuration by clock-manager.
 
 ### PWM Signal
 
-The *period* (P) and the *ratio* (R) are given. Both are defined as a number of clock-pulses. The period is the duration of a single cylce which repeats again and again. The ratio is the number of clock-pulses when the output signal is High (within a cycle, i.e. R<=P). So the ratio reflects the average strength of the output signal, i.e. the proportion of High-to-Low.
+The PWM-signal is defined by the period and the ratio:
+* The *period* (P) is the duration of a single PWM-cylce that repeats again and again. It is given as a number of clock-pulses.
+* The *ratio* (R) reflects the average strength of the output signal. It is given as as the number of clock-pulses (within a PWM cycle) when the output-level is High (R<=P).
 
-R | Output Signal
----: | :---
-0 | Permanently Low
-1 | lowest sensible PWM
-P-1 | highest sensible PWM
-P | Permanently High
+R | Output Signal | Description
+---: | ---: | :---
+0 | 0 | Permanently Low
+1 | 1 / P | lowest sensible value above Low
+P-1 | (P-1) / P | highest sensible below High
+P | 1 | Permanently High
 
 In *mark-space* operation (M/S), the output is set to Low for (*P*-*R*) clock-pulses and then to High for *R* clock-pulses.
 
