@@ -2,7 +2,7 @@
 
 ## Summary
 
-For details refer to §9 in BCM2835 ARM Peripherals: Pulse Width Modulator.
+For details refer to [BCM2835 ARM Peripherals](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf): Pulse Width Modulator (§9).
 
 The peripheral may either operate as pulse-width-modulator (PWM) or as a generic bit-stream-serializer (BSS). Two output channels are available. There is a FIFO to buffer incoming values. DMA is supported. The clock-pulse is configurable.
 
