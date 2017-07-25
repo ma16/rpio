@@ -17,13 +17,13 @@ Highlights:
 
 The PWM-signal is defined by the period and the ratio:
 * The *period* (P) is the duration of a single PWM-cylce that repeats again and again. It is given as a number of clock-pulses.
-* The *ratio* (R) reflects the average strength of the output signal. It is given as as the number of clock-pulses (within a PWM cycle) when the output-level is High (R<=P).
+* The *ratio* (R) reflects the average strength of the output signal. It is given as as the number of clock-pulses (within a PWM-cycle) when the output-level is High (R<=P).
 
 R | Output Signal | Description
 ---: | ---: | :---
 0 | 0 | Permanently Low
-1 | 1 / P | lowest sensible value above Low
-P-1 | (P-1) / P | highest sensible below High
+1 | 1 / P | Lowest sensible value above Low
+P-1 | (P-1) / P | Highest sensible value below High
 P | 1 | Permanently High
 
 In *mark-space* operation (M/S), the output is set to Low for (*P*-*R*) clock-pulses and then to High for *R* clock-pulses.
