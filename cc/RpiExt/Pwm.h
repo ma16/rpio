@@ -38,6 +38,10 @@ private:
     void fill_fifo(uint32_t const*p,unsigned n) ;
   
     void send_fifo(uint32_t const *grb,unsigned n) ;
+
+    std::pair<size_t,uint32_t> top_up(uint32_t const buffer[],uint32_t timeout) ;
+    
+    std::pair<size_t,uint32_t> top_up(uint32_t const buffer[]) ;
   
     Rpi::Timer timer ; Rpi::Pwm pwm ; Rpi::Pwm::Index index ; 
 

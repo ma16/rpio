@@ -89,125 +89,181 @@ void RpiExt::Pwm::send_fifo(uint32_t const *rgb,unsigned n)
     }
 }
 
+#if 0
 double RpiExt::Pwm::frequency(double seconds)
 {
-    // ...well, "exactly" might be rather fuzzy in userland
+    auto span = static_cast<uint32_t>(seconds * 1000 * 1000 + .5) ;
     
-    // [todo] channel parameter
-    // backup pwm settings
-    auto saved_ctrl = this->pwm.getControl() ;
-    // prepare pwm test
-    auto nbits = this->pwm.getRange(this->index) ;
-
+    auto t0 = this->timer.cLo() ;
+    
+    // wait till fifo got empty [optional]
+    while (0 == this->pwm.getStatus().cempt()) ;
     {
-	auto c = Rpi::Pwm::Control() ;
-	auto x = c.get(this->index) ;
-	x.pwen = 0 ;
-	c.set(this->index,x) ;
-	c.clrf1() = 1 ; 
-	this->pwm.setControl(c) ;
-	// [defect] don't call setControl() twice in a row
+	if (this->timer.cLo() - t0 >= span)
+	    throw Error("timeout:empty out") ;
+	// either the given duration was too short, or the frequency is
+	// zero, maybe, because the clock-manager wasn't enabled at all.
     }
     
-    this->pwm.resetStatus(this->pwm.getStatus()) ;
-    
-    // We cannot determine when a pwm transmission is completed
-    // (neither by sta, gap nor empt). Hence:
-    // * we fill the fifo until full
-    // * get the current time t0
-    // * start transmission and top up the fifo for a while
-    // * top up the fifo until full
-    // * get the current time ti
-
-    // [todo] that should work much better with DMA
-    
-    // start pwm
-    auto c = Rpi::Pwm::Control() ;
-    auto x = c.get(this->index) ;
-    x.mode = 1 ; // serialize
-    x.usef = 1 ; 
-    x.sbit = 1 ; // (for debugging/monitoring and nbits>32)
-    x.pwen = 1 ;
-    c.set(this->index,x) ;
-    this->pwm.setControl(c) ;
-
-    // fill queue
-    this->pwm.write(0x55000033) ; // [todo]
+    // fill fifo [todo] pattern by client
     while (0 == this->pwm.getStatus().cfull())
 	this->pwm.write(0x55555555) ;
-    // [todo] make sure that's not indefinite!!
+
+    uint32_t t2 ;
+    do // wait till one word got emptied out
+    {
+	t2 = this->timer.cLo() ; 
+	if (t2 - t0 >= span)
+	    throw Error("timeout:start-word") ;
+    }
+    while (0 != this->pwm.getStatus().cfull()) ;
+    
+    // right now began the serialization of a new (long) word
+    
+    auto count = 0 ;
+    uint32_t t3 ;
+    do // wait till duration has lapsed (while topping up fifo)
+    {
+	auto status = this->pwm.getStatus() ;
+	if (0 == status.cfull())
+	{
+	    if (0 != status.cempt())
+		throw Error("fifo underrun") ;
+	    // ...[note] there is actually no safe way to detect an underrun
+	    this->pwm.write(0x55555555) ; // [todo] configurable by client
+	    ++count ;
+	}
+	t3 = this->timer.cLo() ;
+    }
+    while (t3 - t0 <= span) ;
+
+    // [todo] recover from exceptions !?
 
     // don't fill the queue before PWM is enabled; it appears to
     // immediately deque two fifo entries which messes up our timing
     
     // start
-    //using clock = std::chrono::steady_clock ;
-    //using clock = std::chrono::high_resolution_clock ;
-    //auto span = Neat::chrono::bySeconds<clock::duration>(seconds) ;
-    //auto t0 = clock::now() ;
-    auto t0 = this->timer.cLo() ;
-    auto span = static_cast<uint32_t>(seconds * 1000 * 1000 + .5) ;
-    // ...[todo] maybe the ARM counter is the better choice?
-
-    // write pwm queue until time has passed
-    auto count = 0u ;
-    auto ti = t0 ;
-    uint32_t mask = 0 ;
-    while (ti - t0 < span)
-    {
-	auto c = 0u ;
-	while (true)
-	{
-	    auto status = this->pwm.getStatus() ;
-	    if (0 != status.cfull())
-		break ;
-	    if (0 != status.cempt())
-		throw Error("fifo underrun") ;
-	    // ...[note] there is actually no safe way to detect an underrun
-	    // ...[todo] recover
-	    this->pwm.write(mask) ; mask = ~mask ;
-	    if (++c < 0x100)
-		break ;
-	}
-	count += c ;
-	//ti = clock::now() ;
-	ti = this->timer.cLo() ;
-    }
-
-    double freq ;
-    if ((count == 0) && (0 != this->pwm.getStatus().cfull()))
-    {
-	// either the given duration was too short, or the frequency is
-	// zero, for instance because the clock-manager isn't enabled.
-	freq = 0.0 ;
-    }
-    else
-    {
-	// the PWM might be in the middle of a word, which may mess up
-	// our measurement (for long words) since ti assumes that
-	// the complete word was serialized.
-	while (0 != this->pwm.getStatus().cfull())
-	    ;
-	++count ;
-	//ti = clock::now() ;
-	ti = this->timer.cLo() ;
-	//auto elapsed = Neat::chrono::toSeconds(ti - t0) ;
-	auto elapsed = (ti - t0) / 1000.0 / 1000.0 ;
-	freq = static_cast<double>(nbits) * count / elapsed ;
-	std::cerr << "### " << elapsed << ' ' << count << std::endl ;
-    }
-    // recover
-#if 0    
-    x.pwen = 0 ;
-    c.set(this->index,x) ;
-    c.clrf1() = 1 ;
-    this->pwm.setControl(c) ;
-    // it appears that two "subsequent" writes to the control register
-    // may result in a BERR and have weird consequences (one or the
-    // other command fails) [observed on Pi-2]
-#endif    
-    this->pwm.resetStatus(this->pwm.getStatus()) ;
-    this->pwm.setControl(saved_ctrl) ;
+    // clock: (resolution, granularity, cost)
+    
+    // the PWM might be in the middle of a word, which may mess up
+    // our measurement (for long words) since ti assumes that
+    // the complete word was serialized.
+    while (0 != this->pwm.getStatus().cfull())
+	;
+    t3 = this->timer.cLo() ;
+    auto elapsed = (t3 - t2) / 1000.0 / 1000.0 ;
+    auto nbits = this->pwm.getRange(this->index) ;
+    auto freq = static_cast<double>(nbits) * count / elapsed ;
+    std::cerr << "### " << elapsed << ' ' << count << std::endl ;
     return freq ;
 }
+
+send()
+{
+    stop() ; clear() ; reset() ;
+
+    fill_fifo(buffer) ; get_time(t0) ; start() ;
+
+    until completed:
+    
+	top_up(buffer) ; get_time(ti) ; verify(ti-t0/i) ;
+
+    top_up(padding) till fifo is full ; get_time(ti) ; verify(ti-t0/i) ;
+
+    // todo: silent-bit; repeat-last-word; idle-bit <-- test cases
+    
+    stop ; clear ; reset ;
+}
+#endif
+
+std::pair<size_t,uint32_t> RpiExt::Pwm::
+top_up(uint32_t const buffer[],uint32_t timeout)
+{
+    size_t i = 0 ;
+    
+    // fill fifo until full
+    while (0 == this->pwm.getStatus().cfull())
+	this->pwm.write(buffer[i++]) ;
+
+    // wait until the full-flag turns to false (@t1)
+    auto t0 = this->timer.cLo() ;
+    auto t1 = t0 ;
+    while (0 != this->pwm.getStatus().cfull()) 
+    {
+	if (t1 - t0 >= timeout)
+	    throw Error("top_up:timeout") ;
+	// possible reasons:
+	// * the given time span was too short
+	// * pwm wasn't enabled
+	// * no or invalid setup of the clock-manager
+	t1 = this->timer.cLo() ; 
+    }
+
+    // fill the empty space
+    this->pwm.write(buffer[i++]) ;
+    return std::make_pair(i,t1) ;
+}
+
+std::pair<size_t,uint32_t> RpiExt::Pwm::
+top_up(uint32_t const buffer[])
+{
+    size_t i = 0 ;
+    
+    // fill fifo until full
+    while (0 == this->pwm.getStatus().cfull())
+	this->pwm.write(buffer[i++]) ;
+
+    // wait until the full-flag turns to false (@t1)
+    auto t1 = this->timer.cLo() ;
+    while (0 != this->pwm.getStatus().cfull())
+	;
+    t1 = this->timer.cLo() ; 
+    this->pwm.write(buffer[i++]) ;
+    return std::make_pair(i,t1) ;
+}
+
+double RpiExt::Pwm::frequency(double seconds)
+{
+    auto span = static_cast<uint32_t>(seconds * 1000.0 * 1000.0 + .5) ;
+
+    static uint32_t const block[16] = { 0x55555555 } ;
+    
+    auto t0 = this->top_up(block,span).second ;
+
+    // first block
+    auto tuple = top_up(block,span) ;
+    auto n = tuple.first ;
+    auto ti = tuple.second ;
+
+    while (ti - t0 < span)
+    {
+	// subsequent blocks
+	tuple = top_up(block) ;
+	n += tuple.first ;
+	ti = tuple.second ;
+    }
+
+    auto elapsed = (ti - t0) / 1000.0 / 1000.0 ;
+    auto nbits = this->pwm.getRange(this->index) ;
+    auto freq = static_cast<double>(nbits) * n / elapsed ;
+    std::cerr << "### " << elapsed << ' ' << n << std::endl ;
+    return freq ;
+}
+
+// to contemplate:
+// * clock: (resolution, granularity, cost)
+//
+// * timing:
+//   the serializer may be at any point in a (long) word when a time-
+//   stamp is taken. hence, the time-stamp should be taken the moment
+//   the FIFO's flag _full_ turns to false (zero).
+// (be aware, otherwise it may mess up the timing/measuring)
+//
+// [note] the moment that pwm is enabled, the serializer appears to
+// dequeue immediately two entries from the fifo. [todo] test case.
+// (be aware, otherwise it may mess up the timing/measuring)
+//
+// [note] there is actually no safe way to detect an underrun
+//
+// [todo] recover from exceptions!?
 
