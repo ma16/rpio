@@ -379,10 +379,12 @@ static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     x.sbit = 0 ; 
     x.pola = 0 ; 
     x.rptl = 0 ;
+    x.pwen = 1 ;
     c.set(index,x) ;
     pwm.setControl(c) ;
     auto ngaps = Console::Pwm::Lib::send(pwm,index,data.get(),nwords) ;
     std::cout << ngaps << std::endl ;
+    //RpiExt::Pwm(rpi,index).send(data.get(),nwords,2.5e+6) ;
 }
 
 // --------------------------------------------------------------------

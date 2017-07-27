@@ -3,6 +3,23 @@
 // --------------------------------------------------------------------
 // PWM is used in Poll mode (no DMA) which might even work if the
 // process is de-scheduled for just a brief moment in time.
+//
+// A straight forward approach is prone to undetected fifo underruns.
+//
+// A FIFO underrun may occur:
+// * if data is faster read from FIFO than written to
+// * if the writing thread gets suspended
+//
+// You may check if the FIFO is empty to detect an underrun. However,
+// there are (less likely but still probable) cases, when an underrun
+// goes undected (i.e. immediately if the underrun occurs immediately
+// after the call that tests whether the FIFO is empty).
+//
+// You cannot prevent an underrun. However, you can detect it: The
+// FIFO can hold a maximum of 16 words. So if you write 16 words to the
+// FIFO w/o that the FIFO is getting full, there might have been a
+// FIFO underrun. So, using this indicator, you may also get false
+// positives.
 // --------------------------------------------------------------------
 
 #ifndef INCLUDE_RpiExt_Pwm_h
@@ -21,29 +38,35 @@ struct Pwm
       Error(std::string const &s) : Neat::Error("RpiExt:Pwm:" + s) {}
     } ;
 
-    void start() ;
-  
-    void wait() ;
-  
-    void send(std::vector<uint32_t> const&) ; // [todo] some kind of bitset?
+    // block until written (possible underrun)
+    void write(uint32_t const buffer[],size_t nwords) ;
 
+    // write until blocking (possible underrun)
+    size_t topUp(uint32_t const buffer[],size_t nwords) ;
+
+    // return number of bytes before underrun
+    size_t convey(uint32_t const buffer[],size_t nwords,uint32_t pad) ; 
+
+    // ----
+    
     // guess frequency by flooding the FIFO for the given duration
     double frequency(double duration) ;
+    // pwen and other values have to set-up by the client beforehand!
+
+    // ----
     
     Pwm(Rpi::Peripheral *rpi,Rpi::Pwm::Index index)
 	: timer(rpi),pwm(rpi),index(index) {}
     
 private:
   
-    void fill_fifo(uint32_t const*p,unsigned n) ;
-  
-    void send_fifo(uint32_t const *grb,unsigned n) ;
-
-    std::pair<size_t,uint32_t> top_up(uint32_t const buffer[],uint32_t timeout) ;
-    
-    std::pair<size_t,uint32_t> top_up(uint32_t const buffer[]) ;
-  
     Rpi::Timer timer ; Rpi::Pwm pwm ; Rpi::Pwm::Index index ; 
+
+    // write n x word to fifo and return the werr-flag
+    bool fillUp(size_t n,uint32_t word) ;
+    
+    // return true if fifo is not full (within given timeout)
+    bool wait(uint32_t timeout) ;
 
     // [todo] reset/recover if destructed?
     

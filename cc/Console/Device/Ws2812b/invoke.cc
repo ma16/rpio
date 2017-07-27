@@ -212,8 +212,9 @@ static void pwm(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "effective (seconds)=" << effective.toStr() << '\n' ;
     }
     auto v = Device::Ws2812b::BitStream::make32(ticks,grb,nleds) ;
-    pwm.send(v) ;
-    // [todo] we may encounter a timeout (process suspension)
+    auto n = pwm.convey(&v[0],v.size(),0) ;
+    if (v.size() != n)
+	std::cout << "failure (" << n << "/" << v.size() << ")\n" ;
 }
 
 // --------------------------------------------------------------------

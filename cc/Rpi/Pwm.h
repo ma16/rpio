@@ -39,6 +39,10 @@ struct Pwm
 	// RPTL: spec. says: "1:repeat last data when FIFO is empty"
 	//       [defect]: last data is always repeated
 	//       when FIFO is empty, regardless whether set or not
+	//
+	//       if FIFO is cleared and the serializer is disabled
+	//       then also the RPTL pattern is cleared (and the silent
+	//       bit takes over at re-enabling)
 
 	using Rptl1 = Neat::Bit< 2,uint32_t> ;
 	Rptl1 rptl1() { return Rptl1(&u32) ; }
@@ -178,6 +182,8 @@ struct Pwm
 	// if PWEN was reset (observed when BERR=1). Reset will
 	// only reset BERR, but the channel continues transmission
 	// (STA=1). A write with PWEN=0 will stop transmission.
+	// [info] when PWM is enabled (FIFO mode) and FIFO is empty
+	// then STA remains unset until data is put into the FIFO
 	
 	// STA2:  channel (index 1) is transmitting
 	using Sta2  = Neat::Bit<10,uint32_t> ;
@@ -188,6 +194,8 @@ struct Pwm
 	// to the peripheral spec. which however makes not much sense, does it?
     
 	Status() : u32(0) {}
+
+	// [todo] how to reset a certain flag, e.g. werr??
 
 	uint32_t value() const { return u32 ; }
 

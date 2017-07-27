@@ -2,9 +2,221 @@
 
 #include "Pwm.h"
 #include <cassert>
-#include <chrono>
 #include <iostream> // [debug]
-#include <Neat/chrono.h>
+
+bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
+{
+    auto status = this->pwm.getStatus() ;
+    this->pwm.resetStatus(status) ;
+    // ...[todo] just reset the werr
+    for (decltype(n) i=0 ; i<n ; ++i)
+	this->pwm.write(word) ; 
+    status = this->pwm.getStatus() ;
+    if (0 == status.cwerr())
+	// [todo] just reset the werr
+	this->pwm.resetStatus(status) ; 
+    return 0 != status.cwerr() ;
+}
+
+size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
+{
+    for (decltype(nwords) i=0 ; i<nwords ; ++i)
+    {
+	if (0 != this->pwm.getStatus().cfull())
+	    return i ;
+	this->pwm.write(buffer[i]) ;
+    }
+    return nwords ;
+}
+
+bool RpiExt::Pwm::wait(uint32_t timeout)
+{
+    auto t0 = this->timer.cLo() ; 
+    while (0 != this->pwm.getStatus().cfull())
+    {
+	if (this->timer.cLo() - t0 >= timeout)
+	    return false ;
+    }
+    return true ;
+}
+
+void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
+{
+    for (decltype(nwords) i=0 ; i<nwords ; ++i)
+    {
+	while (0 != this->pwm.getStatus().cfull())
+	    ;
+        // ...blocks indefinitely if serializer doesn't read
+	this->pwm.write(buffer[i]) ;
+    }
+}	
+
+size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
+{
+    // keep track of number of words written to FIFO
+    decltype(nwords) nwritten = 0 ;
+
+    auto full = this->fillUp(0x20,pad) ;
+    // ...0x20 is rather arbitrary, should be anything above FIFO-size
+    if (!full)
+	return nwritten ; // serializer too fast (underrun)
+
+    // check if serializer is reading (optional, might be dropped here)
+    bool writable = this->wait(1000000) ; 
+    if (!writable)
+	return nwritten ; // serializer is not working
+
+    // top-up FIFO in blocks of FIFO-size
+    while (nwords - nwritten >= 16)
+    {
+	auto n = this->topUp(buffer+nwritten,16) ;
+	if (n == 16)
+	    return nwritten ;
+	nwritten += n ;
+    }
+
+    // top-up the rest 
+    while (true)
+    {
+	auto n = this->topUp(buffer+nwritten,nwords-nwritten) ;
+	if (n == nwords - nwritten)
+	{
+	    // pad the last block to FIFO-size
+	    auto full = this->fillUp(16-n,pad) ;
+	    return full ? nwords : nwritten ;
+	}
+	nwritten += n ;
+    }
+}
+
+// --
+
+double RpiExt::Pwm::frequency(double seconds)
+{
+    // we top-up the fifo (and thus, keep the FIFO full) for the given
+    // duration and then calculate the frequency based on the number of
+    // words we wrote to the FIFO.
+
+    // the timer is using milli-seconds
+    auto span = static_cast<uint32_t>(seconds * 1000 * 1000 + .5) ;
+    // [todo] introduce time-point/duration class for the Raspberry
+    // Pi's clocks (i.e. for the BCM timer and the ARM counter)
+
+    // actually, the data we write to the FIFO doesn't matter. however,
+    // if we analyze the output with a logic analyzer, the pattern may
+    // become quite useful.
+    static uint32_t buffer[40] = {
+	0x80000000,0x88000000,0x8a000000,0x8a800000,
+	0x8aa00000,0x8aa80000,0x8aaa0000,0x8aaa8000,
+	0xa0000000,0xa2000000,0xa2800000,0xa2a00000,
+	0xa2a80000,0xa2aa0000,0xa2aa8000,0xa2aaa000,
+	0xa8000000,0xa8800000,0xa8a00000,0xa8a80000,
+	0xa8aa0000,0xa8aa8000,0xa8aaa000,0xa8aaa800,
+	0xaa000000,0xaa200000,0xaa280000,0xaa2a0000,
+	0xaa2a8000,0xaa2aa000,0xaa2aa800,0xaa2aaa00,
+	0xaa800000,0xaa880000,0xaa8a0000,0xaa8a8000,
+	0xaa8aa000,0xaa8aa800,0xaa8aaa00,0xaa8aaa80 } ;
+    // ...[note] feel free to change these values to a different
+    // pattern that does better display on a logic analyzer
+
+    // initial fifo fill-up
+    for (unsigned i=0 ; i<40 ; ++i)
+	this->pwm.write(buffer[i]) ;
+    // ...[note] if the serializer is working rather fast, more
+    // than 16 words may be written to the FIFO
+    auto status = this->pwm.getStatus() ;
+    if (0 == status.cwerr())
+	// serializer is faster than we're able to write
+	return std::numeric_limits<double>::infinity() ;
+    this->pwm.resetStatus(status) ;
+    // [todo] reset only werr
+    
+    auto t0 = this->timer.cLo() ; 
+    decltype(t0) t1 ; // time at (t0 + span)
+
+    // check whether the serializer is working
+    while (0 != this->pwm.getStatus().cfull())
+    {
+	t1 = this->timer.cLo() ;
+	if (t1 - t0 > span)
+	    return 0 ;
+	// possible reasons:
+	// * the given time span was too short
+	// * pwm wasn't enabled
+	// * CM::PWM is not enabled
+    }
+
+    size_t nwords = 0 ; // number of words enqueued
+    size_t  ngaps = 0 ; // number of (potential) fifo underruns
+
+    // top-up the fifo and update (nwords,ngaps)
+    auto enqueue = [this,&nwords,&ngaps](uint32_t const buffer[])
+    {
+	while (0 != this->pwm.getStatus().cfull())
+	    ;
+	auto n = this->topUp(buffer,24) ;
+	// ...24 is quite random, 18 should work too
+	nwords += n ;
+	if (n > 15)
+	    // since a word is in the serializer, 16 might work too
+	    ++ngaps ;
+    } ;
+    
+    do // top-up the fifo until the test-period has passed
+    {
+	// we switch the data for each call...
+	enqueue(&buffer[ 0]) ;
+	enqueue(&buffer[16]) ;
+	// ...so we can see repetitions (if underrun) on the analyzer
+	t1 = this->timer.cLo() ;
+    }
+    while (t1 - t0 <= span) ;
+
+    auto range = this->pwm.getRange(this->index) ;
+    // ...[todo] make thins function independend from channel
+    auto elapsed = (t1 - t0) / 1000.0 / 1000.0 ;
+    auto f = static_cast<double>(range) * nwords / elapsed ;
+    return f ;
+
+    // [todo]
+    // * return ngaps so the caller knows about wrong values
+    // * we might stop timing whenever a gap is encountered
+}
+
+// --------------------------------------------------------------------
+
+#if 0
+
+void RpiExt::Pwm::fill_fifo(uint32_t const*p,unsigned n)
+{
+    for (decltype(n) i=0 ; i<n ; ++i) 
+	this->pwm.write(p[i]) ;
+    assert(0 == this->pwm.getStatus().cwerr()) ; // [todo] throw
+}
+
+void RpiExt::Pwm::send_fifo(uint32_t const *rgb,unsigned n)
+{
+    for (decltype(n) i=0 ; i<n ; ++i)
+    {
+	auto t0 = this->timer.cLo() ;
+	while (0 != this->pwm.getStatus().cfull())
+	    ;
+	if (0 != this->pwm.getStatus().cempt())
+	{
+	    auto t1 = this->timer.cLo() ;
+	    auto c = this->pwm.getControl() ;
+	    auto x = c.get(index) ;
+	    x.pwen = 0 ;
+	    c.set(index,x) ;
+	    this->pwm.setControl(c) ;
+	    throw Error("Pwm:unexpected empty FIFO:" +
+			std::to_string(i) + " " + std::to_string(t1-t0)) ;
+	}
+	this->pwm.write(rgb[i]) ;
+	if (0 != this->pwm.getStatus().cwerr())
+	    throw std::runtime_error("Pwm:write error even if not full") ;
+    }
+}
 
 void RpiExt::Pwm::start()
 {
@@ -42,7 +254,7 @@ void RpiExt::Pwm::wait()
     c.set(index,x) ;
     this->pwm.setControl(c) ;
 }
-  
+
 void RpiExt::Pwm::send(std::vector<uint32_t> const &v)
 {
     if (v.size() < 16)
@@ -59,37 +271,124 @@ void RpiExt::Pwm::send(std::vector<uint32_t> const &v)
     this->wait() ;
 }
 
-void RpiExt::Pwm::fill_fifo(uint32_t const*p,unsigned n)
+// --------------------------------------------------------------------
+
+void RpiExt::Pwm::send(uint32_t const buffer[],size_t nwords,double f)
 {
-    for (decltype(n) i=0 ; i<n ; ++i) 
-	this->pwm.write(p[i]) ;
-    assert(0 == this->pwm.getStatus().cwerr()) ; // [todo] throw
+    // first block
+    auto t0 = this->top_up(&buffer[0],100000/*todo*/).second ;
+
+    // first block again
+    auto tuple = top_up(&buffer[0]) ;
+    auto n = tuple.first ;
+    auto ti = tuple.second ;
+
+    if (1e+6 * (32*n+2) / f < ti-t0)
+	throw Error("timeout") ;
+
+    while (n < nwords)
+    {
+	// subsequent blocks
+	tuple = top_up(&buffer[n]) ;
+
+	auto  n_x = tuple.first ;
+	auto ti_x = tuple.second ;
+	    
+	if (n_x > 15)
+	{
+	    if (1e+6 * (32*n_x+2) / f < ti_x - ti)
+	    {
+		std::cerr << "### "
+			  << (ti_x - ti) << " "
+			  << n_x << " "
+			  << n << std::endl ;
+		throw Error("timeout") ;
+	    }
+	}
+	    
+	n += tuple.first ;
+	ti = tuple.second ;
+    }
+
+    std::cerr << "### "
+	      << (ti - t0) << " "
+	      << n << " "
+	      << (32e+6 * n / (ti-t0)) << std::endl ;
+    // [todo] wait till finished!?
 }
 
-void RpiExt::Pwm::send_fifo(uint32_t const *rgb,unsigned n)
+void RpiExt::Pwm::send(uint32_t const buffer[],size_t nwords)
 {
-    for (decltype(n) i=0 ; i<n ; ++i)
+    auto t0 = this->top_up(&buffer[0],100000/*todo*/).second ;
+
+    // first block
+    auto tuple = top_up(&buffer[0]) ;
+    auto n = tuple.first ;
+    auto ti = tuple.second ;
+
+    while (n < nwords)
     {
-	auto t0 = this->timer.cLo() ;
-	while (0 != this->pwm.getStatus().cfull())
-	    ;
-	if (0 != this->pwm.getStatus().cempt())
-	{
-	    auto t1 = this->timer.cLo() ;
-	    auto c = this->pwm.getControl() ;
-	    auto x = c.get(index) ;
-	    x.pwen = 0 ;
-	    c.set(index,x) ;
-	    this->pwm.setControl(c) ;
-	    throw std::runtime_error("Pwm:unexpected empty FIFO:" + std::to_string(i) + " " + std::to_string(t1-t0)) ;
-	}
-	this->pwm.write(rgb[i]) ;
-	if (0 != this->pwm.getStatus().cwerr())
-	    throw std::runtime_error("Pwm:write error even if not full") ;
+	// subsequent blocks
+	tuple = top_up(&buffer[n]) ;
+	n += tuple.first ;
+	ti = tuple.second ;
     }
+
+    std::cerr << "### "
+	      << (ti - t0) << " "
+	      << n << " "
+	      << (static_cast<double>(n)/(ti-t0)) << std::endl ;
+    // [todo] wait till finished!?
 }
+
+void RpiExt::Pwm::send(std::vector<uint32_t> const &v)
+{
+    this->send(&v[0],v.size()) ;
+}
+#endif
+
+// --------------------------------------------------------------------
 
 #if 0
+std::pair<size_t,uint32_t> RpiExt::Pwm::
+topUp(uint32_t const buffer[],size_t nwords,uint32_t timeout)
+{
+    // A time-stamp can be severely inaccurate if the thread gets
+    // suspended between the "event" and taking the associated time-
+    // stamp.
+    //
+    // Here we try to determine the time the fifo gets full. 
+    
+    size_t i = 0 ;
+
+  Again: ;
+
+    if (i == nwords)
+	return std::make_pair(i,0) ;
+    
+    i += this->topUp(buffer+i,nwords-i) ;
+    
+    if (i == nwords)
+	return std::make_pair(i,0)
+
+    // fifo (most likely) full
+    
+    this->poll(timeout) ;
+
+    // space for at least one word
+    
+    auto t1 = this->timer.cLo() ;
+    
+    this->pwm.write(buffer[i++]) ;
+
+    // fifo full again?
+    
+    if (0 == this->pwm.getStatus().cfull())
+	goto Again ;
+
+    return std::make_pair(i,t1) ;
+}
+
 double RpiExt::Pwm::frequency(double seconds)
 {
     auto span = static_cast<uint32_t>(seconds * 1000 * 1000 + .5) ;
@@ -174,53 +473,6 @@ send()
     
     stop ; clear ; reset ;
 }
-#endif
-
-std::pair<size_t,uint32_t> RpiExt::Pwm::
-top_up(uint32_t const buffer[],uint32_t timeout)
-{
-    size_t i = 0 ;
-    
-    // fill fifo until full
-    while (0 == this->pwm.getStatus().cfull())
-	this->pwm.write(buffer[i++]) ;
-
-    // wait until the full-flag turns to false (@t1)
-    auto t0 = this->timer.cLo() ;
-    auto t1 = t0 ;
-    while (0 != this->pwm.getStatus().cfull()) 
-    {
-	if (t1 - t0 >= timeout)
-	    throw Error("top_up:timeout") ;
-	// possible reasons:
-	// * the given time span was too short
-	// * pwm wasn't enabled
-	// * no or invalid setup of the clock-manager
-	t1 = this->timer.cLo() ; 
-    }
-
-    // fill the empty space
-    this->pwm.write(buffer[i++]) ;
-    return std::make_pair(i,t1) ;
-}
-
-std::pair<size_t,uint32_t> RpiExt::Pwm::
-top_up(uint32_t const buffer[])
-{
-    size_t i = 0 ;
-    
-    // fill fifo until full
-    while (0 == this->pwm.getStatus().cfull())
-	this->pwm.write(buffer[i++]) ;
-
-    // wait until the full-flag turns to false (@t1)
-    auto t1 = this->timer.cLo() ;
-    while (0 != this->pwm.getStatus().cfull())
-	;
-    t1 = this->timer.cLo() ; 
-    this->pwm.write(buffer[i++]) ;
-    return std::make_pair(i,t1) ;
-}
 
 double RpiExt::Pwm::frequency(double seconds)
 {
@@ -249,6 +501,7 @@ double RpiExt::Pwm::frequency(double seconds)
     std::cerr << "### " << elapsed << ' ' << n << std::endl ;
     return freq ;
 }
+#endif
 
 // to contemplate:
 // * clock: (resolution, granularity, cost)
@@ -266,4 +519,11 @@ double RpiExt::Pwm::frequency(double seconds)
 // [note] there is actually no safe way to detect an underrun
 //
 // [todo] recover from exceptions!?
+
+// PROCEED HERE
+//
+// ponder this: if the last time the fifo was full and now we need
+// to enqueue 15 or more entries, then this may indicate an underrun,
+// doesn't it!? (including false positives, still, that would be
+// a quite simple implementation for problem detection)
 
