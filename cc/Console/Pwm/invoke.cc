@@ -343,7 +343,7 @@ static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	duration = Ui::strto<double>(argL->pop()) ;
     argL->finalize() ;
     Rpi::Pwm pwm(rpi) ;
-    double f = RpiExt::Pwm(rpi,Rpi::Pwm::Index::make<0>()).frequency(duration) ;
+    double f = RpiExt::Pwm(rpi).frequency(Rpi::Pwm::Index::make<0>(),duration) ;
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
     std::cout << f << std::endl ;

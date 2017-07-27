@@ -50,17 +50,16 @@ struct Pwm
     // ----
     
     // guess frequency by flooding the FIFO for the given duration
-    double frequency(double duration) ;
+    double frequency(Rpi::Pwm::Index index,double duration) ;
     // pwen and other values have to set-up by the client beforehand!
 
     // ----
     
-    Pwm(Rpi::Peripheral *rpi,Rpi::Pwm::Index index)
-	: timer(rpi),pwm(rpi),index(index) {}
+    Pwm(Rpi::Peripheral *rpi) : timer(rpi),pwm(rpi) {}
     
 private:
   
-    Rpi::Timer timer ; Rpi::Pwm pwm ; Rpi::Pwm::Index index ; 
+    Rpi::Timer timer ; Rpi::Pwm pwm ;
 
     // write n x word to fifo and return the werr-flag
     bool fillUp(size_t n,uint32_t word) ;

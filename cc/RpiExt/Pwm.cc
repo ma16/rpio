@@ -91,7 +91,7 @@ size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
 
 // --
 
-double RpiExt::Pwm::frequency(double seconds)
+double RpiExt::Pwm::frequency(Rpi::Pwm::Index index,double seconds)
 {
     // we top-up the fifo (and thus, keep the FIFO full) for the given
     // duration and then calculate the frequency based on the number of
@@ -172,7 +172,7 @@ double RpiExt::Pwm::frequency(double seconds)
     }
     while (t1 - t0 <= span) ;
 
-    auto range = this->pwm.getRange(this->index) ;
+    auto range = this->pwm.getRange(index) ;
     // ...[todo] make thins function independend from channel
     auto elapsed = (t1 - t0) / 1000.0 / 1000.0 ;
     auto f = static_cast<double>(range) * nwords / elapsed ;

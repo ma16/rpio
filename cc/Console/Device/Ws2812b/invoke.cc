@@ -171,37 +171,14 @@ static void pwm(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto nleds = Ui::strto<unsigned>(argL->pop()) ;
     auto   grb = Ui::strto<unsigned>(argL->pop()) ;
-  
     auto seconds = getPwm(argL) ;
-    auto channel = Ui::strto(argL->pop(),Rpi::Pwm::Index()) ;
-    RpiExt::Pwm pwm(rpi,channel) ;    
+    auto f = Ui::strto<double>(argL->pop()) ;
+    auto debug = argL->pop_if("-d") ;
+    argL->finalize() ;
 
-    auto f = pwm.frequency(0.1) ;
-    // [TODO] this goes out on the PWM line; we may want suppress this
-    // or may make it optional since it may confuse the user that
-    // monitors the output on an analyzer !!!
-    
-    // ...[todo] may throw an Error on underrun.
-    // So deal with underrun or prevent it.
-    if (f < 1e+6)
-	std::cout << "warning: measured frequency: " << f << '\n' ;
-	
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
     
-    if (argL->pop_if("-f"))
-    {
-	auto g = Ui::strto<double>(argL->pop()) ;
-	if (g/f < 0.95 || 1.05 < g/f)
-	    std::cout << "warning: "
-		      << "frequency given:" << g << ' '
-		      << "but measured:"    << f << '\n' ;
-	f = g ;
-    }
-    else std::cout << "info: using measured frequency: " << f << '\n' ;
-    
-    auto debug = argL->pop_if("-d") ;
-    argL->finalize() ;
     auto ticks = computeTicks(seconds,f) ;
     if (debug)
     {
@@ -212,7 +189,7 @@ static void pwm(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "effective (seconds)=" << effective.toStr() << '\n' ;
     }
     auto v = Device::Ws2812b::BitStream::make32(ticks,grb,nleds) ;
-    auto n = pwm.convey(&v[0],v.size(),0) ;
+    auto n =  RpiExt::Pwm(rpi).convey(&v[0],v.size(),0) ;
     if (v.size() != n)
 	std::cout << "failure (" << n << "/" << v.size() << ")\n" ;
 }
@@ -244,7 +221,7 @@ void Console::Device::Ws2812b::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout << "arguments: MODE\n"
 		  << '\n'
 		  << "MODE : bang NLEDS GRB [-t TIMING] [-f FREQ] PINS [-r RETRY] [-d]\n"
-		  << "     | pwm  NLEDS GRB [-t TIMING] [-f FREQ] CHANNEL [-d]\n"
+		  << "     | pwm  NLEDS GRB [-t TIMING] FREQ [-d]\n"
 		  << "     | spi0 NLEDS GRB [-t TIMING] FREQ\n"
 		  << '\n'
 		  << "TIMING : -t T1..T5\n"
