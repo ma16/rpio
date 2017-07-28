@@ -61,4 +61,11 @@ namespace Rpi
   } ;
 }
 
+// [todo]
+// introduce chrono::clock-like implementation for the two Pi clocks
+// (i.e. for the BCM timer and the ARM counter). ponder the effects of
+// clock resolution (accuracy), granularity and cost-per-call. at least
+// introduce wrapper classes for time-point and duration instaed of
+// using ambiguous uint32_t types.
+
 #endif // _Rpi_Counter_h_
