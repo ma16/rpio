@@ -185,6 +185,9 @@ struct Pwm
 	// [info] when PWM is enabled (FIFO mode) and FIFO is empty
 	// then STA remains unset until data is put into the FIFO
 	
+	// [defect] if USEF=1 and PWEN after FIFO clear and status reset,
+	// STA remains unset until data is put into the FIFO 
+	
 	// STA2:  channel (index 1) is transmitting
 	using Sta2  = Neat::Bit<10,uint32_t> ;
 	Sta2   sta2() { return  Sta2(&u32) ; }
@@ -246,6 +249,10 @@ struct Pwm
     // if in serialization mode (mode=1):
     //   if range<32: only the most significant data bits are put out
     //   if range>32: (range-32) additional padding bits are put out
+    // [defect] if USEF=1 range=1: still two bits are transferred (LSB twice?)
+    // [defect] if USEF=1 range=0: strange effects
+    //    * first single write to FIFO enables STA, but FIFO remains empty
+    //    * more than two writes in a row start to fill FIFO
     uint32_t getRange(Index i) const ; void setRange(Index i,uint32_t r) ; 
   
     // pwm mode (mode=0): the number of pulses within a period (range)

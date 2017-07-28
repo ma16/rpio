@@ -342,11 +342,12 @@ static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (!argL->empty())
 	duration = Ui::strto<double>(argL->pop()) ;
     argL->finalize() ;
-    Rpi::Pwm pwm(rpi) ;
-    double f = RpiExt::Pwm(rpi).frequency(Rpi::Pwm::Index::make<0>(),duration) ;
+    // [todo] verify whether the serializer is working at all
+    auto sample = RpiExt::Pwm(rpi).measureRate(duration) ;
+    auto f = sample.first * Rpi::Pwm(rpi).getRange(Rpi::Pwm::Index::make<0>()) ;
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
-    std::cout << f << std::endl ;
+    std::cout << f << " (" << sample.first << ',' << sample.second << ")\n" ;
 }
 
 // --------------------------------------------------------------------
