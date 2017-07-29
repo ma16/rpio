@@ -6,56 +6,50 @@
 
 constexpr Rpi::Bus::Address Rpi::Pwm::fifoAddr ;
 
-Rpi::Pwm::Control::Channel Rpi::Pwm::Control::get(Index i) const
+Rpi::Pwm::Control::Control(uint32_t w)
 {
-    Channel x ;
-    if (i.value() == 0)
-    {
-	x.pwen = 0 != this->cpwen1() ;
-	x.mode = 0 != this->cmode1() ;
-	x.rptl = 0 != this->crptl1() ;
-	x.sbit = 0 != this->csbit1() ;
-	x.pola = 0 != this->cpola1() ;
-	x.usef = 0 != this->cusef1() ;
-	x.msen = 0 != this->cmsen1() ;
-    }
-    else
-    {
-	assert(i.value() == 1) ;
-	x.pwen = 0 != this->cpwen2() ;
-	x.mode = 0 != this->cmode2() ;
-	x.rptl = 0 != this->crptl2() ;
-	x.sbit = 0 != this->csbit2() ;
-	x.pola = 0 != this->cpola2() ;
-	x.usef = 0 != this->cusef2() ;
-	x.msen = 0 != this->cmsen2() ;
-    }
-    return x ;
+    this->channel[0].pwen = 0 != (w & Pwen1) ;
+    this->channel[0].mode = 0 != (w & Mode1) ;
+    this->channel[0].rptl = 0 != (w & Rptl1) ;
+    this->channel[0].sbit = 0 != (w & Sbit1) ;
+    this->channel[0].pola = 0 != (w & Pola1) ;
+    this->channel[0].usef = 0 != (w & Usef1) ;
+    this->channel[0].msen = 0 != (w & Msen1) ;
+    
+    this->channel[1].pwen = 0 != (w & Pwen2) ;
+    this->channel[1].mode = 0 != (w & Mode2) ;
+    this->channel[1].rptl = 0 != (w & Rptl2) ;
+    this->channel[1].sbit = 0 != (w & Sbit2) ;
+    this->channel[1].pola = 0 != (w & Pola2) ;
+    this->channel[1].usef = 0 != (w & Usef2) ;
+    this->channel[1].msen = 0 != (w & Msen2) ;
+
+    this->clear = w & Clrf ;
 }
 
-void Rpi::Pwm::Control::set(Index i,Channel x)
+uint32_t Rpi::Pwm::Control::value() const
 {
-    if (i.value() == 0)
-    {
-	pwen1() = x.pwen ;
-	mode1() = x.mode ;
-	rptl1() = x.rptl ;
-	sbit1() = x.sbit ;
-	pola1() = x.pola ;
-	usef1() = x.usef ;
-	msen1() = x.msen ;
-    }
-    else
-    {
-	assert(i.value() == 1) ;
-	pwen2() = x.pwen ;
-	mode2() = x.mode ;
-	rptl2() = x.rptl ;
-	sbit2() = x.sbit ;
-	pola2() = x.pola ;
-	usef2() = x.usef ;
-	msen2() = x.msen ;
-    }
+    uint32_t w = 0 ;
+
+    if (this->channel[0].pwen) w |= Pwen1 ;
+    if (this->channel[0].mode) w |= Mode1 ;
+    if (this->channel[0].rptl) w |= Rptl1 ;
+    if (this->channel[0].sbit) w |= Sbit1 ;
+    if (this->channel[0].pola) w |= Pola1 ;
+    if (this->channel[0].usef) w |= Usef1 ;
+    if (this->channel[0].msen) w |= Msen1 ;
+    
+    if (this->channel[1].pwen) w |= Pwen2 ;
+    if (this->channel[1].mode) w |= Mode2 ;
+    if (this->channel[1].rptl) w |= Rptl2 ;
+    if (this->channel[1].sbit) w |= Sbit2 ;
+    if (this->channel[1].pola) w |= Pola2 ;
+    if (this->channel[1].usef) w |= Usef2 ;
+    if (this->channel[1].msen) w |= Msen2 ;
+    
+    if (this->clear) w |= Clrf ;
+
+    return w ;
 }
     
 void Rpi::Pwm::setRange(Index i,uint32_t r)

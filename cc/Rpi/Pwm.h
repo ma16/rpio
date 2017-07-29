@@ -1,7 +1,44 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Rpi_Pwm_h_
-#define _Rpi_Pwm_h_
+// --------------------------------------------------------------------
+// See Pulse Width Modulator (§9) 
+// https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
+//
+// Errata:
+//
+// p.138: "read data from a FIFO storage block, which can store up to
+//   eight 32-bit words."
+// The FIFO holds 16 32-bit words. So, if only one channel is used, all
+// 16 words make up a "block".
+//
+// p.138: "Both modes clocked by clk_pwm which is nominally 100MHz"
+// The "nominal" clock seems to be zero since it is not set-up.
+//
+// p.143: CLRF1 is marked as RO (read-only).
+// It is WO (write-only).
+//
+// p.143: RPTL "0:Transmission interrupts when FIFO is empty"
+// In non-DMA mode: when FIFO gets empty, the last word is repeated
+// regardless whether this bit is set or not. Even if the FIFO is
+// cleared (CLRF). If the serializer starts with a cleared FIFO there
+// is nothing to repeat.
+//
+// p.143: SBIT "Defines the state of the output when no transmission
+//   takes place "
+// That is only true:
+//   * if mode=0 & msen=1 & sbit=1
+//   * if mode=1 & range>32 (for bits 32..)
+//
+// p.143: USEF
+// [defect] channel #2 seems not always to work in FIFO-mode. Sometimes
+// no transmission occurs (in serialization mode) even if the FIFO is
+// full and the channel is busy. The FIFO remains full. [open issue]
+// 
+// 
+// --------------------------------------------------------------------
+
+#ifndef INCLUDE_Rpi_Pwm_h
+#define INCLUDE_Rpi_Pwm_h
 
 #include "Bus/Address.h"
 #include "Dma/Ti.h"
@@ -12,131 +49,67 @@ namespace Rpi {
 
 struct Pwm 
 {
+    enum : uint32_t
+    {
+	Pwen1 = (1u <<  0), // 1=enable transmission (0=disable)
+	Pwen2 = (1u <<  8),
+	Mode1 = (1u <<  1), // 1=as serializer (0:as PWM)
+	Mode2 = (1u <<  9),
+	Rptl1 = (1u <<  2), // 1=repeat last word
+	Rptl2 = (1u << 10), // (only effective if Usef=1)
+	Sbit1 = (1u <<  3), // 1=silence bit is High (0=Low)
+	Sbit2 = (1u << 11), 
+	Pola1 = (1u <<  4), // 1=inverse output polarity (0=don't)
+	Pola2 = (1u << 12), 
+	Usef1 = (1u <<  5), // 1=use FIFO (0=use Data register)
+	Usef2 = (1u << 13), 
+	Clrf  = (1u <<  6), // 1=clear FIFO (single shot)
+	Msen1 = (1u <<  7), // 1=mark-space PWM (0=coherent)
+	Msen2 = (1u << 15), // (has only effect if Mode=PWM)
+    } ;
+	    
+    // static uint32_t const wmask = 0x0bfffu ; // write mask
+    
     using Index = Neat::Enum<unsigned,1> ;
 
-    struct Control // 32-bit control word
+    struct Control
     {
-	// PWEN: 1:enable channel (0:disable)
-	
-	using Pwen1 = Neat::Bit< 0,uint32_t> ;
-	Pwen1 pwen1() { return Pwen1(&u32) ; }
-	uint32_t cpwen1() const { return Pwen1::mask & u32 ; }
+	Control(uint32_t w) ;
 
-	using Pwen2 = Neat::Bit< 8,uint32_t> ;
-	Pwen2 pwen2() { return Pwen2(&u32) ; }
-	uint32_t cpwen2() const { return Pwen2::mask & u32 ; }
+	uint32_t value() const ;
 
-	// MODE: 1:serializer mode (0:pwm)
-
-	using Mode1 = Neat::Bit< 1,uint32_t> ;
-	Mode1 mode1() { return Mode1(&u32) ; }
-	uint32_t cmode1() const { return Mode1::mask & u32 ; }
-	
-	using Mode2 = Neat::Bit< 9,uint32_t> ;
-	Mode2 mode2() { return Mode2(&u32) ; }
-	uint32_t cmode2() const { return Mode2::mask & u32 ; }
-	
-	// RPTL: spec. says: "1:repeat last data when FIFO is empty"
-	//       [defect]: last data is always repeated
-	//       when FIFO is empty, regardless whether set or not
-	//
-	//       if FIFO is cleared and the serializer is disabled
-	//       then also the RPTL pattern is cleared (and the silent
-	//       bit takes over at re-enabling)
-
-	using Rptl1 = Neat::Bit< 2,uint32_t> ;
-	Rptl1 rptl1() { return Rptl1(&u32) ; }
-	uint32_t crptl1() const { return Rptl1::mask & u32 ; }
-	
-	using Rptl2 = Neat::Bit<10,uint32_t> ;
-	Rptl2 rptl2() { return Rptl2(&u32) ; }
-	uint32_t crptl2() const { return Rptl2::mask & u32 ; }
-	
-	// SBIT: spec. says: silence bit is put out
-	//       [observed]: that's true...
-	//       --if mode=0 & msen=1 & sbit=1
-	//       --or mode=1 & range>32 for the (range-32) tail bits
-
-	using Sbit1 = Neat::Bit< 3,uint32_t> ;
-	Sbit1 sbit1() { return Sbit1(&u32) ; }
-	uint32_t csbit1() const { return Sbit1::mask & u32 ; }
-
-	using Sbit2 = Neat::Bit<11,uint32_t> ;
-	Sbit2 sbit2() { return Sbit2(&u32) ; }
-	uint32_t csbit2() const { return Sbit2::mask & u32 ; }
-	
-	// POLA: 1:inverse output polarity (0:don't)
-
-	using Pola1 = Neat::Bit< 4,uint32_t> ;
-	Pola1 pola1() { return Pola1(&u32) ; }
-	uint32_t cpola1() const { return Pola1::mask & u32 ; }
-	
-	using Pola2 = Neat::Bit<12,uint32_t> ;
-	Pola2 pola2() { return Pola2(&u32) ; }
-	uint32_t cpola2() const { return Pola2::mask & u32 ; }
-	
-	// USEF: 1:use Fifo (0:use data register)
-	//       [defect]: using channel 2 on FIFO doesn't work always:
-	//       i.e. in serialization mode, even though the FIFO is full
-	//       and the channel is busy the FIFO remains full and no
-	//       data is put out [todo] create a defect report
-
-	using Usef1 = Neat::Bit< 5,uint32_t> ;
-	Usef1 usef1() { return Usef1(&u32) ; }
-	uint32_t cusef1() const { return Usef1::mask & u32 ; }
-	
-	using Usef2 = Neat::Bit<13,uint32_t> ;
-	Usef2 usef2() { return Usef2(&u32) ; }
-	uint32_t cusef2() const { return Usef2::mask & u32 ; }
-
-	// clear fifo (there is only one fifo for both channels)
-	
-	using Clrf1 = Neat::Bit< 6,uint32_t> ;
-	Clrf1 clrf1() { return Clrf1(&u32) ; }
-	uint32_t cclrf1() const { return Clrf1::mask & u32 ; }
-	
-	// MSEN: 0:coherent pwm (1:mark-space pwm) ; only for mode=0
-	
-	using Msen1 = Neat::Bit< 7,uint32_t> ;
-	Msen1 msen1() { return Msen1(&u32) ; }
-	uint32_t cmsen1() const { return Msen1::mask & u32 ; }
-	
-	using Msen2 = Neat::Bit<15,uint32_t> ;
-	Msen2 msen2() { return Msen2(&u32) ; }
-	uint32_t cmsen2() const { return Msen2::mask & u32 ; }
-    
-	Control() : u32(0) {}
-
-	uint32_t value() const { return u32 ; }
-    
-	static uint32_t const wmask = 0x0bfffu ; // write mask
-    
 	struct Channel
 	{
-	    uint32_t pwen : 1 ;
-	    uint32_t mode : 1 ;
-	    uint32_t rptl : 1 ;
-	    uint32_t sbit : 1 ;
-	    uint32_t pola : 1 ;
-	    uint32_t usef : 1 ;
-	    uint32_t msen : 1 ;
+	    uint8_t pwen : 1 ;
+	    uint8_t mode : 1 ;
+	    uint8_t rptl : 1 ;
+	    uint8_t sbit : 1 ;
+	    uint8_t pola : 1 ;
+	    uint8_t usef : 1 ;
+	    uint8_t msen : 1 ;
 	    Channel() : pwen(0),mode(0),rptl(0),sbit(0),pola(0),usef(0),msen(0) {}
 	} ;
 
-	Channel get(Index) const ; void set(Index,Channel) ;
-    
+	Channel channel[2] ; // [todo] channel(Index) <- make array class
+	bool clear ;
+	
+	Control getControl() const ; void set(Control) ;
+
     private:
 
-	friend Pwm ;
-    
-	uint32_t u32 ; Control(uint32_t u32) : u32(u32) {} 
-  
-    } ; 
-  
-    Control getControl() const { return page->at<0/4>() ; } ;
+	uint32_t w ;
+    } ;
 
-    void setControl(Control c) { page->at<0/4>() = c.value() & c.wmask ; }
+    Control getControl() const
+    {
+	return Control(page->at<0/4>()) ;
+    } 
 
+    void setControl(Control c)
+    {
+	page->at<0/4>() = c.value() ;
+    }
+  
     struct Status // 32-bit status word
     {
 	// FULL:  FIFO is full
@@ -294,4 +267,4 @@ private:
 
 } ; }
 
-#endif // _Rpi_Pwm_h_
+#endif // INCLUDE_Rpi_Pwm_h

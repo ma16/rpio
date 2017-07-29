@@ -20,7 +20,7 @@ enum class Type { Mode,Msen,Pola,Pwen,Rptl,Sbit,Usef } ;
 static void set(Rpi::Pwm *pwm,Rpi::Pwm::Index i,Type type,Ui::ArgL *argL)
 {
     auto control = pwm->getControl() ;
-    auto channel = control.get(i) ;
+    auto &channel = control.channel[i.value()] ;
     auto flag = Ui::strto<bool>(argL->pop()) ;
     switch (type)
     {
@@ -32,7 +32,6 @@ static void set(Rpi::Pwm *pwm,Rpi::Pwm::Index i,Type type,Ui::ArgL *argL)
     case Type::Sbit: channel.sbit = flag ; break ;
     case Type::Usef: channel.usef = flag ; break ;
     } 	
-    control.set(i,channel) ;
     pwm->setControl(control) ;
 }
 
@@ -80,17 +79,17 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	else if (arg == "clear")
 	{
 	    auto c = pwm.getControl() ;
-	    c.clrf1() = 1 ;
+	    c.clear = 1 ;
 	    pwm.setControl(c) ;
 	}
 	
     	else if (arg == "data.0") 
 	{
-	    pwm. setData(Channel0,Ui::strto<uint32_t>(argL->pop())) ;
+	    pwm.setData(Channel0,Ui::strto<uint32_t>(argL->pop())) ;
 	}
     	else if (arg == "data.1") 
 	{
-	    pwm. setData(Channel1,Ui::strto<uint32_t>(argL->pop())) ;
+	    pwm.setData(Channel1,Ui::strto<uint32_t>(argL->pop())) ;
 	}
 	
 	else if (arg == "dma")
@@ -144,8 +143,8 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	{
 	    auto c = pwm.getControl() ;
 	    auto flag = Ui::strto<bool>(argL->pop()) ;
-	    c.pwen1() = flag ;
-	    c.pwen2() = flag ;
+	    c.channel[0].pwen = flag ;
+	    c.channel[1].pwen = flag ;
 	    pwm.setControl(c) ;
 	}
 	
@@ -376,12 +375,11 @@ static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Rpi::Pwm pwm(rpi) ;
     pwm.setRange(index,32) ;
     auto c = pwm.getControl() ;
-    auto x = c.get(index) ;
+    auto &x = c.channel[index.value()] ;
     x.sbit = 0 ; 
     x.pola = 0 ; 
     x.rptl = 0 ;
     x.pwen = 1 ;
-    c.set(index,x) ;
     pwm.setControl(c) ;
     auto ngaps = Console::Pwm::Lib::send(pwm,index,data.get(),nwords) ;
     std::cout << ngaps << std::endl ;
@@ -426,7 +424,7 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Rpi::Pwm::Index i ;
     do
     {
-	auto x = c.get(i) ;
+        auto &x = c.channel[i.value()] ;
 	auto d = pwm.getData(i) ;
 	auto r = pwm.getRange(i) ;
 	std::cout << std::setw(1) << i.value()

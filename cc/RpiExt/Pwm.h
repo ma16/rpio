@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 // --------------------------------------------------------------------
-// PWM can be employed in DMA-, interrupt- or Poll mode.
+// PWM can be employed in DMA or Poll mode.
 //
 // Here, PWM is used in Poll mode. That is, the FIFO is topped-up
 // whenever there is space until all data has been written. The status
