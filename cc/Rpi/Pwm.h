@@ -33,8 +33,29 @@
 // [defect] channel #2 seems not always to work in FIFO-mode. Sometimes
 // no transmission occurs (in serialization mode) even if the FIFO is
 // full and the channel is busy. The FIFO remains full. [open issue]
+//
+//
+// p.144: "BERR sets to high when an error has occurred while writing
+//   to registers via APB. This may happen if the bus tries to write
+//   successively to same set of registers faster than the synchroniser
+//   block can cope with. Multiple switching may occur and contaminate 
+//   the data during synchronisation.
+// This kind of problem can be observed when writing twice in a row to
+// the Control register. Since the effects are unpredictable,
+// application developers should check for BERR after each write, and
+// abort if set. (so try to prevent BERR; e.g. with a read-cyle.)
 // 
-// 
+// p.144: STA "1 means channel is transmitting data."
+// For USEF=1 & RPT=1: if PWEN is enabled on an empty FIFO then STA
+// is set immediately.
+// For USEF=1 & RPT=0: if PWEN is enabled on an empty FIFO then STA
+// remains cleared until a word is written to the FIFO (or RPT is set).
+// [defect] STA may remain set; even if PWEN was cleared. This can be
+// observed for operations that cause BERR=1. In order to clear STA,
+// BERR needs to be cleared first, thereafter PWEN.
+//
+// p.145: EMPT1,FULL1 are marked as RW (read-write)
+// Since writing has no effect, ist should be RO (read-only)
 // --------------------------------------------------------------------
 
 #ifndef INCLUDE_Rpi_Pwm_h
@@ -68,8 +89,6 @@ struct Pwm
 	Msen2 = (1u << 15), // (has only effect if Mode=PWM)
     } ;
 	    
-    // static uint32_t const wmask = 0x0bfffu ; // write mask
-    
     using Index = Neat::Enum<unsigned,1> ;
 
     struct Control
@@ -91,10 +110,9 @@ struct Pwm
 	} ;
 
 	Channel channel[2] ; // [todo] channel(Index) <- make array class
+	
 	bool clear ;
 	
-	Control getControl() const ; void set(Control) ;
-
     private:
 
 	uint32_t w ;
@@ -102,91 +120,68 @@ struct Pwm
 
     Control getControl() const
     {
-	return Control(page->at<0/4>()) ;
+	return Control(page->at<0x0/4>()) ;
+	// [todo] this may get rather time consuming,
+	// especially if we only need one bit
     } 
 
     void setControl(Control c)
     {
-	page->at<0/4>() = c.value() ;
+	page->at<0x0/4>() = c.value() ;
     }
-  
-    struct Status // 32-bit status word
+
+    enum : uint32_t
     {
-	// FULL:  FIFO is full
-	using Full  = Neat::Bit< 0,uint32_t> ;
-	Full   full() { return  Full(&u32) ; }
-	uint32_t  cfull() const { return  Full::mask & u32 ; }
-	
-	// EMPT:  FIFO is empty
-	using Empt  = Neat::Bit< 1,uint32_t> ;
-	Empt   empt() { return  Empt(&u32) ; }
-	uint32_t  cempt() const { return  Empt::mask & u32 ; }
-	
-	// WERR:  write FIFO -- but FIFO full
-	using Werr  = Neat::Bit< 2,uint32_t> ;
-	Werr   werr() { return  Werr(&u32) ; }
-	uint32_t  cwerr() const { return  Werr::mask & u32 ; }
-	
-	// RERR:  read FIFO -- but FIFO empty
-	using Rerr  = Neat::Bit< 3,uint32_t> ;
-	Rerr   rerr() { return  Rerr(&u32) ; }
-	uint32_t  crerr() const { return  Rerr::mask & u32 ; }
-	
-	// GAPO1: channel 1 (index 1) gap-occurred-flag
-	using Gapo1 = Neat::Bit< 4,uint32_t> ;
-	Gapo1 gapo1() { return Gapo1(&u32) ; }
-	uint32_t cgapo1() const { return Gapo1::mask & u32 ; }
-	
-	// GAPO2: channel 2 (index 1) gap-occurred-flag
-	using Gapo2 = Neat::Bit< 5,uint32_t> ;
-	Gapo2 gapo2() { return Gapo2(&u32) ; }
-	uint32_t cgapo2() const { return Gapo2::mask & u32 ; }
-	
-	// BERR:  bus error has occurred while writing to registers via APB
-	using Berr  = Neat::Bit< 8,uint32_t> ;
-	Berr   berr() { return  Berr(&u32) ; }
-	uint32_t  cberr() const { return  Berr::mask & u32 ; }
-	
-	// STA1:  channel (index 0) is transmitting
-	using Sta1  = Neat::Bit< 9,uint32_t> ;
-	Sta1   sta1() { return  Sta1(&u32) ; }
-	uint32_t  csta1() const { return  Sta1::mask & u32 ; }
-	// [defect] the channel may continue transmission even
-	// if PWEN was reset (observed when BERR=1). Reset will
-	// only reset BERR, but the channel continues transmission
-	// (STA=1). A write with PWEN=0 will stop transmission.
-	// [info] when PWM is enabled (FIFO mode) and FIFO is empty
-	// then STA remains unset until data is put into the FIFO
-	
-	// [defect] if USEF=1 and PWEN after FIFO clear and status reset,
-	// STA remains unset until data is put into the FIFO 
-	
-	// STA2:  channel (index 1) is transmitting
-	using Sta2  = Neat::Bit<10,uint32_t> ;
-	Sta2   sta2() { return  Sta2(&u32) ; }
-	uint32_t  csta2() const { return  Sta2::mask & u32 ; }
-
-	// [observed] Full,Empt,Sta1,Sta2 are writable (resetable) according
-	// to the peripheral spec. which however makes not much sense, does it?
-    
-	Status() : u32(0) {}
-
-	// [todo] how to reset a certain flag, e.g. werr??
-
-	uint32_t value() const { return u32 ; }
-
-	static uint32_t const wmask = 0x73fu ; // write mask
-    
-    private:
-
-	friend Pwm ;
-    
-	uint32_t u32 ; Status(uint32_t u32) : u32(u32) {}
+	Full  = (1u <<  0), // FIFO is full
+	Empt  = (1u <<  1), // FIFO is empty
+	Werr  = (1u <<  2), // write operation on a full FIFO
+	Rerr  = (1u <<  3), // read operation on an empty FIFO
+        // ...[todo] can we read the FIFO?
+	Gapo1 = (1u <<  4), // gap occurred on channel #1
+	Gapo2 = (1u <<  5), // gap occurred on channel #2
+	Berr  = (1u <<  8), // bus error has occurred while writing to registers via APB
+	Sta1  = (1u <<  9), // channel #1 is currently transmitting
+	Sta2  = (1u << 10), // channel #2 is currently transmitting
     } ;
   
-    Status getStatus() const { return page->at<0x4/4>() ; }
+    struct Status
+    {
+	Status(uint32_t w) ;
+
+	uint32_t value() const ;
+
+	struct Channel
+	{
+	    bool gapo ;
+	    bool sta ;
+	    Channel() : gapo(0),sta(0) {}
+	} ;
+	Channel channel[2] ; // [todo] channel(Index) <- make array class
+	
+	bool full ;
+	bool empt ;
+	bool werr ;
+	bool rerr ;
+	bool berr ;
+	// [todo] bit vector
+	
+    private:
+
+	uint32_t w ;
+    } ;
+
+    Status getStatus() const
+    {
+	return Status(page->at<0x4/4>()) ;
+	// [todo] this may get rather time consuming,
+	// especially if we only need one bit
+    }
   
-    void resetStatus(Status s) { page->at<0x4/4>() = s.value() & s.wmask ; }
+    void clearStatus(Status s)
+    {
+	page->at<0x4/4>() = s.value() ;
+	// [todo] RO full & empt
+    }
 
     // Write word to 16-word-deep FIFO; you should make sure:
     // --either beforhand that not full

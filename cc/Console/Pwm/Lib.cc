@@ -11,7 +11,7 @@ void Console::Pwm::Lib::setup(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
   auto &x = control.channel[index.value()] ;
   x.pwen = 0 ;
   pwm->setControl(control) ;
-  pwm->resetStatus(pwm->getStatus()) ;
+  pwm->clearStatus(pwm->getStatus()) ;
   auto dmac = pwm->getDmac() ;
   dmac.enable = true ; // priority and dreq left unchanged
   pwm->setDmac(dmac) ;
@@ -31,7 +31,7 @@ void Console::Pwm::Lib::start(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
 #include <Neat/cast.h>
 void Console::Pwm::Lib::finish(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
 {
-  while (0u == pwm->getStatus().cempt())
+  while (0u == pwm->getStatus().empt)
     ;
   auto dmac = pwm->getDmac() ;
   dmac.enable = false ; 
@@ -51,11 +51,11 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
   x.pwen = 0 ;
   pwm.setControl(control) ;
   control.clear = 0 ;
-  pwm.resetStatus(pwm.getStatus()) ;
+  pwm.clearStatus(pwm.getStatus()) ;
 
   // fill the PWM queue
   decltype(nwords) i = 0 ;
-  while ((0 == pwm.getStatus().cfull()) && (i<nwords))
+  while ((0 == pwm.getStatus().full) && (i<nwords))
     pwm.write(data[i++]) ;
   // start serializer
   x.mode = 1 ; // serialize
@@ -66,9 +66,9 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
   auto ngaps = 0u ;
   while (i<nwords) {
     auto status = pwm.getStatus() ;
-    if (0 != status.cfull())
+    if (0 != status.full)
       continue ;
-    if (0 != status.cempt())
+    if (0 != status.empt)
       ++ngaps ;
     // note:
     // --this might be a false positive if the serializer is still
@@ -84,7 +84,7 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
     ++i ;
   }
   // wait until the last word gets into the serializer
-  while (0 == pwm.getStatus().cempt())
+  while (0 == pwm.getStatus().empt)
     ;
   // observed behavior:
   // --even though the last word of the queue has been read by the

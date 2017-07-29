@@ -44,22 +44,22 @@ size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
 bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
 {
     auto status = this->pwm.getStatus() ;
-    this->pwm.resetStatus(status) ;
+    this->pwm.clearStatus(status) ;
     // ...[todo] just reset the werr
     for (decltype(n) i=0 ; i<n ; ++i)
 	this->pwm.write(word) ; 
     status = this->pwm.getStatus() ;
-    if (0 == status.cwerr())
+    if (0 == status.werr)
 	// [todo] just reset the werr
-	this->pwm.resetStatus(status) ; 
-    return 0 != status.cwerr() ;
+	this->pwm.clearStatus(status) ; 
+    return 0 != status.werr ;
 }
 
 size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
 {
     for (decltype(nwords) i=0 ; i<nwords ; ++i)
     {
-	if (0 != this->pwm.getStatus().cfull())
+	if (0 != this->pwm.getStatus().full)
 	    return i ;
 	this->pwm.write(buffer[i]) ;
     }
@@ -69,7 +69,7 @@ size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
 bool RpiExt::Pwm::writable(uint32_t timeout)
 {
     auto t0 = this->timer.cLo() ; 
-    while (0 != this->pwm.getStatus().cfull())
+    while (0 != this->pwm.getStatus().full)
     {
 	if (this->timer.cLo() - t0 >= timeout)
 	    return false ;
@@ -85,7 +85,7 @@ void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
 {
     for (decltype(nwords) i=0 ; i<nwords ; ++i)
     {
-	while (0 != this->pwm.getStatus().cfull())
+	while (0 != this->pwm.getStatus().full)
 	    ;
         // ...blocks indefinitely if serializer doesn't read
 	this->pwm.write(buffer[i]) ;
@@ -125,11 +125,11 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
     // serializer is reading fast. Using exactly 40 write operations
     // here is arbitrary, though.
     auto status = this->pwm.getStatus() ;
-    if (0 == status.cwerr())
+    if (0 == status.werr)
 	// either the serializer reads faster than we're able to write
 	// (likey) or we got suspended more than once (very unlikely)
 	return std::make_pair(std::numeric_limits<double>::infinity(),0) ;
-    this->pwm.resetStatus(status) ;
+    this->pwm.clearStatus(status) ;
     // [todo] reset only werr
 
     // set-up statistical data
@@ -144,7 +144,7 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
     // local function: top-up the fifo and update (nwords,ngaps)
     auto enqueue = [this,&nwords,&ngaps](uint32_t const buffer[])
     {
-	while (0 != this->pwm.getStatus().cfull())
+	while (0 != this->pwm.getStatus().full)
 	    ;
 	auto n = this->topUp(buffer,24) ;
 	// ...24 is quite random, 16 should work too
