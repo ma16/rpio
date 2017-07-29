@@ -8,26 +8,28 @@
 // of the FIFO is polled in a busy loop to detect whether there is
 // space or not.
 //
-// The Poll mode is prone to undetected FIFO underruns. That is, a FIFO
-// underrun may happen unnoticed in the middle of a transmission.
-// Imagine you check the status of the FIFO (not-empty) and after that
-// the thread gets suspended. If the suspension lasts long enough, the
-// FIFO runs empty. This is a less likely, but still probable scenario.
-//
-// In general, a FIFO underrun may occur:
-// * if data is faster read from FIFO than can be written to
-// * if the writing thread gets suspended
-//
-// You cannot prevent an underrun. However, there is a way to detect
-// it: The FIFO can hold a maximum of 16 words. So if you write 16
-// words to the FIFO w/o that the FIFO is getting full, there might
-// have been a FIFO underrun. (It might be a also false positive.)
-//
 // All the functions here assume that PWM is properly set-up. That
 // includes an enabled serializer (PWEN=1). The functions operate only
 // on the FIFO and affect/query/reset the status flags. They do not
 // operate on channel-specific registers (unless provided as function
 // argument).
+//
+// The Poll mode is prone to undetected FIFO underruns. The FIFO may
+// run out of data (unnoticed) in the middle of a transmission.
+// Imagine you check the status of the FIFO (which says: not-empty) and
+// after that the writing thread gets suspended. If the suspension
+// lasts long enough, the FIFO runs empty. This is a less likely, but
+// still probable scenario.
+//
+// In general, a FIFO underrun may occur:
+// * if the serializer operates faster than (uninterrupted) FIFO top-up
+//   operations
+// * if the thread that top-ups the FIFO gets interrupted
+//
+// Since the FIFO can hold a maximum of 16 words, you can detect a FIFO
+// underrun by "block-writes" of 16 words. If the FIFO isn't full
+// after that, there might have been a FIFO underrun. (It might also be
+// a false positive.)
 // --------------------------------------------------------------------
 
 #ifndef INCLUDE_RpiExt_Pwm_h
@@ -46,15 +48,15 @@ struct Pwm
       Error(std::string const &s) : Neat::Error("RpiExt:Pwm:" + s) {}
     } ;
 
-    // block until written (undetected underruns)
+    // block until all data has been written (undetected underruns)
     void write(uint32_t const buffer[],size_t nwords) ;
 
-    // write until blocking (undetected underruns)
+    // write partial data until FIFO full (undetected underruns)
     size_t topUp(uint32_t const buffer[],size_t nwords) ;
 
-    // block until written; return early on underrun
+    // block until all data has been written; return early on underrun
     size_t convey(uint32_t const buffer[],size_t nwords,uint32_t pad) ;
-    // the data will be pre/postfixed by multiple padding words
+    // the data will be pre/postfixed by multiple words (pad)
 
     // guess the frequency for the given duration
     std::pair<double,size_t> measureRate(double duration) ;
@@ -69,7 +71,7 @@ private:
     // write n x word to fifo and return the werr-flag
     bool fillUp(size_t n,uint32_t word) ;
     
-    // return true gets writable (within milliseconds)
+    // return true if FIFO gets writable (timeout in milliseconds)
     bool writable(uint32_t timeout) ;
     
 } ; }
