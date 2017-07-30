@@ -22,6 +22,8 @@ namespace Neat
 
     static Domain const max = M ;
 
+    bool operator==(Enum e) const { return i == e.i ; }
+
     // ---- c'tor ----
     
     constexpr Enum() : i(0) {}
