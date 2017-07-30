@@ -13,26 +13,34 @@
 #include <iomanip>
 #include <iostream>
 
+constexpr auto Channel1 = Rpi::Pwm::Index::make<0>() ;
+constexpr auto Channel2 = Rpi::Pwm::Index::make<1>() ;
+	
+constexpr auto Clrf  = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Clrf> () ;
+constexpr auto Mode1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Mode1>() ;
+constexpr auto Mode2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Mode2>() ;
+constexpr auto Msen1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Msen1>() ;
+constexpr auto Msen2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Msen2>() ;
+constexpr auto Pola1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pola1>() ;
+constexpr auto Pola2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pola2>() ;
+constexpr auto Pwen1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pwen1>() ;
+constexpr auto Pwen2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pwen2>() ;
+constexpr auto Rptl1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Rptl1>() ;
+constexpr auto Rptl2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Rptl2>() ;
+constexpr auto Sbit1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Sbit1>() ;
+constexpr auto Sbit2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Sbit2>() ;
+constexpr auto Usef1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Usef1>() ;
+constexpr auto Usef2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Usef2>() ;
+
 // --------------------------------------------------------------------
 
-enum class Type { Mode,Msen,Pola,Pwen,Rptl,Sbit,Usef } ;
-
-static void set(Rpi::Pwm *pwm,Rpi::Pwm::Index i,Type type,Ui::ArgL *argL)
+static void set(Rpi::Pwm *pwm,Rpi::Pwm::Control mask,Ui::ArgL *argL)
 {
-    auto control = pwm->getControl() ;
-    auto &channel = control.channel[i.value()] ;
+    auto control = pwm->control().read() ;
     auto flag = Ui::strto<bool>(argL->pop()) ;
-    switch (type)
-    {
-    case Type::Mode: channel.mode = flag ; break ;
-    case Type::Msen: channel.msen = flag ; break ;
-    case Type::Pola: channel.pola = flag ; break ;
-    case Type::Pwen: channel.pwen = flag ; break ;
-    case Type::Rptl: channel.rptl = flag ; break ;
-    case Type::Sbit: channel.sbit = flag ; break ;
-    case Type::Usef: channel.usef = flag ; break ;
-    } 	
-    pwm->setControl(control) ;
+    if (flag) control.add(mask) ;
+    else      control.clr(mask) ;
+    pwm->control().write(control) ;
 }
 
 static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -61,7 +69,7 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    << "rptl.CH BOOL  # repeat last data when FIFO is empty\n"
 	    << "sbit.CH BOOL  # silence-bit for gaps\n"
 	    << "usef.CH BOOL  # use FIFO\n"
-	    << "CH must be either 0 or 1, e.g. pola.1 for channel 1\n"
+	    << "CH must be either 1 or 2, e.g. pola.2 for channel #2\n"
 	    << '\n'
 	    ;
 	return ;
@@ -70,26 +78,23 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Rpi::Pwm pwm(rpi) ;
     while (!argL->empty())
     {
-	constexpr auto Channel0 = Rpi::Pwm::Index::make<0>() ;
-	constexpr auto Channel1 = Rpi::Pwm::Index::make<1>() ;
-	
 	auto arg = argL->pop() ;
 	if (false) ;
 
 	else if (arg == "clear")
 	{
-	    auto c = pwm.getControl() ;
-	    c.clear = 1 ;
-	    pwm.setControl(c) ;
+	    auto c = pwm.control().read() ;
+	    c.add(Clrf) ;
+	    pwm.control().write(c) ;
 	}
 	
-    	else if (arg == "data.0") 
-	{
-	    pwm.setData(Channel0,Ui::strto<uint32_t>(argL->pop())) ;
-	}
     	else if (arg == "data.1") 
 	{
 	    pwm.setData(Channel1,Ui::strto<uint32_t>(argL->pop())) ;
+	}
+    	else if (arg == "data.2") 
+	{
+	    pwm.setData(Channel2,Ui::strto<uint32_t>(argL->pop())) ;
 	}
 	
 	else if (arg == "dma")
@@ -106,25 +111,25 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    pwm.setDmac(d) ;
 	}
 	
-    	else if (arg == "mode.0") set(&pwm,Channel0,Type::Mode,argL) ;
-    	else if (arg == "mode.1") set(&pwm,Channel1,Type::Mode,argL) ;
+    	else if (arg == "mode.1") set(&pwm,Mode1,argL) ;
+    	else if (arg == "mode.2") set(&pwm,Mode2,argL) ;
 
-    	else if (arg == "msen.0") set(&pwm,Channel0,Type::Msen,argL) ;
-    	else if (arg == "msen.1") set(&pwm,Channel1,Type::Msen,argL) ;
+    	else if (arg == "msen.1") set(&pwm,Msen1,argL) ;
+    	else if (arg == "msen.2") set(&pwm,Msen2,argL) ;
 
-    	else if (arg == "pola.0") set(&pwm,Channel0,Type::Pola,argL) ;
-    	else if (arg == "pola.1") set(&pwm,Channel1,Type::Pola,argL) ;
+    	else if (arg == "pola.1") set(&pwm,Pola1,argL) ;
+    	else if (arg == "pola.2") set(&pwm,Pola2,argL) ;
 
-    	else if (arg == "pwen.0") set(&pwm,Channel0,Type::Pwen,argL) ;
-    	else if (arg == "pwen.1") set(&pwm,Channel1,Type::Pwen,argL) ;
+    	else if (arg == "pwen.1") set(&pwm,Pwen1,argL) ;
+    	else if (arg == "pwen.2") set(&pwm,Pwen2,argL) ;
 
-	else if (arg == "range.0")
-	{
-	    pwm.setRange(Channel0,Ui::strto<uint32_t>(argL->pop())) ;
-	}
 	else if (arg == "range.1")
 	{
 	    pwm.setRange(Channel1,Ui::strto<uint32_t>(argL->pop())) ;
+	}
+	else if (arg == "range.2")
+	{
+	    pwm.setRange(Channel2,Ui::strto<uint32_t>(argL->pop())) ;
 	}
 
 	else if (arg == "reset")
@@ -141,32 +146,40 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
 	else if (arg == "pwen")
 	{
-	    auto c = pwm.getControl() ;
+	    auto c = pwm.control().read() ;
 	    auto flag = Ui::strto<bool>(argL->pop()) ;
-	    c.channel[0].pwen = flag ;
-	    c.channel[1].pwen = flag ;
-	    pwm.setControl(c) ;
+	    if (flag)
+	    {
+		c.add(Pwen1) ;
+		c.add(Pwen2) ;
+	    }
+	    else
+	    {
+		c.clr(Pwen1) ;
+		c.clr(Pwen2) ;
+	    }
+	    pwm.control().write(c) ;
 	}
 	
-    	else if (arg == "rptl.0") set(&pwm,Channel0,Type::Rptl,argL) ;
-    	else if (arg == "rptl.1") set(&pwm,Channel1,Type::Rptl,argL) ;
+    	else if (arg == "rptl.1") set(&pwm,Rptl1,argL) ;
+    	else if (arg == "rptl.2") set(&pwm,Rptl2,argL) ;
 
-    	else if (arg == "sbit.0") set(&pwm,Channel0,Type::Sbit,argL) ;
-    	else if (arg == "sbit.1") set(&pwm,Channel1,Type::Sbit,argL) ;
+    	else if (arg == "sbit.1") set(&pwm,Sbit1,argL) ;
+    	else if (arg == "sbit.2") set(&pwm,Sbit2,argL) ;
 
 	else if (arg == "send")
 	{
 	    pwm.write(Ui::strto<uint32_t>(argL->pop())) ;
 	}
 	
-    	else if (arg == "usef.0") set(&pwm,Channel0,Type::Usef,argL) ;
-    	else if (arg == "usef.1") set(&pwm,Channel1,Type::Usef,argL) ;
+    	else if (arg == "usef.1") set(&pwm,Usef1,argL) ;
+    	else if (arg == "usef.2") set(&pwm,Usef2,argL) ;
 
 	else if (arg == "berr")
 	{
-	    auto c = pwm.getControl() ;
-	    pwm.setControl(c) ;
-	    pwm.setControl(c) ;
+	    auto c = pwm.control().read() ;
+	    pwm.control().write(c) ;
+	    pwm.control().write(c) ;
 	    // [todo] comment as defect-test-case
 	}
 	
@@ -396,13 +409,22 @@ static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     Rpi::Pwm pwm(rpi) ;
     pwm.setRange(index,32) ;
-    auto c = pwm.getControl() ;
-    auto &x = c.channel[index.value()] ;
-    x.sbit = 0 ; 
-    x.pola = 0 ; 
-    x.rptl = 0 ;
-    x.pwen = 1 ;
-    pwm.setControl(c) ;
+    auto c = pwm.control().read() ;
+    if (index == Rpi::Pwm::Index::make<0>())
+    {
+	c.clr(Sbit1) ;
+	c.clr(Pola1) ;
+	c.clr(Rptl1) ;
+	c.add(Pwen1) ;
+    }
+    else
+    {
+	c.clr(Sbit2) ;
+	c.clr(Pola2) ;
+	c.clr(Rptl2) ;
+	c.add(Pwen2) ;
+    }
+    pwm.control().write(c) ;
     auto ngaps = Console::Pwm::Lib::send(pwm,index,data.get(),nwords) ;
     std::cout << ngaps << std::endl ;
     //RpiExt::Pwm(rpi,index).send(data.get(),nwords,2.5e+6) ;
@@ -443,26 +465,31 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     std::cout << "# msen usef pola sbit rptl mode pwen     data    range\n"
 	      << "------------------------------------------------------\n" ;
-    auto c = pwm.getControl() ;
-    Rpi::Pwm::Index i ;
-    do
-    {
-        auto &x = c.channel[i.value()] ;
-	auto d = pwm.getData(i) ;
-	auto r = pwm.getRange(i) ;
-	std::cout << std::setw(1) << i.value()
-		  << std::setw(5) << x.msen
-		  << std::setw(5) << x.usef
-		  << std::setw(5) << x.pola
-		  << std::setw(5) << x.sbit
-		  << std::setw(5) << x.rptl
-		  << std::setw(5) << x.mode
-		  << std::setw(5) << x.pwen
-		  << std::setw(9) << d
-		  << std::setw(9) << r
-		  << '\n' ;
-    }
-    while (i.next()) ;
+    auto c = pwm.control().read() ;
+    
+    std::cout << std::setw(1) << 1
+	      << std::setw(5) << c.test(Msen1)
+	      << std::setw(5) << c.test(Usef1)
+	      << std::setw(5) << c.test(Pola1)
+	      << std::setw(5) << c.test(Sbit1)
+	      << std::setw(5) << c.test(Rptl1)
+	      << std::setw(5) << c.test(Mode1)
+	      << std::setw(5) << c.test(Pwen1)
+	      << std::setw(9) << pwm. getData(Channel1)
+	      << std::setw(9) << pwm.getRange(Channel1)
+	      << '\n' ;
+
+    std::cout << std::setw(1) << 2
+	      << std::setw(5) << c.test(Msen2)
+	      << std::setw(5) << c.test(Usef2)
+	      << std::setw(5) << c.test(Pola2)
+	      << std::setw(5) << c.test(Sbit2)
+	      << std::setw(5) << c.test(Rptl2)
+	      << std::setw(5) << c.test(Mode2)
+	      << std::setw(5) << c.test(Pwen2)
+	      << std::setw(9) << pwm. getData(Channel2)
+	      << std::setw(9) << pwm.getRange(Channel2)
+	      << '\n' ;
 }
 
 // --------------------------------------------------------------------

@@ -80,66 +80,90 @@ namespace Rpi {
 
 struct Pwm 
 {
-    enum : uint32_t
-    {
-	Pwen1 = (1u <<  0), // 1=enable transmission (0=disable)
-	Pwen2 = (1u <<  8),
-	Mode1 = (1u <<  1), // 1=as serializer (0:as PWM)
-	Mode2 = (1u <<  9),
-	Rptl1 = (1u <<  2), // 1=repeat last word
-	Rptl2 = (1u << 10), // (only effective if Usef=1)
-	Sbit1 = (1u <<  3), // 1=silence bit is High (0=Low)
-	Sbit2 = (1u << 11), 
-	Pola1 = (1u <<  4), // 1=inverse output polarity (0=don't)
-	Pola2 = (1u << 12), 
-	Usef1 = (1u <<  5), // 1=use FIFO (0=use Data register)
-	Usef2 = (1u << 13), 
-	Clrf  = (1u <<  6), // 1=clear FIFO (single shot)
-	Msen1 = (1u <<  7), // 1=mark-space PWM (0=coherent)
-	Msen2 = (1u << 15), // (has only effect if Mode=PWM)
-    } ;
-	    
     using Index = Neat::Enum<unsigned,1> ;
 
     struct Control
     {
-	Control(uint32_t w) ;
+	enum : uint32_t
+        {
+	    Clrf  = (1u <<  6), // 1=clear FIFO (single shot)
 
-	uint32_t value() const ;
+	    Mode1 = (1u <<  1), // 1=as serializer (0:as PWM)
+	    Mode2 = (1u <<  9),
+		
+	    Msen1 = (1u <<  7), // 1=mark-space-mode (0=coherent)
+	    Msen2 = (1u << 15), // (only effective if Mode=PWM)
+		
+	    Pola1 = (1u <<  4), // 1=inverse output polarity (0=don't)
+	    Pola2 = (1u << 12),
+		
+	    Pwen1 = (1u <<  0), // 1=enable transmission (0=disable)
+	    Pwen2 = (1u <<  8),
+		
+	    Rptl1 = (1u <<  2), // 1=repeat last word
+	    Rptl2 = (1u << 10), // (only effective if Usef=1)
+		
+	    Sbit1 = (1u <<  3), // 1=silence bit is High (0=Low)
+	    Sbit2 = (1u << 11),
+		
+	    Usef1 = (1u <<  5), // 1=use FIFO (0=use Data register)
+	    Usef2 = (1u << 13), 
+	} ;
+	
+	static constexpr auto Mask =
+	    Neat::join<Pwen1,Pwen2,Mode1,Mode2,Rptl1,Rptl2,
+		       Sbit1,Sbit2,Pola1,Pola2,Usef1,Usef2,
+		       Msen1,Msen2,Clrf>() ;
+    
+	static Control coset(uint32_t w) { return Control(Mask & w) ; }
 
-	struct Channel
+	template<uint32_t W> static constexpr Control make()
 	{
-	    uint8_t pwen : 1 ;
-	    uint8_t mode : 1 ;
-	    uint8_t rptl : 1 ;
-	    uint8_t sbit : 1 ;
-	    uint8_t pola : 1 ;
-	    uint8_t usef : 1 ;
-	    uint8_t msen : 1 ;
-	    Channel() : pwen(0),mode(0),rptl(0),sbit(0),pola(0),usef(0),msen(0) {}
+	    static_assert((W | Mask) == Mask,"") ; return Control(W) ;
+	}
+
+	template<uint32_t W> constexpr bool test() const
+	{
+	    return test(make<W>()) ;
+	}
+	
+	constexpr bool test(Control s) const
+	{
+	    return 0 != (w & s.w) ;
+	}
+	
+	void add(Control c) { w |=         c.w ; } // raise
+	void clr(Control c) { w &= Mask & ~c.w ; } // clear
+	
+	void set(Control mask,Control c)
+	{
+	    w &= Mask & ~mask.w ;
+	    w |=            c.w ;
+	}
+	
+	constexpr uint32_t value() const { return w ; }
+
+	struct Port
+	{
+	    Control read() const { return Control::coset(*p) ; }
+
+	    void write(Control c) { (*p) = c.value() ; }
+
+	private:
+	
+	    friend Pwm ; uint32_t volatile *p ;
+
+	    Port(uint32_t volatile *p) : p(p) {}
 	} ;
 
-	Channel channel[2] ; // [todo] channel(Index) <- make array class
-	
-	bool clear = false ;
-	
     private:
-
-	uint32_t w ;
+	
+	uint32_t w ; constexpr explicit Control(uint32_t w) : w(w) {}
     } ;
-
-    Control getControl() const
-    {
-	return Control(page->at<0x0/4>()) ;
-	// [todo] this may get rather time consuming,
-	// especially if we only need one bit
-    } 
-
-    void setControl(Control c)
-    {
-	page->at<0x0/4>() = c.value() ;
-    }
-
+	    
+    Control::Port control()       { return & page->at<0x0/4>() ; }
+    Control::Port control() const { return & page->at<0x0/4>() ; }
+    
     struct Status 
     {
 	enum : uint32_t
@@ -160,8 +184,6 @@ struct Pwm
     
 	static Status coset(uint32_t w) { return Status(Mask & w) ; }
 
-	static Status make(uint32_t w) ;
-
 	template<uint32_t W> static constexpr Status make()
 	{
 	    static_assert((W | Mask) == Mask,"") ; return Status(W) ;
@@ -169,7 +191,7 @@ struct Pwm
 
 	template<uint32_t W> constexpr bool test() const
 	{
-	    static_assert((W | Mask) == Mask,"") ; return 0 != (W & w) ;
+	    return test(make<W>()) ;
 	}
 	
 	constexpr bool test(Status s) const

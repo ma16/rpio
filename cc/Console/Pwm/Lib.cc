@@ -4,13 +4,51 @@
 #include <Neat/stream.h>
 #include <chrono>
 
+constexpr auto Channel1 = Rpi::Pwm::Index::make<0>() ;
+constexpr auto Channel2 = Rpi::Pwm::Index::make<1>() ;
+	
+constexpr auto Clrf  = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Clrf> () ;
+constexpr auto Mode1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Mode1>() ;
+constexpr auto Mode2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Mode2>() ;
+constexpr auto Msen1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Msen1>() ;
+constexpr auto Msen2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Msen2>() ;
+constexpr auto Pola1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pola1>() ;
+constexpr auto Pola2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pola2>() ;
+constexpr auto Pwen1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pwen1>() ;
+constexpr auto Pwen2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pwen2>() ;
+constexpr auto Rptl1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Rptl1>() ;
+constexpr auto Rptl2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Rptl2>() ;
+constexpr auto Sbit1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Sbit1>() ;
+constexpr auto Sbit2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Sbit2>() ;
+constexpr auto Usef1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Usef1>() ;
+constexpr auto Usef2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Usef2>() ;
+
+struct Bank
+{
+  Rpi::Pwm::Control mode ;
+  Rpi::Pwm::Control msen ;
+  Rpi::Pwm::Control pola ;
+  Rpi::Pwm::Control pwen ;
+  Rpi::Pwm::Control rptl ;
+  Rpi::Pwm::Control sbit ;
+  Rpi::Pwm::Control usef ;
+} ;
+
+static Bank const& bank(Rpi::Pwm::Index i)
+{
+  static Bank array[2] = {
+    { Mode1,Msen1,Pola1,Pwen1,Rptl1,Sbit1,Usef1 },
+    { Mode2,Msen2,Pola2,Pwen2,Rptl2,Sbit2,Usef2 } } ;
+  return array[i.value()] ;
+}
+
 void Console::Pwm::Lib::setup(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
 {
-  auto control = pwm->getControl() ;
-  control.clear = 1 ; // may affect other channel
-  auto &x = control.channel[index.value()] ;
-  x.pwen = 0 ;
-  pwm->setControl(control) ;
+  auto control = pwm->control().read() ;
+  control.add(Clrf) ;
+  // ...may affect other channel too
+  control.clr(bank(index).pwen) ;
+  pwm->control().write(control) ;
   pwm->status().clear(pwm->status().read()) ;
   auto dmac = pwm->getDmac() ;
   dmac.enable = true ; // priority and dreq left unchanged
@@ -19,13 +57,13 @@ void Console::Pwm::Lib::setup(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
 
 void Console::Pwm::Lib::start(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
 {
-  auto control = pwm->getControl() ;
-  auto &x = control.channel[index.value()] ;
-  x.mode = 1 ; // serialize
-  x.usef = 1 ;
+  auto control = pwm->control().read() ;
+  auto &b = bank(index) ;
+  control.add(b.mode) ; // serialize
+  control.add(b.usef) ;
   // sbit,pola,rptl are left unchanged
-  control.channel[index.value()].pwen = 1 ;
-  pwm->setControl(control) ;
+  control.add(b.pwen) ;
+  pwm->control().write(control) ;
 }
 
 #include <Neat/cast.h>
@@ -36,22 +74,22 @@ void Console::Pwm::Lib::finish(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
   auto dmac = pwm->getDmac() ;
   dmac.enable = false ; 
   pwm->setDmac(dmac) ;
-  auto control = pwm->getControl() ;
-  control.clear = 1 ;
-  auto &x = control.channel[index.value()] ;
-  x.pwen = 0 ;
-  pwm->setControl(control) ;
+  auto control = pwm->control().read() ;
+  control.add(Clrf) ;
+  auto &b = bank(index) ;
+  control.clr(b.pwen) ;
+  pwm->control().write(control) ;
 }
 
 unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t const data[],unsigned nwords)
 {
   using Status = Rpi::Pwm::Status ;
-  auto control = pwm.getControl() ;
-  control.clear = 1 ;
-  auto &x = control.channel[index.value()] ;
-  x.pwen = 0 ;
-  pwm.setControl(control) ;
-  control.clear = 0 ;
+  auto control = pwm.control().read() ;
+  control.add(Clrf) ;
+  auto &b = bank(index) ;
+  control.clr(b.pwen) ;
+  pwm.control().write(control) ;
+  control.clr(Clrf) ;
   pwm.status().clear(pwm.status().read()) ;
 
   // fill the PWM queue
@@ -59,10 +97,10 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
   while (!pwm.status().read().test<Status::Full>() && (i<nwords))
     pwm.write(data[i++]) ;
   // start serializer
-  x.mode = 1 ; // serialize
-  x.usef = 1 ; 
-  x.pwen = 1 ;
-  pwm.setControl(control) ;
+  control.add(b.mode) ; // serialize
+  control.add(b.usef) ;
+  control.add(b.pwen) ;
+  pwm.control().write(control) ;
   // top up the queue until all words have been written
   auto ngaps = 0u ;
   while (i<nwords) {
@@ -101,8 +139,8 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
   // hence, the caller should append two dummy word (i.e. all bits high
   // or all bits low, as needed) since this function will stop
   // transmission as soon as the queue gets empty.
-  x.pwen = 0 ;
-  pwm.setControl(control) ;
+  control.clr(b.pwen) ;
+  pwm.control().write(control) ;
   return ngaps ;
 }
 
