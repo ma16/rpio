@@ -37,7 +37,6 @@
 // "Sometimes" no transmission occurs (in serialization mode) even if
 // the FIFO is full and STA=1. The FIFO simply stays full. [open issue]
 //
-//
 // p.144: "BERR sets to high when an error has occurred while writing
 //   to registers via APB. This may happen if the bus tries to write
 //   successively to same set of registers faster than the synchroniser
@@ -65,6 +64,10 @@
 //
 // p.145: EMPT1,FULL1 are marked as RW (read-write)
 // Since writing has no effect, ist should be RO (read-only)
+//
+// p.145: EMPT1
+// The serializer may still be busy with the transfer even if the FIFO
+// is empty.
 // --------------------------------------------------------------------
 
 #ifndef INCLUDE_Rpi_Pwm_h
@@ -111,12 +114,47 @@ struct Pwm
 	    Usef2 = (1u << 13), 
 	} ;
 	
-	static constexpr auto Mask =
-	    Neat::join<Pwen1,Pwen2,Mode1,Mode2,Rptl1,Rptl2,
-		       Sbit1,Sbit2,Pola1,Pola2,Usef1,Usef2,
-		       Msen1,Msen2,Clrf>() ;
+	static constexpr auto Mask = Neat::join<Clrf,
+						Mode1,Mode2,
+						Msen1,Msen2,
+						Pola1,Pola2,
+						Pwen1,Pwen2,
+						Rptl1,Rptl2,
+						Sbit1,Sbit2,
+						Usef1,Usef2>() ;
 
 	using Word = Neat::Bits<Mask> ;
+
+	struct Flags
+	{
+	    static constexpr auto Clrf  = Word::make<Control:: Clrf>() ;
+	    static constexpr auto Mode1 = Word::make<Control::Mode1>() ;
+	    static constexpr auto Mode2 = Word::make<Control::Mode2>() ;
+	    static constexpr auto Msen1 = Word::make<Control::Msen1>() ;
+	    static constexpr auto Msen2 = Word::make<Control::Msen2>() ;
+	    static constexpr auto Pola1 = Word::make<Control::Pola1>() ;
+	    static constexpr auto Pola2 = Word::make<Control::Pola2>() ;
+	    static constexpr auto Pwen1 = Word::make<Control::Pwen1>() ;
+	    static constexpr auto Pwen2 = Word::make<Control::Pwen2>() ;
+	    static constexpr auto Rptl1 = Word::make<Control::Rptl1>() ;
+	    static constexpr auto Rptl2 = Word::make<Control::Rptl2>() ;
+	    static constexpr auto Sbit1 = Word::make<Control::Sbit1>() ;
+	    static constexpr auto Sbit2 = Word::make<Control::Sbit2>() ;
+	    static constexpr auto Usef1 = Word::make<Control::Usef1>() ;
+	    static constexpr auto Usef2 = Word::make<Control::Usef2>() ;
+	} ;
+
+	struct Bank
+	{
+	    Rpi::Pwm::Control::Word mode ;
+	    Rpi::Pwm::Control::Word msen ;
+	    Rpi::Pwm::Control::Word pola ;
+	    Rpi::Pwm::Control::Word pwen ;
+	    Rpi::Pwm::Control::Word rptl ;
+	    Rpi::Pwm::Control::Word sbit ;
+	    Rpi::Pwm::Control::Word usef ;
+	    static Bank const& select(Index) ;
+	} ;
 	
 	Word read() const { return Word::coset(*p) ; }
 	
@@ -146,10 +184,28 @@ struct Pwm
 	    Sta2 = (1u << 10), // channel #2 is currently transmitting
 	} ;
 
-	static constexpr auto Mask =
-	    Neat::join<Full,Empt,Werr,Rerr,Gap1,Gap2,Berr,Sta1,Sta2>() ;
+	static constexpr auto Mask = Neat::join<Berr,
+						Empt,
+						Full,
+						Gap1,Gap2,
+						Rerr,
+						Sta1,Sta2,
+						Werr>() ;
     
 	using Word = Neat::Bits<Mask> ;
+
+	struct Flags
+	{
+	    static constexpr auto Berr = Word::make<Status::Berr>() ;
+	    static constexpr auto Empt = Word::make<Status::Empt>() ;
+	    static constexpr auto Full = Word::make<Status::Full>() ;
+	    static constexpr auto Gap1 = Word::make<Status::Gap1>() ;
+	    static constexpr auto Gap2 = Word::make<Status::Gap2>() ;
+	    static constexpr auto Rerr = Word::make<Status::Rerr>() ;
+	    static constexpr auto Sta1 = Word::make<Status::Sta1>() ;
+	    static constexpr auto Sta2 = Word::make<Status::Sta2>() ;
+	    static constexpr auto Werr = Word::make<Status::Werr>() ;
+	} ;
 	
 	Word read() const { return Word::coset(*p) ; }
 

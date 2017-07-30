@@ -13,24 +13,13 @@
 #include <iomanip>
 #include <iostream>
 
+// --------------------------------------------------------------------
+
+using Control = Rpi::Pwm::Control::Flags ;
+using Status  = Rpi::Pwm:: Status::Flags ;
+
 constexpr auto Channel1 = Rpi::Pwm::Index::make<0>() ;
 constexpr auto Channel2 = Rpi::Pwm::Index::make<1>() ;
-	
-constexpr auto Clrf  = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Clrf> () ;
-constexpr auto Mode1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Mode1>() ;
-constexpr auto Mode2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Mode2>() ;
-constexpr auto Msen1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Msen1>() ;
-constexpr auto Msen2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Msen2>() ;
-constexpr auto Pola1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Pola1>() ;
-constexpr auto Pola2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Pola2>() ;
-constexpr auto Pwen1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Pwen1>() ;
-constexpr auto Pwen2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Pwen2>() ;
-constexpr auto Rptl1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Rptl1>() ;
-constexpr auto Rptl2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Rptl2>() ;
-constexpr auto Sbit1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Sbit1>() ;
-constexpr auto Sbit2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Sbit2>() ;
-constexpr auto Usef1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Usef1>() ;
-constexpr auto Usef2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Usef2>() ;
 
 // --------------------------------------------------------------------
 
@@ -84,7 +73,7 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	else if (arg == "clear")
 	{
 	    auto c = pwm.control().read() ;
-	    c.add(Clrf) ;
+	    c.add(Control::Clrf) ;
 	    pwm.control().write(c) ;
 	}
 	
@@ -111,17 +100,17 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    pwm.setDmac(d) ;
 	}
 	
-    	else if (arg == "mode.1") set(&pwm,Mode1,argL) ;
-    	else if (arg == "mode.2") set(&pwm,Mode2,argL) ;
+    	else if (arg == "mode.1") set(&pwm,Control::Mode1,argL) ;
+    	else if (arg == "mode.2") set(&pwm,Control::Mode2,argL) ;
 
-    	else if (arg == "msen.1") set(&pwm,Msen1,argL) ;
-    	else if (arg == "msen.2") set(&pwm,Msen2,argL) ;
+    	else if (arg == "msen.1") set(&pwm,Control::Msen1,argL) ;
+    	else if (arg == "msen.2") set(&pwm,Control::Msen2,argL) ;
 
-    	else if (arg == "pola.1") set(&pwm,Pola1,argL) ;
-    	else if (arg == "pola.2") set(&pwm,Pola2,argL) ;
+    	else if (arg == "pola.1") set(&pwm,Control::Pola1,argL) ;
+    	else if (arg == "pola.2") set(&pwm,Control::Pola2,argL) ;
 
-    	else if (arg == "pwen.1") set(&pwm,Pwen1,argL) ;
-    	else if (arg == "pwen.2") set(&pwm,Pwen2,argL) ;
+    	else if (arg == "pwen.1") set(&pwm,Control::Pwen1,argL) ;
+    	else if (arg == "pwen.2") set(&pwm,Control::Pwen2,argL) ;
 
 	else if (arg == "range.1")
 	{
@@ -150,30 +139,30 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    auto flag = Ui::strto<bool>(argL->pop()) ;
 	    if (flag)
 	    {
-		c.add(Pwen1) ;
-		c.add(Pwen2) ;
+		c.add(Control::Pwen1) ;
+		c.add(Control::Pwen2) ;
 	    }
 	    else
 	    {
-		c.clr(Pwen1) ;
-		c.clr(Pwen2) ;
+		c.clr(Control::Pwen1) ;
+		c.clr(Control::Pwen2) ;
 	    }
 	    pwm.control().write(c) ;
 	}
 	
-    	else if (arg == "rptl.1") set(&pwm,Rptl1,argL) ;
-    	else if (arg == "rptl.2") set(&pwm,Rptl2,argL) ;
+    	else if (arg == "rptl.1") set(&pwm,Control::Rptl1,argL) ;
+    	else if (arg == "rptl.2") set(&pwm,Control::Rptl2,argL) ;
 
-    	else if (arg == "sbit.1") set(&pwm,Sbit1,argL) ;
-    	else if (arg == "sbit.2") set(&pwm,Sbit2,argL) ;
+    	else if (arg == "sbit.1") set(&pwm,Control::Sbit1,argL) ;
+    	else if (arg == "sbit.2") set(&pwm,Control::Sbit2,argL) ;
 
 	else if (arg == "send")
 	{
 	    pwm.write(Ui::strto<uint32_t>(argL->pop())) ;
 	}
 	
-    	else if (arg == "usef.1") set(&pwm,Usef1,argL) ;
-    	else if (arg == "usef.2") set(&pwm,Usef2,argL) ;
+    	else if (arg == "usef.1") set(&pwm,Control::Usef1,argL) ;
+    	else if (arg == "usef.2") set(&pwm,Control::Usef2,argL) ;
 
 	else if (arg == "berr")
 	{
@@ -412,17 +401,17 @@ static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto c = pwm.control().read() ;
     if (index == Rpi::Pwm::Index::make<0>())
     {
-	c.clr(Sbit1) ;
-	c.clr(Pola1) ;
-	c.clr(Rptl1) ;
-	c.add(Pwen1) ;
+	c.clr(Control::Sbit1) ;
+	c.clr(Control::Pola1) ;
+	c.clr(Control::Rptl1) ;
+	c.add(Control::Pwen1) ;
     }
     else
     {
-	c.clr(Sbit2) ;
-	c.clr(Pola2) ;
-	c.clr(Rptl2) ;
-	c.add(Pwen2) ;
+	c.clr(Control::Sbit2) ;
+	c.clr(Control::Pola2) ;
+	c.clr(Control::Rptl2) ;
+	c.add(Control::Pwen2) ;
     }
     pwm.control().write(c) ;
     auto ngaps = Console::Pwm::Lib::send(pwm,index,data.get(),nwords) ;
@@ -449,18 +438,18 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << "dreq="  << d.dreq << "\n\n" ;
     
     auto s = pwm.status().read() ;
-    using Status = Rpi::Pwm::Status ;
+    using Status = Rpi::Pwm::Status::Flags ;
     std::cout << "sta2 sta1 berr gap2 gap1 rerr werr empt full\n"
 	      << "--------------------------------------------\n"
-	      << std::setw(4) << s.test<Status::Sta2>() 
-	      << std::setw(5) << s.test<Status::Sta1>() 
-	      << std::setw(5) << s.test<Status::Berr>()
-	      << std::setw(5) << s.test<Status::Gap2>()
-	      << std::setw(5) << s.test<Status::Gap1>()
-	      << std::setw(5) << s.test<Status::Rerr>()
-	      << std::setw(5) << s.test<Status::Werr>()
-	      << std::setw(5) << s.test<Status::Empt>()
-	      << std::setw(5) << s.test<Status::Full>()
+	      << std::setw(4) << s.test(Status::Sta2) 
+	      << std::setw(5) << s.test(Status::Sta1) 
+	      << std::setw(5) << s.test(Status::Berr)
+	      << std::setw(5) << s.test(Status::Gap2)
+	      << std::setw(5) << s.test(Status::Gap1)
+	      << std::setw(5) << s.test(Status::Rerr)
+	      << std::setw(5) << s.test(Status::Werr)
+	      << std::setw(5) << s.test(Status::Empt)
+	      << std::setw(5) << s.test(Status::Full)
 	      << " (0x" << s.value() << ")\n\n" ;
     
     std::cout << "# msen usef pola sbit rptl mode pwen     data    range\n"
@@ -468,25 +457,25 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto c = pwm.control().read() ;
     
     std::cout << std::setw(1) << 1
-	      << std::setw(5) << c.test(Msen1)
-	      << std::setw(5) << c.test(Usef1)
-	      << std::setw(5) << c.test(Pola1)
-	      << std::setw(5) << c.test(Sbit1)
-	      << std::setw(5) << c.test(Rptl1)
-	      << std::setw(5) << c.test(Mode1)
-	      << std::setw(5) << c.test(Pwen1)
+	      << std::setw(5) << c.test(Control::Msen1)
+	      << std::setw(5) << c.test(Control::Usef1)
+	      << std::setw(5) << c.test(Control::Pola1)
+	      << std::setw(5) << c.test(Control::Sbit1)
+	      << std::setw(5) << c.test(Control::Rptl1)
+	      << std::setw(5) << c.test(Control::Mode1)
+	      << std::setw(5) << c.test(Control::Pwen1)
 	      << std::setw(9) << pwm. getData(Channel1)
 	      << std::setw(9) << pwm.getRange(Channel1)
 	      << '\n' ;
 
     std::cout << std::setw(1) << 2
-	      << std::setw(5) << c.test(Msen2)
-	      << std::setw(5) << c.test(Usef2)
-	      << std::setw(5) << c.test(Pola2)
-	      << std::setw(5) << c.test(Sbit2)
-	      << std::setw(5) << c.test(Rptl2)
-	      << std::setw(5) << c.test(Mode2)
-	      << std::setw(5) << c.test(Pwen2)
+	      << std::setw(5) << c.test(Control::Msen2)
+	      << std::setw(5) << c.test(Control::Usef2)
+	      << std::setw(5) << c.test(Control::Pola2)
+	      << std::setw(5) << c.test(Control::Sbit2)
+	      << std::setw(5) << c.test(Control::Rptl2)
+	      << std::setw(5) << c.test(Control::Mode2)
+	      << std::setw(5) << c.test(Control::Pwen2)
 	      << std::setw(9) << pwm. getData(Channel2)
 	      << std::setw(9) << pwm.getRange(Channel2)
 	      << '\n' ;

@@ -21,7 +21,7 @@ template<uint32_t M> struct Bits
     {
 	return test(make<W>()) ;
     }
-	
+    
     constexpr bool test(Bits s) const
     {
 	return 0 != (w & s.w) ;

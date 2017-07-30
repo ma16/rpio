@@ -4,6 +4,45 @@
 #include "Pwm.h"
 #include <cassert>
 
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags:: Clrf ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Mode1 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Mode2 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Msen1 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Msen2 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Pola1 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Pola2 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Pwen1 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Pwen2 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Rptl1 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Rptl2 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Sbit1 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Sbit2 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Usef1 ;
+constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Usef2 ;
+
+Rpi::Pwm::Control::Bank const& Rpi::Pwm::Control::Bank::select(Index i)
+{
+    static Bank array[2] =
+	{ {
+		Flags::Mode1,
+		Flags::Msen1,
+		Flags::Pola1,
+		Flags::Pwen1,
+		Flags::Rptl1,
+		Flags::Sbit1,
+		Flags::Usef1,
+	    },{
+		Flags::Mode2,
+		Flags::Msen2,
+		Flags::Pola2,
+		Flags::Pwen2,
+		Flags::Rptl2,
+		Flags::Sbit2,
+		Flags::Usef2
+	} } ;
+    return array[i.value()] ;
+}
+
 constexpr Rpi::Bus::Address Rpi::Pwm::fifoAddr ;
 
 void Rpi::Pwm::setRange(Index i,uint32_t r)
