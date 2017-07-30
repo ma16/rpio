@@ -162,6 +162,14 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     	else if (arg == "usef.0") set(&pwm,Channel0,Type::Usef,argL) ;
     	else if (arg == "usef.1") set(&pwm,Channel1,Type::Usef,argL) ;
 
+	else if (arg == "berr")
+	{
+	    auto c = pwm.getControl() ;
+	    pwm.setControl(c) ;
+	    pwm.setControl(c) ;
+	    // [todo] comment as defect-test-case
+	}
+	
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
 }
@@ -351,6 +359,20 @@ static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
+static void read(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    // [todo] comment as defect-test-case
+    if (!argL->empty() && argL->peek() == "help")
+    {
+	std::cout << "no arguments supported\n" ;
+	return ;
+    }
+    argL->finalize() ;
+    std::cout << "0x" << std::hex << Rpi::Pwm(rpi).read() << '\n' ;
+}
+
+// --------------------------------------------------------------------
+
 static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") {
@@ -453,6 +475,7 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "     | dma        # send data in DMA/FIFO mode\n"
 		  << "     | dummy      # send dummy data in DMA/FIFO mode\n"
 		  << "     | frequency  # estimate current frequency\n"
+		  << "     | read       # read word from FIFO [test]\n"
 		  << "     | send       # send data in CPU/FIFO mode\n"
 		  << "     | status     # display status\n"
 		  << std::flush ;
@@ -465,6 +488,7 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     else if (arg ==       "dma")         dma(rpi,argL) ; 
     else if (arg ==     "dummy")       dummy(rpi,argL) ; 
     else if (arg == "frequency")   frequency(rpi,argL) ; 
+    else if (arg ==      "read")        read(rpi,argL) ; 
     else if (arg ==      "send")        send(rpi,argL) ; 
     else if (arg ==    "status")      status(rpi,argL) ; 
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
