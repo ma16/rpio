@@ -7,31 +7,31 @@
 constexpr auto Channel1 = Rpi::Pwm::Index::make<0>() ;
 constexpr auto Channel2 = Rpi::Pwm::Index::make<1>() ;
 	
-constexpr auto Clrf  = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Clrf> () ;
-constexpr auto Mode1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Mode1>() ;
-constexpr auto Mode2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Mode2>() ;
-constexpr auto Msen1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Msen1>() ;
-constexpr auto Msen2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Msen2>() ;
-constexpr auto Pola1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pola1>() ;
-constexpr auto Pola2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pola2>() ;
-constexpr auto Pwen1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pwen1>() ;
-constexpr auto Pwen2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Pwen2>() ;
-constexpr auto Rptl1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Rptl1>() ;
-constexpr auto Rptl2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Rptl2>() ;
-constexpr auto Sbit1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Sbit1>() ;
-constexpr auto Sbit2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Sbit2>() ;
-constexpr auto Usef1 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Usef1>() ;
-constexpr auto Usef2 = Rpi::Pwm::Control::make<Rpi::Pwm::Control::Usef2>() ;
+constexpr auto Clrf  = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Clrf> () ;
+constexpr auto Mode1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Mode1>() ;
+constexpr auto Mode2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Mode2>() ;
+constexpr auto Msen1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Msen1>() ;
+constexpr auto Msen2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Msen2>() ;
+constexpr auto Pola1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Pola1>() ;
+constexpr auto Pola2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Pola2>() ;
+constexpr auto Pwen1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Pwen1>() ;
+constexpr auto Pwen2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Pwen2>() ;
+constexpr auto Rptl1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Rptl1>() ;
+constexpr auto Rptl2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Rptl2>() ;
+constexpr auto Sbit1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Sbit1>() ;
+constexpr auto Sbit2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Sbit2>() ;
+constexpr auto Usef1 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Usef1>() ;
+constexpr auto Usef2 = Rpi::Pwm::Control::Word::make<Rpi::Pwm::Control::Usef2>() ;
 
 struct Bank
 {
-  Rpi::Pwm::Control mode ;
-  Rpi::Pwm::Control msen ;
-  Rpi::Pwm::Control pola ;
-  Rpi::Pwm::Control pwen ;
-  Rpi::Pwm::Control rptl ;
-  Rpi::Pwm::Control sbit ;
-  Rpi::Pwm::Control usef ;
+  Rpi::Pwm::Control::Word mode ;
+  Rpi::Pwm::Control::Word msen ;
+  Rpi::Pwm::Control::Word pola ;
+  Rpi::Pwm::Control::Word pwen ;
+  Rpi::Pwm::Control::Word rptl ;
+  Rpi::Pwm::Control::Word sbit ;
+  Rpi::Pwm::Control::Word usef ;
 } ;
 
 static Bank const& bank(Rpi::Pwm::Index i)

@@ -4,8 +4,8 @@
 #include <cassert>
 #include <iostream> // [debug]
 
-static constexpr auto Full = Rpi::Pwm::Status::make<Rpi::Pwm::Status::Full>() ;
-static constexpr auto Werr = Rpi::Pwm::Status::make<Rpi::Pwm::Status::Werr>() ;
+static constexpr auto Full = Rpi::Pwm::Status::Word::make<Rpi::Pwm::Status::Full>() ;
+static constexpr auto Werr = Rpi::Pwm::Status::Word::make<Rpi::Pwm::Status::Werr>() ;
 
 size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
 {

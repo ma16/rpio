@@ -74,6 +74,7 @@
 #include "Dma/Ti.h" // Permap for DMA pacing
 #include "Peripheral.h"
 #include <Neat/Bit.h>
+#include <Neat/Bits.h>
 #include <Neat/join.h>
 
 namespace Rpi {
@@ -114,55 +115,21 @@ struct Pwm
 	    Neat::join<Pwen1,Pwen2,Mode1,Mode2,Rptl1,Rptl2,
 		       Sbit1,Sbit2,Pola1,Pola2,Usef1,Usef2,
 		       Msen1,Msen2,Clrf>() ;
-    
-	static Control coset(uint32_t w) { return Control(Mask & w) ; }
 
-	template<uint32_t W> static constexpr Control make()
-	{
-	    static_assert((W | Mask) == Mask,"") ; return Control(W) ;
-	}
-
-	template<uint32_t W> constexpr bool test() const
-	{
-	    return test(make<W>()) ;
-	}
+	using Word = Neat::Bits<Mask> ;
 	
-	constexpr bool test(Control s) const
-	{
-	    return 0 != (w & s.w) ;
-	}
+	Word read() const { return Word::coset(*p) ; }
 	
-	void add(Control c) { w |=         c.w ; } // raise
-	void clr(Control c) { w &= Mask & ~c.w ; } // clear
-	
-	void set(Control mask,Control c)
-	{
-	    w &= Mask & ~mask.w ;
-	    w |=            c.w ;
-	}
-	
-	constexpr uint32_t value() const { return w ; }
-
-	struct Port
-	{
-	    Control read() const { return Control::coset(*p) ; }
-
-	    void write(Control c) { (*p) = c.value() ; }
-
-	private:
-	
-	    friend Pwm ; uint32_t volatile *p ;
-
-	    Port(uint32_t volatile *p) : p(p) {}
-	} ;
+	void write(Word w) { (*p) = w.value() ; }
 
     private:
 	
-	uint32_t w ; constexpr explicit Control(uint32_t w) : w(w) {}
+	friend Pwm ; uint32_t volatile *p ;
+	
+	Control(uint32_t volatile *p) : p(p) {}
     } ;
 	    
-    Control::Port control()       { return & page->at<0x0/4>() ; }
-    Control::Port control() const { return & page->at<0x0/4>() ; }
+    Control control() { return & page->at<0x0/4>() ; }
     
     struct Status 
     {
@@ -182,45 +149,20 @@ struct Pwm
 	static constexpr auto Mask =
 	    Neat::join<Full,Empt,Werr,Rerr,Gap1,Gap2,Berr,Sta1,Sta2>() ;
     
-	static Status coset(uint32_t w) { return Status(Mask & w) ; }
-
-	template<uint32_t W> static constexpr Status make()
-	{
-	    static_assert((W | Mask) == Mask,"") ; return Status(W) ;
-	}
-
-	template<uint32_t W> constexpr bool test() const
-	{
-	    return test(make<W>()) ;
-	}
+	using Word = Neat::Bits<Mask> ;
 	
-	constexpr bool test(Status s) const
-	{
-	    return 0 != (w & s.w) ;
-	}
-	
-	constexpr uint32_t value() const { return w ; }
+	Word read() const { return Word::coset(*p) ; }
 
-	struct Port
-	{
-	    Status read() const { return Status::coset(*p) ; }
-
-	    void clear(Status s) { (*p) = s.value() ; }
-
-	private:
-	
-	    friend Pwm ; uint32_t volatile *p ;
-
-	    Port(uint32_t volatile *p) : p(p) {}
-	} ;
+	void clear(Word w) { (*p) = w.value() ; }
 
     private:
 	
-	uint32_t w ; constexpr explicit Status(uint32_t w) : w(w) {}
+	friend Pwm ; uint32_t volatile *p ;
+
+	Status(uint32_t volatile *p) : p(p) {}
     } ;
 
-    Status::Port status()       { return & page->at<0x4/4>() ; }
-    Status::Port status() const { return & page->at<0x4/4>() ; }
+    Status status() { return & page->at<0x4/4>() ; }
 
     // Write word to 16-word-deep FIFO; you should make sure:
     // --either beforhand that not full
