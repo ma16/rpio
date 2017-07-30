@@ -129,7 +129,7 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 	else if (arg == "reset")
 	{
-	    pwm.clearStatus(pwm.getStatus()) ;
+	    pwm.status().clear(pwm.status().read()) ;
 	}
 	
 	else if (arg == "panic")
@@ -426,18 +426,19 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << "panic=" << d.panic << " "
 	      << "dreq="  << d.dreq << "\n\n" ;
     
-    auto s = pwm.getStatus() ;
+    auto s = pwm.status().read() ;
+    using Status = Rpi::Pwm::Status ;
     std::cout << "sta2 sta1 berr gap2 gap1 rerr werr empt full\n"
 	      << "--------------------------------------------\n"
-	      << std::setw(4) << (0 != s.channel[1].sta)
-	      << std::setw(5) << (0 != s.channel[0].sta)
-	      << std::setw(5) << (0 != s.berr)
-	      << std::setw(5) << (0 != s.channel[1].gapo)
-	      << std::setw(5) << (0 != s.channel[0].gapo)
-	      << std::setw(5) << (0 != s.rerr)
-	      << std::setw(5) << (0 != s.werr)
-	      << std::setw(5) << (0 != s.empt)
-	      << std::setw(5) << (0 != s.full)
+	      << std::setw(4) << s.test<Status::Sta2>() 
+	      << std::setw(5) << s.test<Status::Sta1>() 
+	      << std::setw(5) << s.test<Status::Berr>()
+	      << std::setw(5) << s.test<Status::Gap2>()
+	      << std::setw(5) << s.test<Status::Gap1>()
+	      << std::setw(5) << s.test<Status::Rerr>()
+	      << std::setw(5) << s.test<Status::Werr>()
+	      << std::setw(5) << s.test<Status::Empt>()
+	      << std::setw(5) << s.test<Status::Full>()
 	      << " (0x" << s.value() << ")\n\n" ;
     
     std::cout << "# msen usef pola sbit rptl mode pwen     data    range\n"

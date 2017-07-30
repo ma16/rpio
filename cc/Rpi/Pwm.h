@@ -4,7 +4,7 @@
 // See Pulse Width Modulator (§9) 
 // https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
 //
-// Errata:
+// Errata: (see also http://elinux.org/BCM2835_datasheet_errata)
 //
 // p.138: "read data from a FIFO storage block, which can store up to
 //   eight 32-bit words."
@@ -14,25 +14,28 @@
 // p.138: "Both modes clocked by clk_pwm which is nominally 100MHz"
 // The "nominal" clock seems to be zero since it is not set-up.
 //
-// p.143: CLRF1 is marked as RO (read-only).
-// It is WO (write-only).
+// p.141
+// The base-address (0x7e20:c000) for the register-block is missing.
 //
-// p.143: RPTL "0:Transmission interrupts when FIFO is empty"
-// In non-DMA mode: when FIFO gets empty, the last word is repeated
+// p.143: CLRF1 is marked as RO (read-only).
+// It is WO (write-only / reads-zero).
+//
+// p.143: RPTL=0: "Transmission interrupts when FIFO is empty"
+// For none-DMA mode: when FIFO gets empty, the last word is repeated
 // regardless whether this bit is set or not. Even if the FIFO is
-// cleared (CLRF). If the serializer starts with a cleared FIFO there
-// is nothing to repeat.
+// cleared (CLRF). However, there is nothing to repeat if the
+// serializer starts with a cleared FIFO .
 //
 // p.143: SBIT "Defines the state of the output when no transmission
 //   takes place "
 // That is only true:
 //   * if mode=0 & msen=1 & sbit=1
-//   * if mode=1 & range>32 (for bits 32..)
+//   * if mode=1 & range>32 (for the 33rd "bit" and following)
 //
 // p.143: USEF
-// [defect] channel #2 seems not always to work in FIFO-mode. Sometimes
-// no transmission occurs (in serialization mode) even if the FIFO is
-// full and the channel is busy. The FIFO remains full. [open issue]
+// [defect] channel #2 seems not always to work properly in FIFO-mode.
+// "Sometimes" no transmission occurs (in serialization mode) even if
+// the FIFO is full and STA=1. The FIFO simply stays full. [open issue]
 //
 //
 // p.144: "BERR sets to high when an error has occurred while writing
@@ -54,6 +57,12 @@
 // observed for operations that cause BERR=1. In order to clear STA,
 // BERR needs to be cleared first, thereafter PWEN.
 //
+// p.144: "RERR1 bit sets to high when a read when empty error occurs."
+// There is no explanation under which circumstances this may happen.
+// Reading the FIFO by application (CPU) simply returns "pwm0" regard-
+// less of the FIFO contents; RERR1 is not set when reading from an
+// empty FIFO
+//
 // p.145: EMPT1,FULL1 are marked as RW (read-write)
 // Since writing has no effect, ist should be RO (read-only)
 // --------------------------------------------------------------------
@@ -62,9 +71,10 @@
 #define INCLUDE_Rpi_Pwm_h
 
 #include "Bus/Address.h"
-#include "Dma/Ti.h"
-#include <Neat/Bit.h>
+#include "Dma/Ti.h" // Permap for DMA pacing
 #include "Peripheral.h"
+#include <Neat/Bit.h>
+#include <Neat/join.h>
 
 namespace Rpi {
 
@@ -111,7 +121,7 @@ struct Pwm
 
 	Channel channel[2] ; // [todo] channel(Index) <- make array class
 	
-	bool clear ;
+	bool clear = false ;
 	
     private:
 
@@ -130,58 +140,65 @@ struct Pwm
 	page->at<0x0/4>() = c.value() ;
     }
 
-    enum : uint32_t
+    struct Status 
     {
-	Full  = (1u <<  0), // FIFO is full
-	Empt  = (1u <<  1), // FIFO is empty
-	Werr  = (1u <<  2), // write operation on a full FIFO
-	Rerr  = (1u <<  3), // read operation on an empty FIFO
-        // ...[todo] can we read the FIFO?
-	Gapo1 = (1u <<  4), // gap occurred on channel #1
-	Gapo2 = (1u <<  5), // gap occurred on channel #2
-	Berr  = (1u <<  8), // bus error has occurred while writing to registers via APB
-	Sta1  = (1u <<  9), // channel #1 is currently transmitting
-	Sta2  = (1u << 10), // channel #2 is currently transmitting
-    } ;
-  
-    struct Status
-    {
-	Status(uint32_t w) ;
-
-	uint32_t value() const ;
-
-	struct Channel
+	enum : uint32_t
 	{
-	    bool gapo ;
-	    bool sta ;
-	    Channel() : gapo(0),sta(0) {}
+	    Full = (1u <<  0), // FIFO is full
+	    Empt = (1u <<  1), // FIFO is empty
+	    Werr = (1u <<  2), // write operation on a full FIFO
+	    Rerr = (1u <<  3), // read operation on an empty FIFO
+	    Gap1 = (1u <<  4), // gap occurred on channel #1
+	    Gap2 = (1u <<  5), // gap occurred on channel #2
+	    Berr = (1u <<  8), // bus error
+	    Sta1 = (1u <<  9), // channel #1 is currently transmitting
+	    Sta2 = (1u << 10), // channel #2 is currently transmitting
 	} ;
-	Channel channel[2] ; // [todo] channel(Index) <- make array class
-	
-	bool full ;
-	bool empt ;
-	bool werr ;
-	bool rerr ;
-	bool berr ;
-	// [todo] bit vector
-	
-    private:
 
-	uint32_t w ;
+	static constexpr auto Mask =
+	    Neat::join<Full,Empt,Werr,Rerr,Gap1,Gap2,Berr,Sta1,Sta2>() ;
+    
+	static Status coset(uint32_t w) { return Status(Mask & w) ; }
+
+	static Status make(uint32_t w) ;
+
+	template<uint32_t W> static constexpr Status make()
+	{
+	    static_assert((W | Mask) == Mask,"") ; return Status(W) ;
+	}
+
+	template<uint32_t W> constexpr bool test() const
+	{
+	    static_assert((W | Mask) == Mask,"") ; return 0 != (W & w) ;
+	}
+	
+	constexpr bool test(Status s) const
+	{
+	    return 0 != (w & s.w) ;
+	}
+	
+	constexpr uint32_t value() const { return w ; }
+
+	struct Port
+	{
+	    Status read() const { return Status::coset(*p) ; }
+
+	    void clear(Status s) { (*p) = s.value() ; }
+
+	private:
+	
+	    friend Pwm ; uint32_t volatile *p ;
+
+	    Port(uint32_t volatile *p) : p(p) {}
+	} ;
+
+    private:
+	
+	uint32_t w ; constexpr explicit Status(uint32_t w) : w(w) {}
     } ;
 
-    Status getStatus() const
-    {
-	return Status(page->at<0x4/4>()) ;
-	// [todo] this may get rather time consuming,
-	// especially if we only need one bit
-    }
-  
-    void clearStatus(Status s)
-    {
-	page->at<0x4/4>() = s.value() ;
-	// [todo] RO full & empt
-    }
+    Status::Port status()       { return & page->at<0x4/4>() ; }
+    Status::Port status() const { return & page->at<0x4/4>() ; }
 
     // Write word to 16-word-deep FIFO; you should make sure:
     // --either beforhand that not full
@@ -203,6 +220,13 @@ struct Pwm
 	// check status.full1 before write...
 	this->page->at<0x18/4>() = d ;
 	// ...or check status.werr1 to see whether succeeded
+    }
+
+    uint32_t read() 
+    {
+	// only to check if it has an impact on the RERR flag (it has not)
+	return this->page->at<0x18/4>() ;
+	// seems to return always 0x70776d30 which spells "pwm0"
     }
 
     static constexpr auto fifoAddr = Bus::Address(0x7e20c018) ;
@@ -253,8 +277,6 @@ struct Pwm
     // usage of --ti-wait-resp prevents the gaps (at the expense of speed)
   
     Pwm(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x20c>())) {}
-    // The base-address is not listed in the datasheet
-    // see instead: http://elinux.org/BCM2835_datasheet_errata#p141
   
 private:
   

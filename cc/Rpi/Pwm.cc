@@ -53,44 +53,20 @@ uint32_t Rpi::Pwm::Control::value() const
     
     return w ;
 }
-    
-Rpi::Pwm::Status::Status(uint32_t w)
+
+Rpi::Pwm::Status Rpi::Pwm::Status::make(uint32_t w)
 {
-    // [todo] use initializer list
-
-    this->full = w & Full ;
-    this->empt = w & Empt ;
-    this->werr = w & Werr ;
-    this->rerr = w & Rerr ;
-    this->berr = w & Berr ;
-    
-    this->channel[0].gapo = 0 != (w & Gapo1) ;
-    this->channel[0].sta  = 0 != (w &  Sta1) ;
-
-    this->channel[1].gapo = 0 != (w & Gapo2) ;
-    this->channel[1].sta  = 0 != (w &  Sta2) ;
+    if ((w | Mask) == Mask)
+	return Status(w) ;
+    std::ostringstream os ;
+    os << "Status:"
+       << std::to_string(w) << ' '
+       << " doesn't match mask ("
+       << std::hex << std::to_string(Mask) << ')' ;
+    // ...to_string() promotes if domain=char
+    throw Error(os.str()) ;
 }
 
-uint32_t Rpi::Pwm::Status::value() const
-{
-    uint32_t w = 0 ;
-
-    if (this->full) w |= Full ;
-    if (this->empt) w |= Empt ;
-    if (this->werr) w |= Werr ;
-    if (this->rerr) w |= Rerr ;
-    if (this->berr) w |= Berr ;
-
-    if (this->channel[0].gapo) w |= Gapo1 ;
-    if (this->channel[0].sta ) w |=  Sta1 ;
-    
-    if (this->channel[1].gapo) w |= Gapo2 ;
-    if (this->channel[1].sta ) w |=  Sta2 ;
-    
-    return w ;
-    // [todo] not in write mask: (Full,Empt)
-}
-    
 void Rpi::Pwm::setRange(Index i,uint32_t r)
 {
     if (i.value() == 0) this->page->at<0x10/4>() = r ;
