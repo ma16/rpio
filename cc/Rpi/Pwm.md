@@ -68,7 +68,7 @@ Page | Description
 141 | The base-address for the register-block is missing.
 | | The base-address is 0x7e20:c000.
 143 | CLRF1 is marked as RO (read-only).
-| | It is write-only and be reads as zero.
+| | It is write-only and reads as zero.
 143 | For RPTL=0: "Transmission interrupts when FIFO is empty"
 | | For none-DMA mode: when the FIFO gets empty, the last word is repeated regardless whether this bit is set or not; even if the FIFO is cleared (CLRF). However, there is nothing to repeat if the serializer starts up with a cleared FIFO.
 143 | For SBIT: "Defines the state of the output when no transmission takes place"

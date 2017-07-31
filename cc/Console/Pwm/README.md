@@ -1,6 +1,6 @@
 # Peripheral Pulse-Width-Modulation (PWM)
 
-See ../../Rpi/Pwm.md
+See [PWM](../../Rpi/Pwm.md) description in the library section.
 
 ## Synopsis
 
