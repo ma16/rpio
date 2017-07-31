@@ -1,5 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
+// see Pwm.md for details
+
 #ifndef INCLUDE_Rpi_Pwm_h
 #define INCLUDE_Rpi_Pwm_h
 
@@ -13,7 +15,7 @@ namespace Rpi {
 
 struct Pwm 
 {
-    using Index = Neat::Enum<unsigned,1> ;
+    using Index = Neat::Enum<unsigned,1> ; // channel index
 
     struct Control
     {
@@ -37,15 +39,6 @@ struct Pwm
 	static constexpr auto Usef2 = Word::Digit::make<13>() ; 
 	static constexpr auto Msen2 = Word::Digit::make<15>() ;
 	
-	// Clrf  : 1=clear FIFO (single shot)
-	// Mode# : 1=as serializer (0=as PWM)
-	// Msen# : 1=mark-space-mode (0=coherent); only effective if Mode=PWM
-	// Pola# : 1=inverse output polarity (0=don't)
-	// Pwen# : 1=enable transmission (0=disable)
-	// Rptl# : 1=repeat last word; only effective if Usef=1
-	// Sbit# : 1=silence bit is High (0=Low)
-	// Usef# : 1=use FIFO (0=use Data register)
-
 	struct Bank
 	{
 	    Word::Digit mode ;
@@ -77,15 +70,15 @@ struct Pwm
 	
 	using Word = Neat::Bit::Word<uint32_t,Mask> ;
 
-	static constexpr auto Full = Word::Digit::make< 0>() ; // FIFO
-	static constexpr auto Empt = Word::Digit::make< 1>() ; // FIFO
-	static constexpr auto Werr = Word::Digit::make< 2>() ; // FIFO
-	static constexpr auto Rerr = Word::Digit::make< 3>() ; // FIFO
-	static constexpr auto Gap1 = Word::Digit::make< 4>() ; // Gap
-	static constexpr auto Gap2 = Word::Digit::make< 5>() ; // Gap
-	static constexpr auto Berr = Word::Digit::make< 8>() ; // Bus Error
-	static constexpr auto Sta1 = Word::Digit::make< 9>() ; // Status
-	static constexpr auto Sta2 = Word::Digit::make<10>() ; // Status
+	static constexpr auto Full = Word::Digit::make< 0>() ; 
+	static constexpr auto Empt = Word::Digit::make< 1>() ; 
+	static constexpr auto Werr = Word::Digit::make< 2>() ; 
+	static constexpr auto Rerr = Word::Digit::make< 3>() ; 
+	static constexpr auto Gap1 = Word::Digit::make< 4>() ; 
+	static constexpr auto Gap2 = Word::Digit::make< 5>() ; 
+	static constexpr auto Berr = Word::Digit::make< 8>() ; 
+	static constexpr auto Sta1 = Word::Digit::make< 9>() ; 
+	static constexpr auto Sta2 = Word::Digit::make<10>() ; 
 
 	struct Bank
 	{

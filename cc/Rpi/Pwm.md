@@ -1,15 +1,80 @@
 # Pulse Width Modulator (PWM)
 
-See [BCM2835 ARM Peripherals](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf): Pulse Width Modulator (§9). Please refer also to the errata at the end of this page.
+See [BCM2835 ARM Peripherals](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf): Pulse Width Modulator (§9). Please refer also to the errata section at the end of this page.
 
 Highlights:
 * Two output channels.
-* Operates as pulse-width-modulator or as generic bit-serializer.
-* 16-word FIFO-size (32-bit words).
+* Operates also as generic bit-serializer.
+* 16-word deep FIFO with 32-bit words.
 * DMA pacing.
 * Clock-manager.
 
-## Description
+## Register Block
+
+The base-address of the register-block is 7E20:C000.
+
+Offset | Name | Abstract | Channel
+---: | :--- | :--- | ---:
+0x0 | CTL | Control | both
+0x4 | STA | Status | both
+0x8 | DMAC | DMA-Control | -
+0x10 | RNG1 | Data-range as bits per word | #1
+0x14 | DAT1 | 32-bit data-word | #1
+0x18 | FIF1 | FIFO | -
+0x20 | RNG2 | Data-range as bits per word | #2
+0x24 | DAT2 | 32-bit data-word | #2
+
+### Control Register
+
+Offset | Name | Abstract | Channel
+-----: | :--- | :------- | ------:
+0 | PWEN1 | Enable Transmission | #1
+1 | MODE1 | Mode | #1
+2 | RPTL1 | Repeat-Last-Word when idle | #1
+3 | SBIT1 | Silent-Bit when idle | #1
+4 | POLA1 | Inverse Polarity | #1
+5 | USEF1 | Use FIFO instead of Data register | #1
+6 | CLRF1 | Clear FIFO | -
+7 | MSEN1 | Mark-Space-Enable | #1
+8 | PWEN2 | Enable Transmission | #2
+9 | MODE2 | Mode | #2
+10 | RPTL2 | Repeat-Last-Word when idle | #2
+11 | SBIT2 | Silent-Bit when idle | #2
+12 | POLA2 | Inverse Polarity | #2
+13 | USEF2 | Use FIFO instead of Data register | #2
+15 | MSEN2 | Mark-Space-Enable | #2
+
+Name | Description
+:--- | :----------
+CLRF | Write 1 to clear the FIFO. Write 0 has no effect. Read returns always zero.
+MODE# | 0 = use PWM serializer, 1 = use generic Bit serializer 
+MSEN# | 0 = coherent, 1 = mark-space; only effective if MODE=0
+POLA# | 0 = normal, 1 = inverse output polarity
+PWEN# |	0 = disable, 1 = enable transmission 
+RPTL# | 0 = normal, 1 = repeat last-sent word if idle; only effective if USEF=1
+SBIT# | 0 = Low, 1 = High output if idle
+USEF# | 0 = use Data register, 1 = use FIFO instead
+
+### Status Register
+
+Offset | Name | Abstract | Channel | Clear
+-----: | :--- | :------- | ------: | :----
+0 | FULL | FIFO is full | - | -
+1 | EMPT | FIFO is empyt | - | -
+2 | WERR | A write to the FIFO failed (full) | - | ✓
+3 | RERR | A read from the FIFO failed (empty) | - | ✓
+4 | GAP1 | FIFO underrun | #1 | ✓
+5 | GAP2 | FIFO underrun | #2 | ✓
+8 | BERR | Bus Error | - | ✓
+9 | STA1 | Status | #1 | ✓
+10 | STA2 | Status | #2 | ✓
+
+A bit remains set until cleared. Write 1 to clear a bit. Write 0 has no effect.
+
+BERR
+* An error has occurred while writing to registers via APB. This may happen if the bus tries to write successively to same set of registers faster than the synchroniser block can cope with. Multiple switching may occur and contaminate the data during synchronisation.
+
+## Operation
 
 ### PWM Signal
 
