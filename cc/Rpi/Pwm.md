@@ -62,32 +62,30 @@ This includes the errata on [eLinux](http://elinux.org/BCM2835_datasheet_errata)
 Page | Description
 --- | ---
 138 | "read data from a FIFO storage block, which can store up to eight 32-bit words."
-| The FIFO holds 16 32-bit words. So, if only one channel is used, all 16 words make up a "block".
+| | The FIFO holds 16 32-bit words. So, if only one channel is used, all 16 words make up a "block".
 138 | "Both modes clocked by clk_pwm which is nominally 100MHz"
-| The "nominal" clock seems to be zero. It needs to be set-up by the clock-manager.
+| | The "nominal" clock seems to be zero. It needs to be set-up by the clock-manager.
 141 | The base-address for the register-block is missing.
-| The base-address is 0x7e20:c000.
+| | The base-address is 0x7e20:c000.
 143 | CLRF1 is marked as RO (read-only).
-| It is write-only and be reads as zero.
+| | It is write-only and be reads as zero.
 143 | For RPTL=0: "Transmission interrupts when FIFO is empty"
-| For none-DMA mode: when the FIFO gets empty, the last word is repeated regardless whether this bit is set or not; even if the FIFO is cleared (CLRF). However, there is nothing to repeat if the serializer starts up with a cleared FIFO.
+| | For none-DMA mode: when the FIFO gets empty, the last word is repeated regardless whether this bit is set or not; even if the FIFO is cleared (CLRF). However, there is nothing to repeat if the serializer starts up with a cleared FIFO.
 143 | For SBIT: "Defines the state of the output when no transmission takes place"
-| This is only true:
-| If MODE=0 & MSEN=1 & SBIT=1.
-| If MODE=1 & RANGE>32 for the 33rd "bit" and all following.
+| | This is only true:
+| | If MODE=0 & MSEN=1 & SBIT=1.
+| | If MODE=1 & RANGE>32 for the 33rd "bit" and all following.
 143 | USEF
-| [defect] channel #2 seems not always to be working properly in FIFO-mode. *Sometimes* no transmission takes place (in serializer mode) even if the FIFO is full and STA=1. The FIFO simply stays full. [open issue]
+| | [defect] channel #2 seems not always to be working properly in FIFO-mode. *Sometimes* no transmission takes place (in serializer mode) even if the FIFO is full and STA=1. The FIFO simply stays full. [open issue]
 144 | "BERR sets to high when an error has occurred while writing to registers via APB. This may happen if the bus tries to write successively to same set of registers faster than the synchroniser block can cope with. Multiple switching may occur and contaminate the data during synchronisation."
-| This kind of problem can be observed when writing twice in a row to the Control register. Since the effects are unpredictable, application developers should check for BERR after each write, and abort if set. Or try to prevent BERR at all; e.g. by adding additional read-cyles.
+| | This kind of problem can be observed when writing twice in a row to the Control register. Since the effects are unpredictable, application developers should check for BERR after each write, and abort if set. Or try to prevent BERR at all; e.g. by adding additional read-cyles.
 144 | For STA: "1 means channel is transmitting data."
-| For USEF=1 & RPTL=1: if PWEN is enabled on an empty FIFO then STA is set immediately.
-| For USEF=1 & RPTL=0: if PWEN is enabled on an empty FIFO then STA remains cleared until a word is written to the FIFO (or RPTL is enabled).
-| [defect] STA may remain set even if PWEN is cleared. This can be observed sometimes for operations that cause BERR=1. In order to clear STA, BERR needs to be cleared first, thereafter PWEN.
+| | For USEF=1 & RPTL=1: if PWEN is enabled on an empty FIFO then STA is set immediately.
+| | For USEF=1 & RPTL=0: if PWEN is enabled on an empty FIFO then STA remains cleared until a word is written to the FIFO (or RPTL is enabled).
+| | [defect] STA may remain set even if PWEN is cleared. This can be observed sometimes for operations that cause BERR=1. In order to clear STA, BERR needs to be cleared first, thereafter PWEN.
 144 | "RERR1 bit sets to high when a read when empty error occurs."
-| There is no explanation under which circumstances this may happen. RERR1 is not set when reading from an empty FIFO. Reading the FIFO by application (CPU) simply returns "pwm0" regardless of the FIFO contents.
+| | There is no explanation under which circumstances this may happen. RERR1 is not set when reading from an empty FIFO. Reading the FIFO by application (CPU) simply returns "pwm0" regardless of the FIFO contents.
 145 | For EMPT1,FULL1: they are marked as RW (read-write)
-| Since a write-operation has no effect, it should be RO (read-only).
+| | Since a write-operation has no effect, it should be RO (read-only).
 145 | EMPT1
-| Note that the serializer may still be busy with the transfer even after the FIFO gets empty. So the flag is no indicator to disable PWEN after the end of a transmission.
-
-
+| | Note that the serializer may still be busy with the transfer even after the FIFO gets empty. So the flag is no indicator to disable PWEN after the end of a transmission.
