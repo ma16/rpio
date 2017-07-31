@@ -4,8 +4,8 @@
 #include <Neat/stream.h>
 #include <chrono>
 
-using Control = Rpi::Pwm::Control::Flags ;
-using Status  = Rpi::Pwm:: Status::Flags ;
+using Control = Rpi::Pwm::Control ;
+using Status  = Rpi::Pwm:: Status ;
 
 constexpr auto Channel1 = Rpi::Pwm::Index::make<0>() ;
 constexpr auto Channel2 = Rpi::Pwm::Index::make<1>() ;
@@ -13,10 +13,10 @@ constexpr auto Channel2 = Rpi::Pwm::Index::make<1>() ;
 void Console::Pwm::Lib::setup(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
 {
   auto control = pwm->control().read() ;
-  control.add(Control::Clrf) ;
+  control.at(Control::Clrf) = 1 ;
   // ...may affect other channel too
   auto &b = Rpi::Pwm::Control::Bank::select(index) ;
-  control.clr(b.pwen) ;
+  control.at(b.pwen) = 0 ;
   pwm->control().write(control) ;
   pwm->status().clear(pwm->status().read()) ;
   auto dmac = pwm->getDmac() ;
@@ -28,10 +28,10 @@ void Console::Pwm::Lib::start(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
 {
   auto control = pwm->control().read() ;
   auto &b = Rpi::Pwm::Control::Bank::select(index) ;
-  control.add(b.mode) ; // serialize
-  control.add(b.usef) ;
+  control.at(b.mode) = 1 ; // serialize
+  control.at(b.usef) = 1 ;
   // sbit,pola,rptl are left unchanged
-  control.add(b.pwen) ;
+  control.at(b.pwen) = 1 ;
   pwm->control().write(control) ;
 }
 
@@ -44,20 +44,20 @@ void Console::Pwm::Lib::finish(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
   dmac.enable = false ; 
   pwm->setDmac(dmac) ;
   auto control = pwm->control().read() ;
-  control.add(Control::Clrf) ;
+  control.at(Control::Clrf) = 1 ;
   auto &b = Rpi::Pwm::Control::Bank::select(index) ;
-  control.clr(b.pwen) ;
+  control.at(b.pwen) = 0 ;
   pwm->control().write(control) ;
 }
 
 unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t const data[],unsigned nwords)
 {
   auto control = pwm.control().read() ;
-  control.add(Control::Clrf) ;
+  control.at(Control::Clrf) = 1 ;
   auto &b = Rpi::Pwm::Control::Bank::select(index) ;
-  control.clr(b.pwen) ;
+  control.at(b.pwen) = 0 ;
   pwm.control().write(control) ;
-  control.clr(Control::Clrf) ;
+  control.at(Control::Clrf) = 0 ;
   pwm.status().clear(pwm.status().read()) ;
 
   // fill the PWM queue
@@ -65,9 +65,9 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
   while (!pwm.status().read().test(Status::Full) && (i<nwords))
     pwm.write(data[i++]) ;
   // start serializer
-  control.add(b.mode) ; // serialize
-  control.add(b.usef) ;
-  control.add(b.pwen) ;
+  control.at(b.mode) = 1 ; // serialize
+  control.at(b.usef) = 1 ;
+  control.at(b.pwen) = 1 ;
   pwm.control().write(control) ;
   // top up the queue until all words have been written
   auto ngaps = 0u ;
@@ -107,7 +107,7 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
   // hence, the caller should append two dummy word (i.e. all bits high
   // or all bits low, as needed) since this function will stop
   // transmission as soon as the queue gets empty.
-  control.clr(b.pwen) ;
+  control.at(b.pwen) = 0 ;
   pwm.control().write(control) ;
   return ngaps ;
 }

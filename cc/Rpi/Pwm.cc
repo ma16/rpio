@@ -4,42 +4,50 @@
 #include "Pwm.h"
 #include <cassert>
 
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags:: Clrf ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Mode1 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Mode2 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Msen1 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Msen2 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Pola1 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Pola2 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Pwen1 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Pwen2 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Rptl1 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Rptl2 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Sbit1 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Sbit2 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Usef1 ;
-constexpr Rpi::Pwm::Control::Word Rpi::Pwm::Control::Flags::Usef2 ;
+using Control = Rpi::Pwm::Control ;
+using Status  = Rpi::Pwm:: Status ;
+
+constexpr Control::Word::Digit Control:: Clrf ;
+constexpr Control::Word::Digit Control::Mode1 ;
+constexpr Control::Word::Digit Control::Mode2 ;
+constexpr Control::Word::Digit Control::Msen1 ;
+constexpr Control::Word::Digit Control::Msen2 ;
+constexpr Control::Word::Digit Control::Pola1 ;
+constexpr Control::Word::Digit Control::Pola2 ;
+constexpr Control::Word::Digit Control::Pwen1 ;
+constexpr Control::Word::Digit Control::Pwen2 ;
+constexpr Control::Word::Digit Control::Rptl1 ;
+constexpr Control::Word::Digit Control::Rptl2 ;
+constexpr Control::Word::Digit Control::Sbit1 ;
+constexpr Control::Word::Digit Control::Sbit2 ;
+constexpr Control::Word::Digit Control::Usef1 ;
+constexpr Control::Word::Digit Control::Usef2 ;
+
+constexpr Status::Word::Digit Status::Berr ;
+constexpr Status::Word::Digit Status::Empt ;
+constexpr Status::Word::Digit Status::Full ;
+constexpr Status::Word::Digit Status::Gap1 ;
+constexpr Status::Word::Digit Status::Gap2 ;
+constexpr Status::Word::Digit Status::Rerr ;
+constexpr Status::Word::Digit Status::Sta1 ;
+constexpr Status::Word::Digit Status::Sta2 ;
+constexpr Status::Word::Digit Status::Werr ;
 
 Rpi::Pwm::Control::Bank const& Rpi::Pwm::Control::Bank::select(Index i)
 {
-    static Bank array[2] =
-	{ {
-		Flags::Mode1,
-		Flags::Msen1,
-		Flags::Pola1,
-		Flags::Pwen1,
-		Flags::Rptl1,
-		Flags::Sbit1,
-		Flags::Usef1,
-	    },{
-		Flags::Mode2,
-		Flags::Msen2,
-		Flags::Pola2,
-		Flags::Pwen2,
-		Flags::Rptl2,
-		Flags::Sbit2,
-		Flags::Usef2
-	} } ;
+    static Bank array[2] = {
+	{ Mode1,Msen1,Pola1,Pwen1,Rptl1,Sbit1,Usef1 },
+	{ Mode2,Msen2,Pola2,Pwen2,Rptl2,Sbit2,Usef2 },
+    } ;
+    return array[i.value()] ;
+}
+
+Rpi::Pwm::Status::Bank const& Rpi::Pwm::Status::Bank::select(Index i)
+{
+    static Bank array[2] = {
+	{ Gap1,Sta1 },
+	{ Gap2,Sta2 },
+    } ;
     return array[i.value()] ;
 }
 

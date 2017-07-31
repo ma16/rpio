@@ -76,9 +76,8 @@
 #include "Bus/Address.h"
 #include "Dma/Ti.h" // Permap for DMA pacing
 #include "Peripheral.h"
-#include <Neat/Bit.h>
-#include <Neat/Bits.h>
-#include <Neat/join.h>
+#include <Neat/Bit/Word.h>
+#include <Neat/Enum.h>
 
 namespace Rpi {
 
@@ -88,71 +87,44 @@ struct Pwm
 
     struct Control
     {
-	enum : uint32_t
-        {
-	    Clrf  = (1u <<  6), // 1=clear FIFO (single shot)
+	static constexpr uint32_t Mask = 0xbfffu ;
 
-	    Mode1 = (1u <<  1), // 1=as serializer (0:as PWM)
-	    Mode2 = (1u <<  9),
-		
-	    Msen1 = (1u <<  7), // 1=mark-space-mode (0=coherent)
-	    Msen2 = (1u << 15), // (only effective if Mode=PWM)
-		
-	    Pola1 = (1u <<  4), // 1=inverse output polarity (0=don't)
-	    Pola2 = (1u << 12),
-		
-	    Pwen1 = (1u <<  0), // 1=enable transmission (0=disable)
-	    Pwen2 = (1u <<  8),
-		
-	    Rptl1 = (1u <<  2), // 1=repeat last word
-	    Rptl2 = (1u << 10), // (only effective if Usef=1)
-		
-	    Sbit1 = (1u <<  3), // 1=silence bit is High (0=Low)
-	    Sbit2 = (1u << 11),
-		
-	    Usef1 = (1u <<  5), // 1=use FIFO (0=use Data register)
-	    Usef2 = (1u << 13), 
-	} ;
+	using Word = Neat::Bit::Word<uint32_t,Mask> ; 
 	
-	static constexpr auto Mask = Neat::join<Clrf,
-						Mode1,Mode2,
-						Msen1,Msen2,
-						Pola1,Pola2,
-						Pwen1,Pwen2,
-						Rptl1,Rptl2,
-						Sbit1,Sbit2,
-						Usef1,Usef2>() ;
-
-	using Word = Neat::Bits<Mask> ;
-
-	struct Flags
-	{
-	    static constexpr auto Clrf  = Word::make<Control:: Clrf>() ;
-	    static constexpr auto Mode1 = Word::make<Control::Mode1>() ;
-	    static constexpr auto Mode2 = Word::make<Control::Mode2>() ;
-	    static constexpr auto Msen1 = Word::make<Control::Msen1>() ;
-	    static constexpr auto Msen2 = Word::make<Control::Msen2>() ;
-	    static constexpr auto Pola1 = Word::make<Control::Pola1>() ;
-	    static constexpr auto Pola2 = Word::make<Control::Pola2>() ;
-	    static constexpr auto Pwen1 = Word::make<Control::Pwen1>() ;
-	    static constexpr auto Pwen2 = Word::make<Control::Pwen2>() ;
-	    static constexpr auto Rptl1 = Word::make<Control::Rptl1>() ;
-	    static constexpr auto Rptl2 = Word::make<Control::Rptl2>() ;
-	    static constexpr auto Sbit1 = Word::make<Control::Sbit1>() ;
-	    static constexpr auto Sbit2 = Word::make<Control::Sbit2>() ;
-	    static constexpr auto Usef1 = Word::make<Control::Usef1>() ;
-	    static constexpr auto Usef2 = Word::make<Control::Usef2>() ;
-	} ;
+	static constexpr auto Pwen1 = Word::Digit::make< 0>() ; 
+	static constexpr auto Mode1 = Word::Digit::make< 1>() ; 
+	static constexpr auto Rptl1 = Word::Digit::make< 2>() ; 
+	static constexpr auto Sbit1 = Word::Digit::make< 3>() ; 
+	static constexpr auto Pola1 = Word::Digit::make< 4>() ; 
+	static constexpr auto Usef1 = Word::Digit::make< 5>() ; 
+	static constexpr auto Clrf  = Word::Digit::make< 6>() ; 
+	static constexpr auto Msen1 = Word::Digit::make< 7>() ; 
+	static constexpr auto Pwen2 = Word::Digit::make< 8>() ; 
+	static constexpr auto Mode2 = Word::Digit::make< 9>() ; 
+	static constexpr auto Rptl2 = Word::Digit::make<10>() ; 
+	static constexpr auto Sbit2 = Word::Digit::make<11>() ; 	
+	static constexpr auto Pola2 = Word::Digit::make<12>() ; 
+	static constexpr auto Usef2 = Word::Digit::make<13>() ; 
+	static constexpr auto Msen2 = Word::Digit::make<15>() ;
+	
+	// Clrf  : 1=clear FIFO (single shot)
+	// Mode# : 1=as serializer (0=as PWM)
+	// Msen# : 1=mark-space-mode (0=coherent); only effective if Mode=PWM
+	// Pola# : 1=inverse output polarity (0=don't)
+	// Pwen# : 1=enable transmission (0=disable)
+	// Rptl# : 1=repeat last word; only effective if Usef=1
+	// Sbit# : 1=silence bit is High (0=Low)
+	// Usef# : 1=use FIFO (0=use Data register)
 
 	struct Bank
 	{
-	    Rpi::Pwm::Control::Word mode ;
-	    Rpi::Pwm::Control::Word msen ;
-	    Rpi::Pwm::Control::Word pola ;
-	    Rpi::Pwm::Control::Word pwen ;
-	    Rpi::Pwm::Control::Word rptl ;
-	    Rpi::Pwm::Control::Word sbit ;
-	    Rpi::Pwm::Control::Word usef ;
+	    Word::Digit mode ;
+	    Word::Digit msen ;
+	    Word::Digit pola ;
+	    Word::Digit pwen ;
+	    Word::Digit rptl ;
+	    Word::Digit sbit ;
+	    Word::Digit usef ;
 	    static Bank const& select(Index) ;
 	} ;
 	
@@ -171,40 +143,25 @@ struct Pwm
     
     struct Status 
     {
-	enum : uint32_t
-	{
-	    Full = (1u <<  0), // FIFO is full
-	    Empt = (1u <<  1), // FIFO is empty
-	    Werr = (1u <<  2), // write operation on a full FIFO
-	    Rerr = (1u <<  3), // read operation on an empty FIFO
-	    Gap1 = (1u <<  4), // gap occurred on channel #1
-	    Gap2 = (1u <<  5), // gap occurred on channel #2
-	    Berr = (1u <<  8), // bus error
-	    Sta1 = (1u <<  9), // channel #1 is currently transmitting
-	    Sta2 = (1u << 10), // channel #2 is currently transmitting
-	} ;
+	static constexpr auto Mask = 0x73f ;
+	
+	using Word = Neat::Bit::Word<uint32_t,Mask> ;
 
-	static constexpr auto Mask = Neat::join<Berr,
-						Empt,
-						Full,
-						Gap1,Gap2,
-						Rerr,
-						Sta1,Sta2,
-						Werr>() ;
-    
-	using Word = Neat::Bits<Mask> ;
+	static constexpr auto Full = Word::Digit::make< 0>() ; // FIFO
+	static constexpr auto Empt = Word::Digit::make< 1>() ; // FIFO
+	static constexpr auto Werr = Word::Digit::make< 2>() ; // FIFO
+	static constexpr auto Rerr = Word::Digit::make< 3>() ; // FIFO
+	static constexpr auto Gap1 = Word::Digit::make< 4>() ; // Gap
+	static constexpr auto Gap2 = Word::Digit::make< 5>() ; // Gap
+	static constexpr auto Berr = Word::Digit::make< 8>() ; // Bus Error
+	static constexpr auto Sta1 = Word::Digit::make< 9>() ; // Status
+	static constexpr auto Sta2 = Word::Digit::make<10>() ; // Status
 
-	struct Flags
+	struct Bank
 	{
-	    static constexpr auto Berr = Word::make<Status::Berr>() ;
-	    static constexpr auto Empt = Word::make<Status::Empt>() ;
-	    static constexpr auto Full = Word::make<Status::Full>() ;
-	    static constexpr auto Gap1 = Word::make<Status::Gap1>() ;
-	    static constexpr auto Gap2 = Word::make<Status::Gap2>() ;
-	    static constexpr auto Rerr = Word::make<Status::Rerr>() ;
-	    static constexpr auto Sta1 = Word::make<Status::Sta1>() ;
-	    static constexpr auto Sta2 = Word::make<Status::Sta2>() ;
-	    static constexpr auto Werr = Word::make<Status::Werr>() ;
+	    Word::Digit gap ;
+	    Word::Digit sta ;
+	    static Bank const& select(Index) ;
 	} ;
 	
 	Word read() const { return Word::coset(*p) ; }

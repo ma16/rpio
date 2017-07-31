@@ -15,20 +15,19 @@
 
 // --------------------------------------------------------------------
 
-using Control = Rpi::Pwm::Control::Flags ;
-using Status  = Rpi::Pwm:: Status::Flags ;
+using Control = Rpi::Pwm::Control ;
+using Status  = Rpi::Pwm:: Status ;
 
 constexpr auto Channel1 = Rpi::Pwm::Index::make<0>() ;
 constexpr auto Channel2 = Rpi::Pwm::Index::make<1>() ;
 
 // --------------------------------------------------------------------
 
-static void set(Rpi::Pwm *pwm,Rpi::Pwm::Control::Word mask,Ui::ArgL *argL)
+static void set(Rpi::Pwm *pwm,Control::Word::Digit digit,Ui::ArgL *argL)
 {
     auto control = pwm->control().read() ;
     auto flag = Ui::strto<bool>(argL->pop()) ;
-    if (flag) control.add(mask) ;
-    else      control.clr(mask) ;
+    control.at(digit) = flag ;
     pwm->control().write(control) ;
 }
 
@@ -73,7 +72,7 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	else if (arg == "clear")
 	{
 	    auto c = pwm.control().read() ;
-	    c.add(Control::Clrf) ;
+	    c.at(Control::Clrf) = 1 ;
 	    pwm.control().write(c) ;
 	}
 	
@@ -137,16 +136,8 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	{
 	    auto c = pwm.control().read() ;
 	    auto flag = Ui::strto<bool>(argL->pop()) ;
-	    if (flag)
-	    {
-		c.add(Control::Pwen1) ;
-		c.add(Control::Pwen2) ;
-	    }
-	    else
-	    {
-		c.clr(Control::Pwen1) ;
-		c.clr(Control::Pwen2) ;
-	    }
+	    c.at(Control::Pwen1) = flag ;
+	    c.at(Control::Pwen2) = flag ;
 	    pwm.control().write(c) ;
 	}
 	
@@ -399,19 +390,19 @@ static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Rpi::Pwm pwm(rpi) ;
     pwm.setRange(index,32) ;
     auto c = pwm.control().read() ;
-    if (index == Rpi::Pwm::Index::make<0>())
+    if (index == Rpi::Pwm::Index::make<0>()) // [todo] use Bank::select
     {
-	c.clr(Control::Sbit1) ;
-	c.clr(Control::Pola1) ;
-	c.clr(Control::Rptl1) ;
-	c.add(Control::Pwen1) ;
+	c.at(Control::Sbit1) = 0 ;
+	c.at(Control::Pola1) = 0 ;
+	c.at(Control::Rptl1) = 0 ;
+	c.at(Control::Pwen1) = 1 ;
     }
     else
     {
-	c.clr(Control::Sbit2) ;
-	c.clr(Control::Pola2) ;
-	c.clr(Control::Rptl2) ;
-	c.add(Control::Pwen2) ;
+	c.at(Control::Sbit2) = 0 ;
+	c.at(Control::Pola2) = 0 ;
+	c.at(Control::Rptl2) = 0 ;
+	c.at(Control::Pwen2) = 0 ;
     }
     pwm.control().write(c) ;
     auto ngaps = Console::Pwm::Lib::send(pwm,index,data.get(),nwords) ;
@@ -438,7 +429,6 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << "dreq="  << d.dreq << "\n\n" ;
     
     auto s = pwm.status().read() ;
-    using Status = Rpi::Pwm::Status::Flags ;
     std::cout << "sta2 sta1 berr gap2 gap1 rerr werr empt full\n"
 	      << "--------------------------------------------\n"
 	      << std::setw(4) << s.test(Status::Sta2) 

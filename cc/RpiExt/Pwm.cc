@@ -4,7 +4,7 @@
 #include <cassert>
 #include <iostream> // [debug]
 
-using Status = Rpi::Pwm::Status::Flags ;
+using Status = Rpi::Pwm::Status ;
 
 size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
 {
@@ -45,12 +45,12 @@ size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
 
 bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
 {
-    this->pwm.status().clear(Status::Werr) ;
+    this->pwm.status().clear(Status::Werr.mask()) ;
     for (decltype(n) i=0 ; i<n ; ++i)
 	this->pwm.write(word) ;
     auto werr = this->pwm.status().read().test(Status::Werr) ;
     if (werr)
-	this->pwm.status().clear(Status::Werr) ;
+	this->pwm.status().clear(Status::Werr.mask()) ;
     return werr ;
 }
 
@@ -118,7 +118,7 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
     // unless you modify the code below too.
 
     // flood fifo
-    this->pwm.status().clear(Status::Werr) ;
+    this->pwm.status().clear(Status::Werr.mask()) ;
     for (unsigned i=0 ; i<40 ; ++i)
 	this->pwm.write(buffer[i]) ;
     // ...more than 16 words may be written to the FIFO if the
@@ -129,7 +129,7 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
 	// either the serializer reads faster than we're able to write
 	// (likey) or we got suspended more than once (very unlikely)
 	return std::make_pair(std::numeric_limits<double>::infinity(),0) ;
-    this->pwm.status().clear(Status::Werr) ;
+    this->pwm.status().clear(Status::Werr.mask()) ;
 
     // set-up statistical data
     auto t0 = this->timer.cLo() ; 
