@@ -1,61 +1,6 @@
 # Peripheral Pulse-Width-Modulation (PWM)
 
-## Summary
-
-For details refer to [BCM2835 ARM Peripherals](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf): Pulse Width Modulator (§9).
-
-Highlights:
-* Two output channels.
-* Operates either 
-* * as pulse-width-modulator (PWM) or
-* * as generic bit-stream-serializer.
-* 16-word FIFO-size (32-bit words).
-* DMA pacing.
-* Clock-pulse configuration by clock-manager.
-
-### PWM Signal
-
-The PWM-signal is defined by the period and the ratio:
-* The *period* (P) is the duration of a single PWM-cylce that repeats again and again. It is given as a number of clock-pulses.
-* The *ratio* (R) reflects the average strength of the output signal. It is given as as the number of clock-pulses (within a PWM-cycle) when the output-level is High (R<=P).
-
-R | Output Signal | Description
----: | ---: | :---
-0 | 0 | Permanently Low
-1 | 1 / P | Lowest sensible value above Low
-P-1 | (P-1) / P | Highest sensible value below High
-P | 1 | Permanently High
-
-In *mark-space* operation (M/S), the output is set to Low for (*P*-*R*) clock-pulses and then to High for *R* clock-pulses.
-
-A *coherent* operation is also supported which spreads the Lows and Highs (within a cycle) evenly. For example: (*R*,*P*) = (3,10)
-
-```
-       M/S cycle: 0 0 0 0 0 0 0 1 1 1
-  coherent cycle: 0 1 0 0 1 0 0 1 0 0
-```
-
-### BSS Mode
-
-The bits of a given 32-bit word are serialized.
-
-### FIFO
-
-An internal 16 x 32-bit FIFO is used to buffer incoming values. The values are serialized consecutively.
-
-### DMA
-
-DMA writes 32-bit words into the FIFO. A DMA signal line (DREQ=5) is provided to pace the data transfer.
-
-### Clock Source and Frequency
-
-The datasheet simply states:
-
-**PWM clock source and frequency is controlled in CPRMAN.**
-
-It doesn't say what *CPRMAN* is or how to set it. And the Raspberry Pi Foundation announced there won't be an update of the datasheet. That would make the whole PWM peripheral quite useless for application developers. 
-
-Luckily there are people who dug into the topic a bit deeper. It is assumed that *CPRMAN* is the abbrevation for *Clock Power Reset MANager*; which isn't much help either. However, the people contributing to the eLinux provided a description for the [clock-manager](../Cm) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
+See ../../Rpi/Pwm.md
 
 ## Synopsis
 
