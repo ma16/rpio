@@ -47,7 +47,7 @@ bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
 {
     this->pwm.status().clear(Status::Werr.mask()) ;
     for (decltype(n) i=0 ; i<n ; ++i)
-	this->pwm.write(word) ;
+	this->pwm.fifo().write(word) ;
     auto werr = this->pwm.status().read().test(Status::Werr) ;
     if (werr)
 	this->pwm.status().clear(Status::Werr.mask()) ;
@@ -60,7 +60,7 @@ size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
     {
 	if (this->pwm.status().read().test(Status::Full))
 	    return i ;
-	this->pwm.write(buffer[i]) ;
+	this->pwm.fifo().write(buffer[i]) ;
     }
     return nwords ;
 }
@@ -87,7 +87,7 @@ void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
 	while (this->pwm.status().read().test(Status::Full))
 	    ;
         // ...blocks indefinitely if serializer doesn't read
-	this->pwm.write(buffer[i]) ;
+	this->pwm.fifo().write(buffer[i]) ;
     }
 }	
 
@@ -120,7 +120,7 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
     // flood fifo
     this->pwm.status().clear(Status::Werr.mask()) ;
     for (unsigned i=0 ; i<40 ; ++i)
-	this->pwm.write(buffer[i]) ;
+	this->pwm.fifo().write(buffer[i]) ;
     // ...more than 16 words may be written to the FIFO if the
     // serializer is reading fast. Using exactly 40 write operations
     // here is arbitrary, though.

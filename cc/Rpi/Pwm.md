@@ -24,7 +24,7 @@ Offset | Name | Abstract | Channel
 0x20 | RNG2 | Data-range as bits per word | #2
 0x24 | DAT2 | 32-bit data-word | #2
 
-### Control Register
+### Control Register (CTL)
 
 Offset | Name | Abstract | Channel
 -----: | :--- | :------- | ------:
@@ -55,7 +55,7 @@ RPTL# | 0 = normal, 1 = repeat last-sent word if idle; only effective if USEF=1
 SBIT# | 0 = Low, 1 = High output if idle
 USEF# | 0 = use Data register, 1 = use FIFO instead
 
-### Status Register
+### Status Register (STA)
 
 Offset | Name | Abstract | Channel | Clear
 -----: | :--- | :------- | ------: | :----
@@ -71,8 +71,79 @@ Offset | Name | Abstract | Channel | Clear
 
 A bit remains set until cleared. Write 1 to clear a bit. Write 0 has no effect.
 
-BERR
-* An error has occurred while writing to registers via APB. This may happen if the bus tries to write successively to same set of registers faster than the synchroniser block can cope with. Multiple switching may occur and contaminate the data during synchronisation.
+**BERR**
+
+An error has occurred while writing to registers via APB. This may happen if the bus tries to write successively to same set of registers faster than the synchroniser block can cope with. Multiple switching may occur and contaminate the data during synchronisation.
+
+**RERR**
+
+There is no explanation under which circumstances this flag ist set.
+
+A test shows that the flag is not set when reading from an empty FIFO. Reading returns 0x70776d30 which spells "pwm0":
+
+```
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+sta2 sta1 berr gap2 gap1 rerr werr empt full
+--------------------------------------------
+   0    0    0    0    0    0    0    1    0 (0x2)
+
+# msen usef pola sbit rptl mode pwen     data    range
+------------------------------------------------------
+1    0    1    0    0    0    1    0        0       20
+2    0    0    0    0    0    0    0        0       20
+$ ./rpio poke -p 0x20c018 get
+70776d30
+```
+
+### FIFO Register (FIF1)
+
+A write operation to this register appends a word onto the FIFO. The FIFO itself is 16 words deep. Each word is 32-bit wide. The FIFO can only be written by an application, it can not be read. The status of the FIFO is reflected by STA.EMPT, STA.FULL, STA.RERR and STA.WERR.
+
+When writing the register you should make sure: 
+* either beforhand that the FIFO is not full
+* or afterwards that no write-error has occurred.
+
+The FIFO is shared between both channels. Hence, when both channels are enabled for FIFO usage:
+* The data is shared between these channels in turn. For example, with the word sequence A B C D E F G H, the first channel will use A C E G and the second channel will use B D F H.
+* The range register should hold the same value for both channels.
+* The datasheet says that RPTL# is not meaningful as there is no defined channel to own the last data in the FIFO. Therefore both RPTL# flags must be set to zero. However, observations show, it doesn't has to.
+* If the configuration has changed in any of the two channels, the FIFO should be cleared before writing new data.
+
+### Range Register (RNG#)
+
+In PWM mode (CTL.MODE#=0) the range defines the duration of a period; by the number of corresponding clock-cycles.
+
+In Serial mode (CTL.MODE#=1) the range defines the number of bits in a word to transmit:
+* If range < 32, only the most significant bits of a word are transmitted. The remaining (least signficant) bits in the word are ignored.
+* If range > 32, the word is filled-up with (least significant) padding bits.
+
+Note: in Serial mode (CTL.MODE#=1) with FIFO (CTL.USEF#=1) two bits are transferred per word even if RNG#=1. If RNG#=0 there are strange effects, i.e. a single write to an empty FIFO enables STA.STA# (if CTL.PWEN#=1), but the FIFO remains empty. Two writes in a row make the FIFO non-empty.
+
+### Data Register (DAT#)
+
+This register is only relevant if CTL.USEF#=0.
+
+In PWM mode (CTL.MODE#=0) the value effects the ratio. The register defines the number of clock-cycles within a period (RNG#) the output should be set to High.
+
+In Serial mode (CTL.MODE#=1) the value defines the data to transmit (again and again).
+
+### DMA-Control Register (DMAC)
+
+The DREQ field lacks some documentation. From observation (32 words):
+
+DREQ |0..15|  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  24 |  25 |  26 |  27 |  28 |  29|  30 |  31
+---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- 
+ 9 | 0..15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31
+10 | 0..15| *|17|18|19|20|21|22|23| *|25|26|27|28|29|30|31
+11 | 0..15| *| *|18|19|20|21|22|23| *| *|26|27|28|29|30|31
+12 | 0..15| *| *|18|19|20|21|22| *| *| *|26|27|28|29|30| *
+13 | 0..15| *| *|18|19|20|21| *| *| *| *|26|27|28|29| *| *
+14 | 0..15| *| *|18|19|20| *| *| *| *| *|26|27|28| *| *| *
+15 | 0..15| *| *|18|19| *| *| *| *| *| *|26|27| *| *| *| *
+
+There are missing values (*) because of writing into a full FIFO; this appears to be reproducible at different frequencies. However, the option --ti-wait-resp prevents those gaps at the expense of speed reduction.
 
 ## Operation
 

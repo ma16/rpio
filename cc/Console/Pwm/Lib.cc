@@ -19,9 +19,9 @@ void Console::Pwm::Lib::setup(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
   control.at(b.pwen) = 0 ;
   pwm->control().write(control) ;
   pwm->status().clear(pwm->status().read()) ;
-  auto dmac = pwm->getDmac() ;
+  auto dmac = pwm->dmaC().read() ;
   dmac.enable = true ; // priority and dreq left unchanged
-  pwm->setDmac(dmac) ;
+  pwm->dmaC().write(dmac) ;
 }
 
 void Console::Pwm::Lib::start(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
@@ -40,9 +40,9 @@ void Console::Pwm::Lib::finish(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
 {
   while (!pwm->status().read().test(Status::Empt))
     ;
-  auto dmac = pwm->getDmac() ;
+  auto dmac = pwm->dmaC().read() ;
   dmac.enable = false ; 
-  pwm->setDmac(dmac) ;
+  pwm->dmaC().write(dmac) ;
   auto control = pwm->control().read() ;
   control.at(Control::Clrf) = 1 ;
   auto &b = Rpi::Pwm::Control::Bank::select(index) ;
@@ -63,7 +63,7 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
   // fill the PWM queue
   decltype(nwords) i = 0 ;
   while (!pwm.status().read().test(Status::Full) && (i<nwords))
-    pwm.write(data[i++]) ;
+    pwm.fifo().write(data[i++]) ;
   // start serializer
   control.at(b.mode) = 1 ; // serialize
   control.at(b.usef) = 1 ;
@@ -87,7 +87,7 @@ unsigned Console::Pwm::Lib::send(Rpi::Pwm pwm,Rpi::Pwm::Index index,uint32_t con
     // [future] a time stamp at each iteration may be helpful to detect
     //   gaps
     //   (this would also need a prediction how long the queue may last)
-    pwm.write(data[i]) ;
+    pwm.fifo().write(data[i]) ;
     ++i ;
   }
   // wait until the last word gets into the serializer

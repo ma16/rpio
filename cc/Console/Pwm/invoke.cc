@@ -78,25 +78,25 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	
     	else if (arg == "data.1") 
 	{
-	    pwm.setData(Channel1,Ui::strto<uint32_t>(argL->pop())) ;
+	    pwm.data(Channel1).write(Ui::strto<uint32_t>(argL->pop())) ;
 	}
     	else if (arg == "data.2") 
 	{
-	    pwm.setData(Channel2,Ui::strto<uint32_t>(argL->pop())) ;
+	    pwm.data(Channel2).write(Ui::strto<uint32_t>(argL->pop())) ;
 	}
 	
 	else if (arg == "dma")
 	{
-	    auto d = pwm.getDmac() ;
+	    auto d = pwm.dmaC().read() ;
 	    d.enable = Ui::strto<bool>(argL->pop()) ;
-	    pwm.setDmac(d) ;
+	    pwm.dmaC().write(d) ;
 	}
 	
 	else if (arg == "dreq")
 	{
-	    auto d = pwm.getDmac() ;
+	    auto d = pwm.dmaC().read() ;
 	    d.dreq = Ui::strto<uint8_t>(argL->pop()) ;
-	    pwm.setDmac(d) ;
+	    pwm.dmaC().write(d) ;
 	}
 	
     	else if (arg == "mode.1") set(&pwm,Control::Mode1,argL) ;
@@ -113,11 +113,11 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 	else if (arg == "range.1")
 	{
-	    pwm.setRange(Channel1,Ui::strto<uint32_t>(argL->pop())) ;
+	    pwm.range(Channel1).write(Ui::strto<uint32_t>(argL->pop())) ;
 	}
 	else if (arg == "range.2")
 	{
-	    pwm.setRange(Channel2,Ui::strto<uint32_t>(argL->pop())) ;
+	    pwm.range(Channel2).write(Ui::strto<uint32_t>(argL->pop())) ;
 	}
 
 	else if (arg == "reset")
@@ -127,9 +127,9 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	
 	else if (arg == "panic")
 	{
-	    auto d = pwm.getDmac() ;
+	    auto d = pwm.dmaC().read() ;
 	    d. panic = Ui::strto<uint8_t>(argL->pop()) ;
-	    pwm.setDmac(d) ;
+	    pwm.dmaC().write(d) ;
 	}
     
 	else if (arg == "pwen")
@@ -149,7 +149,7 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 	else if (arg == "send")
 	{
-	    pwm.write(Ui::strto<uint32_t>(argL->pop())) ;
+	    pwm.fifo().write(Ui::strto<uint32_t>(argL->pop())) ;
 	}
 	
     	else if (arg == "usef.1") set(&pwm,Control::Usef1,argL) ;
@@ -194,7 +194,7 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     auto cs = Console::Dma::Lib::optCs(argL,Rpi::Dma::Cs()) ;
   
-    auto ti = Console::Dma::Lib::optTi(argL,Rpi::Dma::Ti::send(Rpi::Pwm::permap())) ;
+    auto ti = Console::Dma::Lib::optTi(argL,Rpi::Dma::Ti::send(Rpi::Pwm::DmaC::Permap)) ;
 
     auto allof = RpiExt::VcMem::getFactory(rpi,argL,RpiExt::VcMem::defaultFactory()) ;
   
@@ -209,13 +209,13 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Console::Dma::Lib::Control ctl(allof->allocate((2+1) * 32)) ;
   
     Console::Dma::Lib::write(&ctl,Rpi::Dma::Ti(),Rpi::Timer::cLoAddr,       ts.get(),0u,sizeof(uint32_t)) ;
-    Console::Dma::Lib::write(&ctl,            ti,      data.get(),0u,Rpi::Pwm::fifoAddr,  data->nbytes()) ; 
+    Console::Dma::Lib::write(&ctl,            ti,      data.get(),0u,Rpi::Pwm::Fifo::Address,  data->nbytes()) ; 
     Console::Dma::Lib::write(&ctl,Rpi::Dma::Ti(),Rpi::Timer::cLoAddr,       ts.get(),4u,sizeof(uint32_t)) ;
     // ...[todo] should be defined in Console/Dma/Lib
 
     // (3) ---- run ----
 
-    Console::Pwm::Lib::setup(&pwm,pwm_index) ; pwm.setRange(pwm_index,32) ; // [todo] leave to ctrl
+    Console::Pwm::Lib::setup(&pwm,pwm_index) ; pwm.range(pwm_index).write(32) ; // [todo] leave to ctrl
     // ...does not start yet since we need to...
     channel.setup(ctl.addr(),cs) ; channel.start() ;
     // ...fill up the PWM queue first
@@ -264,7 +264,7 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     auto cs = Console::Dma::Lib::optCs(argL,Rpi::Dma::Cs()) ;
   
-    auto tix = Rpi::Dma::Ti::send(Rpi::Pwm::permap()) ;
+    auto tix = Rpi::Dma::Ti::send(Rpi::Pwm::DmaC::Permap) ;
     tix = Console::Dma::Lib::optTi(argL,tix) ;
     // + no_wide_bursts
     // + waits
@@ -274,7 +274,7 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     Rpi::Dma::Ti tid ; // just for debugging/monitoring
     tid.srcInc()= true ;
-    tid.permap() = Rpi::Pwm::permap() ;
+    tid.permap() = Rpi::Pwm::DmaC::Permap ;
     tid.destDreq()= true ;
   
     auto mem = (argL->pop_if("--mem"))
@@ -292,11 +292,11 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto ts = mem->allocate(5 * sizeof(uint32_t)) ; // time stamp + monitoring + repeat
     Console::Dma::Lib::Control ctl(mem->allocate(5 * 32)) ;
   
-    Console::Dma::Lib::write(&ctl,           tid,        ts.get(),8u, Rpi::Pwm::fifoAddr,            8u  ) ; // prefix for monitoring
+    Console::Dma::Lib::write(&ctl,           tid,        ts.get(),8u, Rpi::Pwm::Fifo::Address,            8u  ) ; // prefix for monitoring
     Console::Dma::Lib::write(&ctl,Rpi::Dma::Ti(),Rpi::Timer::cLoAddr,        ts.get(),0u,sizeof(uint32_t)) ;
-    ctl.write            (                tix,Rpi::Bus::null_addr, Rpi::Pwm::fifoAddr,     nwords*4,0 ) ;
+    ctl.write            (                tix,Rpi::Bus::null_addr, Rpi::Pwm::Fifo::Address,     nwords*4,0 ) ;
     Console::Dma::Lib::write(&ctl,Rpi::Dma::Ti(),Rpi::Timer::cLoAddr,        ts.get(),4u,sizeof(uint32_t)) ;
-    Console::Dma::Lib::write(&ctl,           tid,        ts.get(),8u, Rpi::Pwm::fifoAddr,           12u  ) ; // postfix for monitoring
+    Console::Dma::Lib::write(&ctl,           tid,        ts.get(),8u, Rpi::Pwm::Fifo::Address,           12u  ) ; // postfix for monitoring
   
     ts->as<uint32_t*>()[2] = 0xffffffff ; 
     ts->as<uint32_t*>()[3] = 0x0 ;
@@ -304,7 +304,7 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     // (3) ---- run ----
 
-    Console::Pwm::Lib::setup(&pwm,pwm_index) ; pwm.setRange(pwm_index,nbits) ; // [todo] leave to ctrl
+    Console::Pwm::Lib::setup(&pwm,pwm_index) ; pwm.range(pwm_index).write(nbits) ; // [todo] leave to ctrl
     // ...does not start yet since we need to...
     channel.setup(ctl.addr(),cs) ; channel.start() ;
     // ...fill up the PWM queue first
@@ -344,24 +344,10 @@ static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     // [todo] verify whether the serializer is working at all
     auto sample = RpiExt::Pwm(rpi).measureRate(duration) ;
-    auto f = sample.first * Rpi::Pwm(rpi).getRange(Rpi::Pwm::Index::make<0>()) ;
+    auto f = sample.first * Rpi::Pwm(rpi).range(Rpi::Pwm::Index::make<0>()).read() ;
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
     std::cout << f << " (" << sample.first << ',' << sample.second << ")\n" ;
-}
-
-// --------------------------------------------------------------------
-
-static void read(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    // [todo] comment as defect-test-case
-    if (!argL->empty() && argL->peek() == "help")
-    {
-	std::cout << "no arguments supported\n" ;
-	return ;
-    }
-    argL->finalize() ;
-    std::cout << "0x" << std::hex << Rpi::Pwm(rpi).read() << '\n' ;
 }
 
 // --------------------------------------------------------------------
@@ -388,7 +374,7 @@ static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Neat::read(&is,data.get(),Neat::ustreamsize::make(nbytes)) ; 
     argL->finalize() ;
     Rpi::Pwm pwm(rpi) ;
-    pwm.setRange(index,32) ;
+    pwm.range(index).write(32) ;
     auto c = pwm.control().read() ;
     if (index == Rpi::Pwm::Index::make<0>()) // [todo] use Bank::select
     {
@@ -422,7 +408,7 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     Rpi::Pwm pwm(rpi) ;
     
-    auto d = pwm.getDmac() ;
+    auto d = pwm.dmaC().read() ;
     std::cout << std::hex
 	      << "DMA-Control: enable=" << d.enable << " "
 	      << "panic=" << d.panic << " "
@@ -454,8 +440,8 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << std::setw(5) << c.test(Control::Rptl1)
 	      << std::setw(5) << c.test(Control::Mode1)
 	      << std::setw(5) << c.test(Control::Pwen1)
-	      << std::setw(9) << pwm. getData(Channel1)
-	      << std::setw(9) << pwm.getRange(Channel1)
+	      << std::setw(9) << pwm. data(Channel1).read() 
+	      << std::setw(9) << pwm.range(Channel1).read()
 	      << '\n' ;
 
     std::cout << std::setw(1) << 2
@@ -466,8 +452,8 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << std::setw(5) << c.test(Control::Rptl2)
 	      << std::setw(5) << c.test(Control::Mode2)
 	      << std::setw(5) << c.test(Control::Pwen2)
-	      << std::setw(9) << pwm. getData(Channel2)
-	      << std::setw(9) << pwm.getRange(Channel2)
+	      << std::setw(9) << pwm. data(Channel2).read()
+	      << std::setw(9) << pwm.range(Channel2).read()
 	      << '\n' ;
 }
 
@@ -482,7 +468,6 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "     | dma        # send data in DMA/FIFO mode\n"
 		  << "     | dummy      # send dummy data in DMA/FIFO mode\n"
 		  << "     | frequency  # estimate current frequency\n"
-		  << "     | read       # read word from FIFO [test]\n"
 		  << "     | send       # send data in CPU/FIFO mode\n"
 		  << "     | status     # display status\n"
 		  << std::flush ;
@@ -495,7 +480,6 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     else if (arg ==       "dma")         dma(rpi,argL) ; 
     else if (arg ==     "dummy")       dummy(rpi,argL) ; 
     else if (arg == "frequency")   frequency(rpi,argL) ; 
-    else if (arg ==      "read")        read(rpi,argL) ; 
     else if (arg ==      "send")        send(rpi,argL) ; 
     else if (arg ==    "status")      status(rpi,argL) ; 
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
