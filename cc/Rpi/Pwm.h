@@ -162,9 +162,9 @@ struct Pwm
     {
 	struct Word
 	{
-	    bool  enable  ; // enable control of DMA signals
-	    uint8_t panic ; // set panic bits if beyond this threshold (default 7)
-	    uint8_t dreq  ; // activate dreq signal if beyond this threshold (default 7)
+	    bool  enable  ; 
+	    uint8_t panic ; 
+	    uint8_t dreq  ; 
 
 	    static Word make(uint32_t r) ; uint32_t value() const ;
 	    

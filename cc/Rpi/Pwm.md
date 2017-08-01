@@ -131,7 +131,19 @@ In Serial mode (CTL.MODE#=1) the value defines the data to transmit (again and a
 
 ### DMA-Control Register (DMAC)
 
-The DREQ field lacks some documentation. From observation (32 words):
+The DMA controller needs to be set-up with TI.PERMAP=5. This is the peripheral mapping to pace write operations for the PWM-FIFO.
+
+Offset | Size | Name | Abstract | Default
+-----: | ---: | :--- | :------- | ------:
+0 | 8 | DREQ | Threshold when to put DREQ signal on the bus | 7
+8 | 8 | PANIC | Threshold when to put PANIC signal on the bus | 7
+31 | 1 | ENAB | Enable DMA pacing, i.e. DREQ and PANIC signals | -
+
+That is: the DREQ signal is raised on the AXI bus when the number entries in the FIFO drops to DMAC.DREQ. This signal tells the DMA controller to resume the transfer (and stop if the signal is cleared).
+
+ The value of DMAC.DREQ needs to be chosen carefully: there will be a FIFO underrun if DREQ is too small; and there will be a FIFO overflow if DREQ is too big.
+
+From observation: DMAC.DREQ > 9 leads to a FIFO overflow. The DMA controller doesn't stop the transfer in time, so data is still written when the FIFO is already full.
 
 DREQ |0..15|  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  24 |  25 |  26 |  27 |  28 |  29|  30 |  31
 ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- 
@@ -143,7 +155,9 @@ DREQ |0..15|  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  24 |  25 |  26 |  
 14 | 0..15| *| *|18|19|20| *| *| *| *| *|26|27|28| *| *| *
 15 | 0..15| *| *|18|19| *| *| *| *| *| *|26|27| *| *| *| *
 
-There are missing values (*) because of writing into a full FIFO; this appears to be reproducible at different frequencies. However, the option --ti-wait-resp prevents those gaps at the expense of speed reduction.
+So there are missing values (*) because of writing into a full FIFO; this appears to be reproducible at different speeds.
+
+The overflow won't happen if the DMA controller uses TI.WAIT_RESP=1. This makes the DMA controller wait until it receives the AXI write response for each write. It ensures that multiple writes cannot get stacked in the AXI bus  pipeline. The maximum transfer rate will drop accordingly.
 
 ## Operation
 
