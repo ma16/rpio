@@ -73,6 +73,8 @@ template<typename U,U M> struct Word
     
     constexpr Unsigned value() const { return i ; }
 
+    constexpr Word() : i(0) {}
+  
 private:
 
     Unsigned i ; constexpr Word(Unsigned i) : i(i) {}

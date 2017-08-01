@@ -66,8 +66,8 @@ Offset | Name | Abstract | Channel | Clear
 4 | GAP1 | FIFO underrun | #1 | ✓
 5 | GAP2 | FIFO underrun | #2 | ✓
 8 | BERR | Bus Error | - | ✓
-9 | STA1 | Status | #1 | ✓
-10 | STA2 | Status | #2 | ✓
+9 | STA1 | Status | #1 | -
+10 | STA2 | Status | #2 | -
 
 A bit remains set until cleared. Write 1 to clear a bit. Write 0 has no effect.
 
