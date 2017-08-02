@@ -160,6 +160,47 @@ static void fifo(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // [todo] write(),convey()
 }
 
+static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    if (!argL->empty() && argL->peek() == "help")
+    {
+	std::cout
+	    << "arguments: [-d DURATION]\n"
+	    << '\n'
+	    << "DURATION: time in seconds to fill-up FIFO (default: 0.1)\n" ;
+	return ;
+    }
+    auto duration = Ui::strto<double>(argL->option("-d","0.1")) ;
+    argL->finalize() ;
+    Rpi::Pwm pwm(rpi) ;
+    auto control = pwm.control().read() ;
+    double width ;
+    unsigned nchannels = 0 ;
+    if (control.test(Rpi::Pwm::Control::Pwen1))
+    {
+	if (!control.test(Rpi::Pwm::Control::Usef1))
+	    throw std::runtime_error("channel #1 enabled w/o USEF=1") ;
+	width = pwm.range(Rpi::Pwm::Channel1).read() ;
+	++nchannels ;
+    }
+    if (control.test(Rpi::Pwm::Control::Pwen2))
+    {
+	if (!control.test(Rpi::Pwm::Control::Usef2))
+	    throw std::runtime_error("channel #2 enabled w/o USEF=1") ;
+	width = pwm.range(Rpi::Pwm::Channel2).read() ;
+	++nchannels ;
+    }
+    if (nchannels == 0)
+	throw std::runtime_error("no channel enabled") ;
+    if (nchannels > 1)
+	throw std::runtime_error("both channels enabled") ;
+    auto rate = RpiExt::Pwm(rpi).measureRate(duration) ;
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    std::cout << rate.first * width << ' '
+	      << '(' << rate.first << ',' << rate.second << ")\n" ;
+}
+
 static void range(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
@@ -383,33 +424,6 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     std::cout.precision(2) ;
     auto dt = static_cast<double>(ts->as<uint32_t*>()[1]-ts->as<uint32_t*>()[0])/1E6 ;
     std::cout << dt << "s " << static_cast<double>(nwords*nbits)/dt << "/s" << std::endl ;
-}
-
-// --------------------------------------------------------------------
-
-static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    if (!argL->empty() && argL->peek() == "help")
-    {
-	std::cout
-	    << "arguments: [DURATION]\n"
-	    << '\n'
-	    << "DURATION = time in seconds to sample (default 0.1)\n"
-	    << '\n'
-	    << "you may want to set up the range register beforehand\n"
-	    ;
-	return ;
-    }
-    auto duration = 0.1 ;
-    if (!argL->empty())
-	duration = Ui::strto<double>(argL->pop()) ;
-    argL->finalize() ;
-    // [todo] verify whether the serializer is working at all
-    auto sample = RpiExt::Pwm(rpi).measureRate(duration) ;
-    auto f = sample.first * Rpi::Pwm(rpi).range(Rpi::Pwm::Index::make<0>()).read() ;
-    std::cout.setf(std::ios::scientific) ;
-    std::cout.precision(2) ;
-    std::cout << f << " (" << sample.first << ',' << sample.second << ")\n" ;
 }
 
 // --------------------------------------------------------------------
