@@ -1,7 +1,6 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "ArgL.h"
-#include <sstream>
 
 bool Ui::ArgL::empty() const
 {

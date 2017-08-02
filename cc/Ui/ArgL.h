@@ -6,6 +6,8 @@
 #include "Error.h"
 
 #include <list>
+#include <map>
+#include <sstream>
 #include <string>
 #include <boost/optional.hpp>
 
@@ -50,6 +52,19 @@ namespace Ui
     
     // same as above. throws however if {front} is not in {args}
     size_t pop(std::initializer_list<char const*> const &args) ;
+    
+    template<typename T> T* pop(std::map<std::string,T*> const &map)
+    {
+	auto arg = this->pop() ;
+	auto i = map.find(arg) ;
+	if (i != map.end())
+	    return i->second ;
+	std::ostringstream os ;
+	os << "unexpected argument:<" << arg << '>' << " valid arguments are:" ;
+	for (auto &pair: map) 
+	    os << " <" << pair.first << '>' ;
+	throw Error(os.str()) ;
+    }
     
     // if {arg} == {front} return the next value and pop both (throws if no next value)
     boost::optional<std::string> option(std::string const &arg) ;

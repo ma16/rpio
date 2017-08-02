@@ -480,24 +480,21 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "     | send       # send data in CPU/FIFO mode\n" ;
 	return ;
     }
-    std::string arg = argL->pop() ;
-    if (false) ;
 
-    // registers access
-    else if (arg ==     "clear")       clear(rpi,argL) ;
-    else if (arg ==   "control")     control(rpi,argL) ; 
-    else if (arg ==      "data")        data(rpi,argL) ; 
-    else if (arg ==      "dmac")        dmaC(rpi,argL) ; 
-    else if (arg ==      "fifo")        fifo(rpi,argL) ; 
-    else if (arg ==     "range")       range(rpi,argL) ;
-    else if (arg ==    "status")      status(rpi,argL) ; 
-
-    // other
-    else if (arg ==       "dma")         dma(rpi,argL) ; 
-    else if (arg ==     "dummy")       dummy(rpi,argL) ; 
-    else if (arg == "frequency")   frequency(rpi,argL) ; 
-    else if (arg ==      "send")        send(rpi,argL) ; 
-    else throw std::runtime_error("not supported option:<"+arg+'>') ;
+    std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map = {
+	{ "clear"    ,    clear },
+	{ "control"  ,  control },
+	{ "data"     ,     data },
+	{ "dma"      ,      dma },
+	{ "dmac"     ,     dmaC },
+	{ "dummy"    ,    dummy },
+	{ "fifo"     ,     fifo },
+	{ "frequency",frequency },
+	{ "range"    ,    range },
+	{ "status"   ,   status },
+	{ "send"     ,     send },
+    } ;
+    argL->pop(map)(rpi,argL) ;
 }
 
 // serializer of both channels does not always work in-sync
