@@ -16,6 +16,29 @@
 
 // --------------------------------------------------------------------
 
+static void clear(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    if (argL->empty() || argL->peek() == "help")
+    {
+	std::cout << "arguments: OPTION+\n"
+		  << "OPTION: all,berr,gap1,gap2,rerr,werr\n" ;
+	return ;
+    }
+    Rpi::Pwm::Status::Word w ;
+    while (!argL->empty())
+    {
+	using Status = Rpi::Pwm::Status ;
+	auto arg = argL->pop() ;
+	if (arg == "all" || arg == "berr") w.at(Status::Berr) = 1 ;
+	if (arg == "all" || arg == "gap1") w.at(Status::Gap1) = 1 ;
+	if (arg == "all" || arg == "gap2") w.at(Status::Gap2) = 1 ;
+	if (arg == "all" || arg == "rerr") w.at(Status::Rerr) = 1 ;
+	if (arg == "all" || arg == "werr") w.at(Status::Werr) = 1 ;
+	else throw std::runtime_error("not supported option:<"+arg+'>') ;
+    }
+    Rpi::Pwm(rpi).status().clear(w) ;
+}
+
 static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
@@ -23,14 +46,14 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout
 	    << "arguments: OPTION+\n"
 	    << '\n'
-	    << "clear              # clear FIFO\n"
-	    << "mode.CHANNEL=BOOL  # serialize (1) or PWM (0)\n"
-	    << "msen.CHANNEL=BOOL  # enable M/S (only for PWM-mode)\n"
-	    << "pwen.CHANNEL=BOOL  # start (1) or stop (0)\n"
-	    << "pola.CHANNEL=BOOL  # inverse output polarity\n"
-	    << "rptl.CHANNEL=BOOL  # repeat last data when FIFO is empty\n"
-	    << "sbit.CHANNEL=BOOL  # silence-bit for gaps\n"
-	    << "usef.CHANNEL=BOOL  # use FIFO\n"
+	    << "clear              # clear FIFO (single shot)\n"
+	    << "mode.CHANNEL=BOOL  # 1=Serial 0=PWM\n"
+	    << "msen.CHANNEL=BOOL  # 1=Mark-Space 0=coherent (if mode=0)\n"
+	    << "pwen.CHANNEL=BOOL  # 1=start transmission 0=stop\n"
+	    << "pola.CHANNEL=BOOL  # 1=inverse output polarity\n"
+	    << "rptl.CHANNEL=BOOL  # 1=repeat word when idle (if usef=1)\n"
+	    << "sbit.CHANNEL=BOOL  # 1=High 0=Low output when idle\n"
+	    << "usef.CHANNEL=BOOL  # 1=read FIFO 0=read Data register\n"
 	    << '\n'
 	    << "CHANNEL must be either 1 or 2; BOOL must be either 0 or 1\n" ;
 	return ;
@@ -82,8 +105,6 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     pwm.control().write(w) ;
 }
 
-// --------------------------------------------------------------------
-
 static void data(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
@@ -102,9 +123,10 @@ static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (argL->empty() || argL->peek() == "help")
     {
 	std::cout << "arguments: OPTION+\n"
-		  << "  enable BOOL\n"
-		  << "    dreq U8\n"
-		  << "   panic U8\n" ;
+		  << '\n'
+		  << "OPTION : enable BOOL\n"
+		  << "       | dreq     U8\n"
+		  << "       | panic    U8\n" ;
 	return ;
     }
     Rpi::Pwm pwm(rpi) ;
@@ -117,7 +139,6 @@ static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	else if (arg ==   "dreq") w.  dreq = Ui::strto<uint8_t>(argL->pop()) ;
 	else if (arg ==  "panic") w. panic = Ui::strto<uint8_t>(argL->pop()) ;
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
-	// [todo] pop(enable,dreq,panic)
     }
     argL->finalize() ;
     pwm.dmaC().write(w) ;
@@ -154,25 +175,58 @@ static void range(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    if (argL->empty() || argL->peek() == "help")
+    if (!argL->empty() && argL->peek() == "help")
     {
-	std::cout << "arguments: OPTIONS\n"
-		  << "OPTION: all,berr,gap1,gap2,rerr,werr\n" ;
+	std::cout << "no arguments supported\n" ;
 	return ;
     }
-    Rpi::Pwm::Status::Word w ;
-    while (!argL->empty())
+    argL->finalize() ;
+    Rpi::Pwm pwm(rpi) ;
+    
+    auto d = pwm.dmaC().read() ;
+    std::cout << std::hex
+	      << "DMA-Control: enable=" << d.enable << " "
+	      << "panic=" << d.panic << " "
+	      << "dreq="  << d.dreq << "\n\n" ;
+    
+    using Status = Rpi::Pwm::Status ;
+    auto s = pwm.status().read() ;
+    std::cout << "berr rerr werr empt full\n"
+	      << "------------------------\n"
+	      << std::setw(3) << s.test(Status::Berr)
+	      << std::setw(5) << s.test(Status::Rerr)
+	      << std::setw(5) << s.test(Status::Werr)
+	      << std::setw(5) << s.test(Status::Empt)
+	      << std::setw(5) << s.test(Status::Full)
+	      << " (0x" << s.value() << ")\n\n" ;
+
+    std::cout
+	<< "# sta gap msen usef pola sbit rptl mode pwen     data    range\n"
+	<< "--------------------------------------------------------------\n" ;
+    auto c = pwm.control().read() ;
+    auto i = Rpi::Pwm::Channel1 ;
+    do
     {
-	using Status = Rpi::Pwm::Status ;
-	auto arg = argL->pop() ;
-	if (arg == "all" || arg == "berr") w.at(Status::Berr) = 1 ;
-	if (arg == "all" || arg == "gap1") w.at(Status::Gap1) = 1 ;
-	if (arg == "all" || arg == "gap2") w.at(Status::Gap2) = 1 ;
-	if (arg == "all" || arg == "rerr") w.at(Status::Rerr) = 1 ;
-	if (arg == "all" || arg == "werr") w.at(Status::Werr) = 1 ;
-	else throw std::runtime_error("not supported option:<"+arg+'>') ;
+	auto cbank = Rpi::Pwm::Control::Bank::select(i) ;
+	auto sbank = Rpi::Pwm:: Status::Bank::select(i) ;
+	
+	std::cout << std::setw(1) << i.value()
+		  << std::setw(4) << s.test(sbank.sta) 
+		  << std::setw(4) << s.test(sbank.gap)
+	
+		  << std::setw(5) << c.test(cbank.msen)
+		  << std::setw(5) << c.test(cbank.usef)
+		  << std::setw(5) << c.test(cbank.pola)
+		  << std::setw(5) << c.test(cbank.sbit)
+		  << std::setw(5) << c.test(cbank.rptl)
+		  << std::setw(5) << c.test(cbank.mode)
+		  << std::setw(5) << c.test(cbank.pwen)
+	
+		  << std::setw(9) << pwm. data(i).read() 
+		  << std::setw(9) << pwm.range(i).read()
+		  << '\n' ;
     }
-    Rpi::Pwm(rpi).status().clear(w) ;
+    while (i.next()) ;
 }
 
 // --------------------------------------------------------------------
@@ -407,81 +461,18 @@ static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void report(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    if (!argL->empty() && argL->peek() == "help")
-    {
-	std::cout << "no arguments supported\n" ;
-	return ;
-    }
-    argL->finalize() ;
-    Rpi::Pwm pwm(rpi) ;
-    
-    auto d = pwm.dmaC().read() ;
-    std::cout << std::hex
-	      << "DMA-Control: enable=" << d.enable << " "
-	      << "panic=" << d.panic << " "
-	      << "dreq="  << d.dreq << "\n\n" ;
-    using Status = Rpi::Pwm::Status ;
-    auto s = pwm.status().read() ;
-    std::cout << "sta2 sta1 berr gap2 gap1 rerr werr empt full\n"
-	      << "--------------------------------------------\n"
-	      << std::setw(4) << s.test(Status::Sta2) 
-	      << std::setw(5) << s.test(Status::Sta1) 
-	      << std::setw(5) << s.test(Status::Berr)
-	      << std::setw(5) << s.test(Status::Gap2)
-	      << std::setw(5) << s.test(Status::Gap1)
-	      << std::setw(5) << s.test(Status::Rerr)
-	      << std::setw(5) << s.test(Status::Werr)
-	      << std::setw(5) << s.test(Status::Empt)
-	      << std::setw(5) << s.test(Status::Full)
-	      << " (0x" << s.value() << ")\n\n" ;
-
-    using Control = Rpi::Pwm::Control ;
-    std::cout << "# msen usef pola sbit rptl mode pwen     data    range\n"
-	      << "------------------------------------------------------\n" ;
-    auto c = pwm.control().read() ;
-    
-    std::cout << std::setw(1) << 1
-	      << std::setw(5) << c.test(Control::Msen1)
-	      << std::setw(5) << c.test(Control::Usef1)
-	      << std::setw(5) << c.test(Control::Pola1)
-	      << std::setw(5) << c.test(Control::Sbit1)
-	      << std::setw(5) << c.test(Control::Rptl1)
-	      << std::setw(5) << c.test(Control::Mode1)
-	      << std::setw(5) << c.test(Control::Pwen1)
-	      << std::setw(9) << pwm. data(Rpi::Pwm::Channel1).read() 
-	      << std::setw(9) << pwm.range(Rpi::Pwm::Channel1).read()
-	      << '\n' ;
-
-    std::cout << std::setw(1) << 2
-	      << std::setw(5) << c.test(Control::Msen2)
-	      << std::setw(5) << c.test(Control::Usef2)
-	      << std::setw(5) << c.test(Control::Pola2)
-	      << std::setw(5) << c.test(Control::Sbit2)
-	      << std::setw(5) << c.test(Control::Rptl2)
-	      << std::setw(5) << c.test(Control::Mode2)
-	      << std::setw(5) << c.test(Control::Pwen2)
-	      << std::setw(9) << pwm. data(Rpi::Pwm::Channel2).read()
-	      << std::setw(9) << pwm.range(Rpi::Pwm::Channel2).read()
-	      << '\n' ;
-}
-
-// --------------------------------------------------------------------
-
 void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") { 
 	std::cout << "arguments: MODE [help]\n"
 		  << '\n'
-		  << "MODE : control    # set Control registers\n"
+		  << "MODE : clear      # clear Status register\n"
+		  << "     | control    # set Control registers\n"
 		  << "     | data       # set Data register\n"
 		  << "     | dmac       # set DMA-Control register\n"
 		  << "     | fifo       # put word(s) into FIFO register\n"
 		  << "     | range      # set Range register\n"
-		  << "     | status     # reset Status register\n"
-		  << '\n'
-		  << "     | report     # display register values\n"
+		  << "     | status     # display register values\n"
 		  << '\n'
 		  << "     | dma        # send data in DMA/FIFO mode\n"
 		  << "     | dummy      # send dummy data in DMA/FIFO mode\n"
@@ -492,15 +483,14 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     std::string arg = argL->pop() ;
     if (false) ;
 
-    // set registers
+    // registers access
+    else if (arg ==     "clear")       clear(rpi,argL) ;
     else if (arg ==   "control")     control(rpi,argL) ; 
     else if (arg ==      "data")        data(rpi,argL) ; 
     else if (arg ==      "dmac")        dmaC(rpi,argL) ; 
     else if (arg ==      "fifo")        fifo(rpi,argL) ; 
     else if (arg ==     "range")       range(rpi,argL) ;
-    else if (arg ==    "status")      status(rpi,argL) ;
-
-    else if (arg ==    "report")      report(rpi,argL) ; 
+    else if (arg ==    "status")      status(rpi,argL) ; 
 
     // other
     else if (arg ==       "dma")         dma(rpi,argL) ; 
