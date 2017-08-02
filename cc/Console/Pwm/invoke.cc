@@ -144,20 +144,65 @@ static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     pwm.dmaC().write(w) ;
 }
 	       
-static void fifo(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void enqueue(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     {
-	std::cout << "arguments: U32+\n" ;
+	std::cout << "arguments: [ -c U32 | -u ] DATA\n"
+		  << '\n'
+		  << "-c  # detect underruns, this requires padding\n"
+		  << "-u  # unpaced (ignore FIFO status)\n"
+		  << "default: fill FIFO whenver there is space\n"
+		  << '\n'
+		  << "DATA : file FILE  # file with binary data to transfer\n" 
+		  << "     | U32+       # list of words\n" ;
 	return ;
     }
-    std::deque<uint32_t> q ;
-    while (!argL->empty())
-	q.push_back(Ui::strto<uint32_t>(argL->pop())) ;
+    enum Mode { Checked,Topup,Unpaced } mode = Topup ;
+    uint32_t padding = 0x0 ;
+    if (argL->pop_if("-c"))
+    {
+	mode = Checked ;
+	padding = Ui::strto<uint32_t>(argL->pop()) ;
+    }
+    else if (argL->pop_if("-u"))
+	mode = Unpaced ;
+    std::vector<uint32_t> data ;
+    if (argL->pop_if("file"))
+    {
+	std::ifstream is ; Neat::open(&is,argL->pop()) ;
+	auto nbytes = Neat::demote<size_t>(Neat::size(&is).as_unsigned()) ; 
+	auto nwords = nbytes / 4 ;
+	if (nwords * 4 != nbytes)
+	    throw std::runtime_error("file-size must be a multiple of 4 bytes") ;
+	data.resize(nwords) ;
+	Neat::read(&is,&data[0],Neat::ustreamsize::make(nbytes)) ; 
+    }
+    else
+    {
+	std::deque<uint32_t> q ;
+	while (!argL->empty())
+	    q.push_back(Ui::strto<uint32_t>(argL->pop())) ;
+	data = std::vector<uint32_t>(q.begin(),q.end()) ;
+    }
     argL->finalize() ;
-    std::vector<uint32_t> v(q.begin(),q.end()) ;
-    RpiExt::Pwm(rpi).topUp(&v[0],v.size()) ;
-    // [todo] write(),convey()
+    if (mode == Checked)
+    {
+	auto nwords = RpiExt::Pwm(rpi).convey(&data[0],data.size(),padding) ;
+	if (nwords < data.size())
+	    std::cout << nwords << " / " << data.size() << " words written\n" ;
+    }
+    else if (mode == Unpaced)
+    {
+	Rpi::Pwm pwm(rpi) ;
+	for (auto w: data)
+	    pwm.fifo().write(w) ;
+    }
+    else
+    {
+	assert(mode == Topup) ;
+	RpiExt::Pwm(rpi).write(&data[0],data.size()) ;
+    }
 }
 
 static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -428,53 +473,6 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void send(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    if (argL->empty() || argL->peek() == "help") {
-	std::cout << "arguments: INDEX FILE\n"
-		  << '\n'
-		  << "INDEX = channel to use (0,1)\n"
-		  << " FILE = name of file with data to transfer\n"
-		  << '\n'
-		  << "you may want to set up the registers beforehand\n"
-		  << std::flush ;
-	return ;
-    }
-    auto index = Ui::strto(argL->pop(),Rpi::Pwm::Index()) ;
-    std::ifstream is ; Neat::open(&is,argL->pop()) ;
-    auto nbytes = Neat::demote<size_t>(Neat::size(&is).as_unsigned()) ; 
-    auto nwords = nbytes / 4 ;
-    if (nwords * 4 != nbytes)
-	throw std::runtime_error("file-size must be a multiple of 4 bytes") ;
-    auto data = std::unique_ptr<uint32_t[]>(new uint32_t[nwords]) ;
-    Neat::read(&is,data.get(),Neat::ustreamsize::make(nbytes)) ; 
-    argL->finalize() ;
-    Rpi::Pwm pwm(rpi) ;
-    pwm.range(index).write(32) ;
-    using Control = Rpi::Pwm::Control ;
-    auto c = pwm.control().read() ;
-    if (index == Rpi::Pwm::Index::make<0>()) // [todo] use Bank::select
-    {
-	c.at(Control::Sbit1) = 0 ;
-	c.at(Control::Pola1) = 0 ;
-	c.at(Control::Rptl1) = 0 ;
-	c.at(Control::Pwen1) = 1 ;
-    }
-    else
-    {
-	c.at(Control::Sbit2) = 0 ;
-	c.at(Control::Pola2) = 0 ;
-	c.at(Control::Rptl2) = 0 ;
-	c.at(Control::Pwen2) = 0 ;
-    }
-    pwm.control().write(c) ;
-    auto ngaps = Console::Pwm::Lib::send(pwm,index,data.get(),nwords) ;
-    std::cout << ngaps << std::endl ;
-    //RpiExt::Pwm(rpi,index).send(data.get(),nwords,2.5e+6) ;
-}
-
-// --------------------------------------------------------------------
-
 void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") { 
@@ -484,14 +482,13 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "     | control    # set Control registers\n"
 		  << "     | data       # set Data register\n"
 		  << "     | dmac       # set DMA-Control register\n"
-		  << "     | fifo       # put word(s) into FIFO register\n"
+		  << "     | enqueue    # put word(s) into FIFO register\n"
+		  << "     | frequency  # estimate current output rate\n"
 		  << "     | range      # set Range register\n"
 		  << "     | status     # display register values\n"
 		  << '\n'
 		  << "     | dma        # send data in DMA/FIFO mode\n"
-		  << "     | dummy      # send dummy data in DMA/FIFO mode\n"
-		  << "     | frequency  # estimate current frequency\n"
-		  << "     | send       # send data in CPU/FIFO mode\n" ;
+		  << "     | dummy      # send dummy data in DMA/FIFO mode\n" ;
 	return ;
     }
 
@@ -502,11 +499,10 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	{ "dma"      ,      dma },
 	{ "dmac"     ,     dmaC },
 	{ "dummy"    ,    dummy },
-	{ "fifo"     ,     fifo },
+	{ "enqueue"  ,  enqueue },
 	{ "frequency",frequency },
 	{ "range"    ,    range },
 	{ "status"   ,   status },
-	{ "send"     ,     send },
     } ;
     argL->pop(map)(rpi,argL) ;
 }
