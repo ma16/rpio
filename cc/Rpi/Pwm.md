@@ -4,10 +4,18 @@ See [BCM2835 ARM Peripherals](https://www.raspberrypi.org/app/uploads/2012/02/BC
 
 Highlights:
 * Two output channels.
-* Operates also as generic bit-serializer.
+* Operates also as generic serializer.
 * 16-word deep FIFO with 32-bit words.
 * DMA pacing.
 * Clock-manager.
+
+## Clock Rate
+
+Clock source and pre-scaler are configured by the [clock-manager](../Cm) peripheral (CM):
+* The Control register is CM_PWMCTL at address 7E10:10A0.
+* The Divider register is CM_PWMDIV at address 7E10:10A4.
+
+This enables effective clock-rates in a range of about 5 kHz to 125 MHz.
 
 ## Register Block
 
@@ -24,7 +32,11 @@ Offset | Name | Abstract | Channel
 0x20 | RNG2 | Data-range as bits per word | #2
 0x24 | DAT2 | 32-bit data-word | #2
 
-### Control Register (CTL)
+The registers are described below. The range registers RNG1 and RNG2 are described in the RNG# section and the data registers DAT1 and DAT2 are described in the DAT# section.
+
+## Control Register (CTL)
+
+### Overview
 
 Offset | Name | Abstract | Channel
 -----: | :--- | :------- | ------:
@@ -47,7 +59,7 @@ Offset | Name | Abstract | Channel
 Name | Description
 :--- | :----------
 CLRF | Write 1 to clear the FIFO. Write 0 has no effect. Read returns always zero.
-MODE# | 0 = use PWM serializer, 1 = use generic Bit serializer 
+MODE# | 0 = PWM, 1 = Serial 
 MSEN# | 0 = coherent, 1 = mark-space; only effective if MODE=0
 POLA# | 0 = normal, 1 = inverse output polarity
 PWEN# |	0 = disable, 1 = enable transmission 
@@ -55,7 +67,34 @@ RPTL# | 0 = normal, 1 = repeat last-sent word if idle; only effective if USEF=1
 SBIT# | 0 = Low, 1 = High output if idle
 USEF# | 0 = use Data register, 1 = use FIFO instead
 
-### Status Register (STA)
+### PWM Mode
+
+In PWM mode (MODE=0) the output signal is defined by the period and by the ratio:
+
+* The *period* (P) is the duration of a single PWM-cylce that repeats again and again. It is given as a number of clock-pulses.
+* The *ratio* (R) reflects the average strength of the output signal. It is given as as the number of clock-pulses (within a PWM-cycle) when the output-level is High (R<=P).
+
+R | Output Signal | Description
+---: | ---: | :---
+0 | 0 | Permanently Low
+1 | 1 / P | Lowest sensible value above Low
+P-1 | (P-1) / P | Highest sensible value below High
+P | 1 | Permanently High
+
+In *mark-space* operation (M/S), the output is set to Low for (*P*-*R*) clock-pulses and then to High for *R* clock-pulses.
+
+A *coherent* operation is also supported which spreads the Lows and Highs (within a cycle) evenly. For example: (*R*,*P*) = (3,10)
+
+```
+       M/S cycle: 0 0 0 0 0 0 0 1 1 1
+  coherent cycle: 0 1 0 0 1 0 0 1 0 0
+```
+
+### Serial Mode
+
+If Serial mode (MODE=1) is used instead of PWM, the output signal corresponds to the bits of a given word. Most significant bits are put out first. This enables arbitrary bit-stream of almost any length in FIFO mode (USEF=1).
+
+## Status Register (STA)
 
 Offset | Name | Abstract | Channel | Clear
 -----: | :--- | :------- | ------: | :----
@@ -97,7 +136,7 @@ $ ./rpio poke -p 0x20c018 get
 70776d30
 ```
 
-### FIFO Register (FIF1)
+## FIFO Register (FIF1)
 
 A write operation to this register appends a word onto the FIFO. The FIFO itself is 16 words deep. Each word is 32-bit wide. The FIFO can only be written by an application, it can not be read. The status of the FIFO is reflected by STA.EMPT, STA.FULL, STA.RERR and STA.WERR.
 
@@ -111,7 +150,7 @@ The FIFO is shared between both channels. Hence, when both channels are enabled 
 * The datasheet says that RPTL# is not meaningful as there is no defined channel to own the last data in the FIFO. Therefore both RPTL# flags must be set to zero. However, observations show, it doesn't has to.
 * If the configuration has changed in any of the two channels, the FIFO should be cleared before writing new data.
 
-### Range Register (RNG#)
+## Range Register (RNG#)
 
 In PWM mode (CTL.MODE#=0) the range defines the duration of a period; by the number of corresponding clock-cycles.
 
@@ -121,7 +160,7 @@ In Serial mode (CTL.MODE#=1) the range defines the number of bits in a word to t
 
 Note: in Serial mode (CTL.MODE#=1) with FIFO (CTL.USEF#=1) two bits are transferred per word even if RNG#=1. If RNG#=0 there are strange effects, i.e. a single write to an empty FIFO enables STA.STA# (if CTL.PWEN#=1), but the FIFO remains empty. Two writes in a row make the FIFO non-empty.
 
-### Data Register (DAT#)
+## Data Register (DAT#)
 
 This register is only relevant if CTL.USEF#=0.
 
@@ -129,9 +168,9 @@ In PWM mode (CTL.MODE#=0) the value effects the ratio. The register defines the 
 
 In Serial mode (CTL.MODE#=1) the value defines the data to transmit (again and again).
 
-### DMA-Control Register (DMAC)
+## DMA-Control Register (DMAC)
 
-The DMA controller needs to be set-up with TI.PERMAP=5. This is the peripheral mapping to pace write operations for the PWM-FIFO.
+The DMA controller supports writing the FIFO. The DMA controller needs to be set-up with TI.PERMAP=5. This is the peripheral mapping to pace write operations for the PWM-FIFO.
 
 Offset | Size | Name | Abstract | Default
 -----: | ---: | :--- | :------- | ------:
@@ -159,52 +198,6 @@ So there are missing values (*) because of writing into a full FIFO; this appear
 
 The overflow won't happen if the DMA controller uses TI.WAIT_RESP=1. This makes the DMA controller wait until it receives the AXI write response for each write. It ensures that multiple writes cannot get stacked in the AXI bus  pipeline. The maximum transfer rate will drop accordingly.
 
-## Operation
-
-### PWM Signal
-
-The PWM-signal is defined by the period and by the ratio:
-* The *period* (P) is the duration of a single PWM-cylce that repeats again and again. It is given as a number of clock-pulses.
-* The *ratio* (R) reflects the average strength of the output signal. It is given as as the number of clock-pulses (within a PWM-cycle) when the output-level is High (R<=P).
-
-R | Output Signal | Description
----: | ---: | :---
-0 | 0 | Permanently Low
-1 | 1 / P | Lowest sensible value above Low
-P-1 | (P-1) / P | Highest sensible value below High
-P | 1 | Permanently High
-
-In *mark-space* operation (M/S), the output is set to Low for (*P*-*R*) clock-pulses and then to High for *R* clock-pulses.
-
-A *coherent* operation is also supported which spreads the Lows and Highs (within a cycle) evenly. For example: (*R*,*P*) = (3,10)
-
-```
-       M/S cycle: 0 0 0 0 0 0 0 1 1 1
-  coherent cycle: 0 1 0 0 1 0 0 1 0 0
-```
-
-### BSS Mode
-
-The bits of a given 32-bit word are serialized.
-
-### FIFO
-
-An internal 16 x 32-bit FIFO is used to buffer incoming values. The values are serialized consecutively.
-
-### DMA
-
-DMA writes 32-bit words into the FIFO. A DMA signal line (DREQ=5) is provided to pace the data transfer.
-
-### Clock Source and Frequency
-
-The datasheet simply states:
-
-**PWM clock source and frequency is controlled in CPRMAN.**
-
-It doesn't say what *CPRMAN* is or how to set it. And the Raspberry Pi Foundation announced there won't be an update of the datasheet. That would make the whole PWM peripheral quite useless for application developers. 
-
-Luckily there are people who dug into the topic a bit deeper. It is assumed that *CPRMAN* is the abbrevation for *Clock Power Reset MANager*; which isn't much help either. However, the people contributing to the eLinux provided a description for the [clock-manager](../Cm) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
-
 ## Errata
 
 This includes the errata on [eLinux](http://elinux.org/BCM2835_datasheet_errata).
@@ -215,6 +208,8 @@ Page | Description
 | | The FIFO holds 16 32-bit words. So, if only one channel is used, all 16 words make up a "block".
 138 | "Both modes clocked by clk_pwm which is nominally 100MHz"
 | | The "nominal" clock seems to be zero. It needs to be set-up by the clock-manager.
+141 | "PWM clock source and frequency is controlled in CPRMAN."
+| | It doesn't say what *CPRMAN* is or how to set it. Luckily there are people who dug into the topic a bit deeper. It is assumed that *CPRMAN* is the abbrevation for *Clock Power Reset MANager*; which isn't much help either. However, the people contributing to eLinux provided a description for the [clock-manager](http://elinux.org/BCM2835_registers#CM) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
 141 | The base-address for the register-block is missing.
 | | The base-address is 0x7e20:c000.
 143 | CLRF1 is marked as RO (read-only).
@@ -234,7 +229,7 @@ Page | Description
 | | For USEF=1 & RPTL=0: if PWEN is enabled on an empty FIFO then STA remains cleared until a word is written to the FIFO (or RPTL is enabled).
 | | [defect] STA may remain set even if PWEN is cleared. This can be observed sometimes for operations that cause BERR=1. In order to clear STA, BERR needs to be cleared first, thereafter PWEN.
 144 | "RERR1 bit sets to high when a read when empty error occurs."
-| | There is no explanation under which circumstances this may happen. RERR1 is not set when reading from an empty FIFO. Reading the FIFO by application (CPU) simply returns "pwm0" regardless of the FIFO contents.
+| | There is no explanation under which circumstances this may happen.
 145 | For EMPT1,FULL1: they are marked as RW (read-write)
 | | Since a write-operation has no effect, it should be RO (read-only).
 145 | EMPT1
