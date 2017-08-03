@@ -279,7 +279,7 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto s = pwm.status().read() ;
     std::cout << "berr rerr werr empt full\n"
 	      << "------------------------\n"
-	      << std::setw(3) << s.test(Status::Berr)
+	      << std::setw(4) << s.test(Status::Berr)
 	      << std::setw(5) << s.test(Status::Rerr)
 	      << std::setw(5) << s.test(Status::Werr)
 	      << std::setw(5) << s.test(Status::Empt)
@@ -296,7 +296,7 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	auto cbank = Rpi::Pwm::Control::Bank::select(i) ;
 	auto sbank = Rpi::Pwm:: Status::Bank::select(i) ;
 	
-	std::cout << std::setw(1) << i.value()
+	std::cout << std::setw(1) << i.value() + 1
 		  << std::setw(4) << s.test(sbank.sta) 
 		  << std::setw(4) << s.test(sbank.gap)
 	
