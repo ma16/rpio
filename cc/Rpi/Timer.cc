@@ -2,7 +2,7 @@
 
 #include "Timer.h"
 
-constexpr Rpi::Bus::Address Rpi::Timer::cLoAddr ;
+constexpr Rpi::Bus::Address Rpi::Timer::Address ;
 // [note] http://stackoverflow.com/questions/8016780/undefined-reference-to-static-constexpr-char#8016853
 
 uint64_t Rpi::Timer::clock() const

@@ -283,8 +283,7 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << std::setw(5) << s.test(Status::Rerr)
 	      << std::setw(5) << s.test(Status::Werr)
 	      << std::setw(5) << s.test(Status::Empt)
-	      << std::setw(5) << s.test(Status::Full)
-	      << " (0x" << s.value() << ")\n\n" ;
+	      << std::setw(5) << s.test(Status::Full) ;
 
     std::cout
 	<< "# sta gap msen usef pola sbit rptl mode pwen     data    range\n"
@@ -317,54 +316,13 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void setup(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
-{
-    auto control = pwm->control().read() ;
-    control.at(Rpi::Pwm::Control::Clrf) = 1 ;
-    // ...may affect other channel too
-    auto &b = Rpi::Pwm::Control::Bank::select(index) ;
-    control.at(b.pwen) = 0 ;
-    pwm->control().write(control) ;
-    pwm->status().clear(pwm->status().read()) ;
-    auto dmac = pwm->dmaC().read() ;
-    dmac.enable = true ; // priority and dreq left unchanged
-    pwm->dmaC().write(dmac) ;
-}
-
-static void start(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
-{
-    auto control = pwm->control().read() ;
-    auto &b = Rpi::Pwm::Control::Bank::select(index) ;
-    control.at(b.mode) = 1 ; // serialize
-    control.at(b.usef) = 1 ;
-    // sbit,pola,rptl are left unchanged
-    control.at(b.pwen) = 1 ;
-    pwm->control().write(control) ;
-}
-
-#include <Neat/cast.h>
-static void finish(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
-{
-    while (!pwm->status().read().test(Rpi::Pwm::Status::Empt))
-	;
-    auto dmac = pwm->dmaC().read() ;
-    dmac.enable = false ; 
-    pwm->dmaC().write(dmac) ;
-    auto control = pwm->control().read() ;
-    control.at(Rpi::Pwm::Control::Clrf) = 1 ;
-    auto &b = Rpi::Pwm::Control::Bank::select(index) ;
-    control.at(b.pwen) = 0 ;
-    pwm->control().write(control) ;
-}
-
 static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     {
-	std::cout << "arguments: PIX DIX [CS] [TI] [MEM] FILE\n"
+	std::cout << "arguments: DIX [CS] [TI] [MEM] FILE\n"
 		  << '\n'
-		  << " PIX : 0|1    # PWM channel to use\n"
-		  << " DIX : 0..15  # DMA channel to use\n"
+		  << " DIX : 0..15  # DMA channel index to use\n"
 		  << '\n'
 		  << "  CS = DMA control and status\n"
 		  << "  TI = DMA transfer information\n"
@@ -373,140 +331,65 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << std::flush ;
 	return ;
     }
-  
+
+    using namespace Console::Dma ; // makes Lib:: visible
+    
     // ---- configuration ----
 
-    Rpi::Pwm pwm(rpi) ; auto pwm_index = Ui::strto(argL->pop(),Rpi::Pwm::Index()) ;
+    auto dma_index = Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index()) ;
+    
+    auto dma_cs = Lib::optCs(argL,Rpi::Dma::Cs()) ;
   
-    auto channel = Rpi::Dma::Ctrl(rpi).channel(Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index())) ;
-  
-    auto cs = Console::Dma::Lib::optCs(argL,Rpi::Dma::Cs()) ;
-  
-    auto ti = Console::Dma::Lib::optTi(argL,Rpi::Dma::Ti::send(Rpi::Pwm::DmaC::Permap)) ;
+    auto dma_ti = Lib::optTi(argL,Rpi::Dma::Ti::send(Rpi::Pwm::DmaC::Permap)) ;
 
-    auto allof = RpiExt::VcMem::getFactory(rpi,argL,RpiExt::VcMem::defaultFactory()) ;
+    auto allocator = RpiExt::VcMem::
+	getFactory(rpi,argL,RpiExt::VcMem::defaultFactory()) ;
   
-    auto data = RpiExt::VcMem::read(argL->pop(),allof.get()) ;
+    auto file_data = RpiExt::VcMem::read(argL->pop(),allocator.get()) ;
 
     argL->finalize() ;
 
     // ---- remaining setup ----
 
-    auto ts = allof->allocate(2 * sizeof(uint32_t)) ; // 2x time stamp
   
-    Console::Dma::Lib::Control ctl(allof->allocate((2+1) * 32)) ;
+    Lib::Control ctl(allocator->allocate((2+1) * 32)) ;
   
-    Console::Dma::Lib::write(&ctl,Rpi::Dma::Ti(),Rpi::Timer::cLoAddr,       ts.get(),0u,sizeof(uint32_t)) ;
-    Console::Dma::Lib::write(&ctl,            ti,      data.get(),0u,Rpi::Pwm::Fifo::Address,  data->nbytes()) ; 
-    Console::Dma::Lib::write(&ctl,Rpi::Dma::Ti(),Rpi::Timer::cLoAddr,       ts.get(),4u,sizeof(uint32_t)) ;
-    // ...[todo] should be defined in Console/Dma/Lib
+    auto t0 = allocator->allocate(sizeof(uint32_t)) ; 
+    Lib::write(&ctl,Rpi::Dma::Ti(),
+	       Rpi::Timer::Address,
+	       t0.get(),0u,
+	       sizeof(uint32_t)) ;
+    
+    Lib::write(&ctl,dma_ti,
+	       file_data.get(),0u,
+	       Rpi::Pwm::Fifo::Address,
+	       file_data->nbytes()) ;
+    
+    auto t1 = allocator->allocate(sizeof(uint32_t)) ; 
+    Lib::write(&ctl,Rpi::Dma::Ti(),
+	       Rpi::Timer::Address,
+	       t1.get(),0u,
+	       sizeof(uint32_t)) ;
 
     // (3) ---- run ----
 
-    setup(&pwm,pwm_index) ; pwm.range(pwm_index).write(32) ; // [todo] leave to ctrl
-    // ...does not start yet since we need to...
-    channel.setup(ctl.addr(),cs) ; channel.start() ;
-    // ...fill up the PWM queue first
-    start(&pwm,pwm_index) ;
-    while (0 != (channel.getCs().active().bits()))
-	Posix::nanosleep(1E+3) ;
+    auto dma_channel = Rpi::Dma::Ctrl(rpi).channel(dma_index) ;
+    dma_channel.setup(ctl.addr(),dma_cs) ;
+    dma_channel.start() ;
+    // ...fill up the PWM queue first ?!
+
+    while (0 != (dma_channel.getCs().active().bits()))
+	Posix::nanosleep(1e3) ;
     // ...arbitrary sleep value
-    finish(&pwm,pwm_index) ;
-    // ...wait til queue empty, last still in progress and will be repeated
   
     // (4) ---- log statistics ----
   
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
-    auto dt = static_cast<double>(ts->as<uint32_t*>()[1]-ts->as<uint32_t*>()[0])/1E6 ;
-    std::cout << dt << "s " << static_cast<double>(data->nbytes()/4*32)/dt << "/s" << std::endl ;
-}
-
-static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    if (argL->empty() || argL->peek() == "help") {
-	std::cout << "arguments: PIX DIX [CS] [TI] [MEM] NWORDS NBITS\n"
-		  << '\n'
-		  << " PIX : 0|1    # PWM channel to use\n"
-		  << " DIX : 0..15  # DMA channel to use\n"
-		  << '\n'
-		  << "    CS = DMA control and status\n"
-		  << "    TI = DMA transfer information\n"
-		  << "   MEM = type of memory to be used for DMA setup\n"
-		  << "NWORDS = number of words to be sent\n"
-		  << " NBITS = number of bits per word to be sent\n"
-		  << std::flush ;
-	return ;
-    }
-  
-    // (1) ---- configuration ----
-
-    auto pwm_index = Ui::strto(argL->pop(),Rpi::Pwm::Index()) ;
-    Rpi::Pwm pwm(rpi) ;
-  
-    auto dma_index = Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index()) ;
-    Rpi::Dma::Ctrl dma(rpi) ;
-    auto channel = dma.channel(dma_index) ;
-  
-    auto cs = Console::Dma::Lib::optCs(argL,Rpi::Dma::Cs()) ;
-  
-    auto tix = Rpi::Dma::Ti::send(Rpi::Pwm::DmaC::Permap) ;
-    tix = Console::Dma::Lib::optTi(argL,tix) ;
-    // + no_wide_bursts
-    // + waits
-    // + burst_length
-    // + src.width
-    // + wait_resp
-  
-    Rpi::Dma::Ti tid ; // just for debugging/monitoring
-    tid.srcInc()= true ;
-    tid.permap() = Rpi::Pwm::DmaC::Permap ;
-    tid.destDreq()= true ;
-  
-    auto mem = (argL->pop_if("--mem"))
-	? RpiExt::VcMem::getFactory(rpi,argL)
-	: RpiExt::VcMem::defaultFactory() ;
-  
-    auto nwords = Ui::strto<uint32_t>(argL->pop()) ;
-  
-    auto nbits = Ui::strto<uint32_t>(argL->pop()) ;
-  
-    argL->finalize() ;
-
-    // (2) ---- prepare ----
-
-    auto ts = mem->allocate(5 * sizeof(uint32_t)) ; // time stamp + monitoring + repeat
-    Console::Dma::Lib::Control ctl(mem->allocate(5 * 32)) ;
-  
-    Console::Dma::Lib::write(&ctl,           tid,        ts.get(),8u, Rpi::Pwm::Fifo::Address,            8u  ) ; // prefix for monitoring
-    Console::Dma::Lib::write(&ctl,Rpi::Dma::Ti(),Rpi::Timer::cLoAddr,        ts.get(),0u,sizeof(uint32_t)) ;
-    ctl.write            (                tix,Rpi::Bus::null_addr, Rpi::Pwm::Fifo::Address,     nwords*4,0 ) ;
-    Console::Dma::Lib::write(&ctl,Rpi::Dma::Ti(),Rpi::Timer::cLoAddr,        ts.get(),4u,sizeof(uint32_t)) ;
-    Console::Dma::Lib::write(&ctl,           tid,        ts.get(),8u, Rpi::Pwm::Fifo::Address,           12u  ) ; // postfix for monitoring
-  
-    ts->as<uint32_t*>()[2] = 0xffffffff ; 
-    ts->as<uint32_t*>()[3] = 0x0 ;
-    ts->as<uint32_t*>()[4] = 0xffffffff ; // repeat
-  
-    // (3) ---- run ----
-
-    setup(&pwm,pwm_index) ; pwm.range(pwm_index).write(nbits) ; // [todo] leave to ctrl
-    // ...does not start yet since we need to...
-    channel.setup(ctl.addr(),cs) ; channel.start() ;
-    // ...fill up the PWM queue first
-    start(&pwm,pwm_index) ;
-    while (0 != (channel.getCs().active().bits()))
-	Posix::nanosleep(1E+3) ;
-    // ...arbitrary sleep value
-    finish(&pwm,pwm_index) ;
-    // ...wait til queue empty, last still in progress and will be repeated
-
-    // (4) ---- log statistics ----
-
-    std::cout.setf(std::ios::scientific) ;
-    std::cout.precision(2) ;
-    auto dt = static_cast<double>(ts->as<uint32_t*>()[1]-ts->as<uint32_t*>()[0])/1E6 ;
-    std::cout << dt << "s " << static_cast<double>(nwords*nbits)/dt << "/s" << std::endl ;
+    auto dt = static_cast<double>(t1->as<uint32_t*>()[0] -
+				  t0->as<uint32_t*>()[0]) / 1e6 ;
+    std::cout << dt << "s "
+	      << static_cast<double>(file_data->nbytes()/4*32)/dt << "/s\n" ;
 }
 
 // --------------------------------------------------------------------
@@ -519,14 +402,12 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "MODE : clear      # clear Status register\n"
 		  << "     | control    # set Control registers\n"
 		  << "     | data       # set Data register\n"
+		  << "     | dma        # put word(s) into FIFO register (DMA)\n"
 		  << "     | dmac       # set DMA-Control register\n"
-		  << "     | enqueue    # put word(s) into FIFO register\n"
+		  << "     | enqueue    # put word(s) into FIFO register (CPU)\n"
 		  << "     | frequency  # estimate current output rate\n"
 		  << "     | range      # set Range register\n"
-		  << "     | status     # display register values\n"
-		  << '\n'
-		  << "     | dma        # send data in DMA/FIFO mode\n"
-		  << "     | dummy      # send dummy data in DMA/FIFO mode\n" ;
+		  << "     | status     # display register values\n" ;
 	return ;
     }
 
@@ -536,7 +417,6 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	{ "data"     ,     data },
 	{ "dma"      ,      dma },
 	{ "dmac"     ,     dmaC },
-	{ "dummy"    ,    dummy },
 	{ "enqueue"  ,  enqueue },
 	{ "frequency",frequency },
 	{ "range"    ,    range },

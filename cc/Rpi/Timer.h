@@ -18,7 +18,7 @@ namespace Rpi { struct Timer
   uint32_t cLo() const { return page->at<0x4/4>() ; }
   uint32_t cHi() const { return page->at<0x8/4>() ; }
 
-  static constexpr auto cLoAddr = Bus::Address(0x7e003004) ;
+  static constexpr auto Address = Bus::Address(0x7e003004) ;
     
 private:
 

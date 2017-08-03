@@ -159,7 +159,7 @@ static Rpi::Bus::Alloc::Chunk alloc_tx_cb(Rpi::Bus::Alloc *alloc,Rpi::Bus::Alloc
 
 static Rpi::Bus::Alloc::Chunk alloc_ts_cb(Rpi::Bus::Alloc *alloc,Rpi::Bus::Alloc::Chunk const &data)
 {
-    return alloc_cb(alloc,make_1x1(),Rpi::Timer::cLoAddr,data.address(),data.nbytes()) ;
+    return alloc_cb(alloc,make_1x1(),Rpi::Timer::Address,data.address(),data.nbytes()) ;
 }
 
 static Rpi::Bus::Alloc::Chunk alloc_rx_cb(Rpi::Bus::Alloc *alloc,Rpi::Bus::Alloc::Chunk const &data)
