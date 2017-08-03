@@ -42,7 +42,6 @@ LSRC=\
 	Console/Mbox/invoke.cc \
 	Console/Poke/invoke.cc \
 	Console/Pwm/invoke.cc \
-	Console/Pwm/Lib.cc \
 	Console/Sample/invoke.cc \
 	Console/Shm/invoke.cc \
 	Console/Spi0/Dma.cc \

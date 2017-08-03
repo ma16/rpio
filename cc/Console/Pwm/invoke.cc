@@ -1,10 +1,10 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "Lib.h"
 #include "../rpio.h"
 #include <deque>
 #include <iomanip>
 #include <iostream>
+#include <Console/Dma/Lib.h>
 #include <Neat/stream.h>
 #include <Posix/base.h>
 #include <Rpi/GpuMem.h>
@@ -317,6 +317,46 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
+static void setup(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
+{
+    auto control = pwm->control().read() ;
+    control.at(Rpi::Pwm::Control::Clrf) = 1 ;
+    // ...may affect other channel too
+    auto &b = Rpi::Pwm::Control::Bank::select(index) ;
+    control.at(b.pwen) = 0 ;
+    pwm->control().write(control) ;
+    pwm->status().clear(pwm->status().read()) ;
+    auto dmac = pwm->dmaC().read() ;
+    dmac.enable = true ; // priority and dreq left unchanged
+    pwm->dmaC().write(dmac) ;
+}
+
+static void start(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
+{
+    auto control = pwm->control().read() ;
+    auto &b = Rpi::Pwm::Control::Bank::select(index) ;
+    control.at(b.mode) = 1 ; // serialize
+    control.at(b.usef) = 1 ;
+    // sbit,pola,rptl are left unchanged
+    control.at(b.pwen) = 1 ;
+    pwm->control().write(control) ;
+}
+
+#include <Neat/cast.h>
+static void finish(Rpi::Pwm *pwm,Rpi::Pwm::Index index)
+{
+    while (!pwm->status().read().test(Rpi::Pwm::Status::Empt))
+	;
+    auto dmac = pwm->dmaC().read() ;
+    dmac.enable = false ; 
+    pwm->dmaC().write(dmac) ;
+    auto control = pwm->control().read() ;
+    control.at(Rpi::Pwm::Control::Clrf) = 1 ;
+    auto &b = Rpi::Pwm::Control::Bank::select(index) ;
+    control.at(b.pwen) = 0 ;
+    pwm->control().write(control) ;
+}
+
 static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
@@ -363,15 +403,15 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     // (3) ---- run ----
 
-    Console::Pwm::Lib::setup(&pwm,pwm_index) ; pwm.range(pwm_index).write(32) ; // [todo] leave to ctrl
+    setup(&pwm,pwm_index) ; pwm.range(pwm_index).write(32) ; // [todo] leave to ctrl
     // ...does not start yet since we need to...
     channel.setup(ctl.addr(),cs) ; channel.start() ;
     // ...fill up the PWM queue first
-    Console::Pwm::Lib::start(&pwm,pwm_index) ;
+    start(&pwm,pwm_index) ;
     while (0 != (channel.getCs().active().bits()))
 	Posix::nanosleep(1E+3) ;
     // ...arbitrary sleep value
-    Console::Pwm::Lib::finish(&pwm,pwm_index) ;
+    finish(&pwm,pwm_index) ;
     // ...wait til queue empty, last still in progress and will be repeated
   
     // (4) ---- log statistics ----
@@ -381,8 +421,6 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto dt = static_cast<double>(ts->as<uint32_t*>()[1]-ts->as<uint32_t*>()[0])/1E6 ;
     std::cout << dt << "s " << static_cast<double>(data->nbytes()/4*32)/dt << "/s" << std::endl ;
 }
-
-// --------------------------------------------------------------------
 
 static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
@@ -452,15 +490,15 @@ static void dummy(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     // (3) ---- run ----
 
-    Console::Pwm::Lib::setup(&pwm,pwm_index) ; pwm.range(pwm_index).write(nbits) ; // [todo] leave to ctrl
+    setup(&pwm,pwm_index) ; pwm.range(pwm_index).write(nbits) ; // [todo] leave to ctrl
     // ...does not start yet since we need to...
     channel.setup(ctl.addr(),cs) ; channel.start() ;
     // ...fill up the PWM queue first
-    Console::Pwm::Lib::start(&pwm,pwm_index) ;
+    start(&pwm,pwm_index) ;
     while (0 != (channel.getCs().active().bits()))
 	Posix::nanosleep(1E+3) ;
     // ...arbitrary sleep value
-    Console::Pwm::Lib::finish(&pwm,pwm_index) ;
+    finish(&pwm,pwm_index) ;
     // ...wait til queue empty, last still in progress and will be repeated
 
     // (4) ---- log statistics ----
@@ -530,3 +568,21 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	// [todo] comment as defect-test-case
     }
 #endif
+
+// observed behavior:
+// --if a gap occurs right here, before wrting to the queue, we
+//   won't detect it. there is actually no indication by any status
+//   flag (BERR,GAPO,RERR) whether a gap occured -- even the spec
+//   says so.
+// --even though the last word of the queue has been read by the
+//   serializer, the transfer of the previous (!) word is still in
+//   progress. PWEN=0 at this point will interrupt the transfer in
+//   middle of the previous word.
+// --there is no indication by any status flag (BERR,GAPO,RERR) when
+//   the transfer is completed (even so the spec says so).
+// --after the transfer of the last word is completed, the transfer
+//   of the last word will be indefinitely repeated regardless
+//   whether the RPTL flag is set or not (spec is wrong again).
+// --hence, if the transmission is stopped (PWEN=0) as soon as the
+//   FIFO gets empty, the caller should append two (?) dummy word
+//   (i.e. all bits high or all bits low, as needed).
