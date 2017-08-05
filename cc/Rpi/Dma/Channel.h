@@ -37,15 +37,15 @@ namespace Rpi { namespace Dma { struct Channel
   //    However, this contradicts [elinux.org/BCM2835_registers#DMA0]
   //    which says the register is read-only.
   
-  Cs                getCs() const { return           Cs(this->p[0]) ; }
-  Bus::Address      getCb() const { return Bus::Address(this->p[1]) ; }
-  Ti                getTi() const { return              this->p[2]  ; }
-  Bus::Address     getSrc() const { return Bus::Address(this->p[3]) ; } 
-  Bus::Address     getDst() const { return Bus::Address(this->p[4]) ; } 
-  uint32_t         getLen() const { return              this->p[5]  ; }
-  uint32_t      getStride() const { return              this->p[6]  ; }
-  Bus::Address    getNext() const { return Bus::Address(this->p[7]) ; }
-  Debug          getDebug() const { return        Debug(this->p[8]) ; }
+  Cs                getCs() const { return              Cs(this->p[0]) ; }
+  Bus::Address      getCb() const { return    Bus::Address(this->p[1]) ; }
+  Ti::Word          getTi() const { return Ti::Word::coset(this->p[2]) ; }
+  Bus::Address     getSrc() const { return    Bus::Address(this->p[3]) ; } 
+  Bus::Address     getDst() const { return    Bus::Address(this->p[4]) ; } 
+  uint32_t         getLen() const { return                 this->p[5]  ; }
+  uint32_t      getStride() const { return                 this->p[6]  ; }
+  Bus::Address    getNext() const { return    Bus::Address(this->p[7]) ; }
+  Debug          getDebug() const { return           Debug(this->p[8]) ; }
 
   void    setCs(Cs             cs) { this->p[0] =   Cs::wmask & cs.u32 ; }
   void    setCb(Bus::Address addr) { this->p[1] =         addr.value() ; }

@@ -81,6 +81,7 @@ LSRC=\
 	Rpi/Cm.cc \
 	Rpi/Counter.cc \
 	Rpi/Dma/Channel.cc \
+	Rpi/Dma/Ti.cc \
 	Rpi/Function.cc \
 	Rpi/Gpio.cc \
 	Rpi/Mbox/Interface.cc \
@@ -99,6 +100,7 @@ LSRC=\
 	Rpi/Spi1.cc \
 	Rpi/Timer.cc \
 	RpiExt/Bang.cc \
+	RpiExt/Dma.cc \
 	RpiExt/Pwm.cc \
 	RpiExt/Serialize.cc \
 	RpiExt/Spi0.cc \

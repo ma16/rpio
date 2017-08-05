@@ -172,7 +172,7 @@ static void startInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
 static void tiInvoke(Rpi::Peripheral*,Ui::ArgL *argL)
 {
-  auto ti = Lib::optTi(argL,Rpi::Dma::Ti()) ;
+  auto ti = Lib::optTi(argL,Rpi::Dma::Ti::Word()) ;
   argL->finalize() ;
   std::cout << std::hex << ti.value() << std::endl ;
 }

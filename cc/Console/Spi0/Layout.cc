@@ -31,7 +31,7 @@ static Rpi::Bus::Alloc::Chunk alloc_tx_data(Rpi::Bus::Alloc *alloc,Console::Spi0
 
 // ----[ generic DMA CB setup ]----------------------------------------
 
-static Rpi::Bus::Alloc::Chunk alloc_cb(Rpi::Bus::Alloc *alloc,Rpi::Dma::Ti ti,Rpi::Bus::Address src,Rpi::Bus::Address dst,uint32_t nbytes)
+static Rpi::Bus::Alloc::Chunk alloc_cb(Rpi::Bus::Alloc *alloc,Rpi::Dma::Ti::Word ti,Rpi::Bus::Address src,Rpi::Bus::Address dst,uint32_t nbytes)
 {
     auto c = alloc->seize(8 * sizeof(uint32_t),8 * sizeof(uint32_t)) ;
 
@@ -65,84 +65,87 @@ static void link_cb(std::deque<Rpi::Bus::Alloc::Chunk> const &q,bool loop)
 // ----[ DMA Transfer Information ]------------------------------------
 
 // transfer a single word, no pacing
-static Rpi::Dma::Ti make_1x1()
+static Rpi::Dma::Ti::Word make_1x1()
 {
-    Rpi::Dma::Ti ti ;
-
-    ti.       inten() =  false ; 
-    ti.      tdmode() =  false ; 
-    ti.    waitResp() =   true ; // play it safe
-    ti.noWideBursts() =   true ; // play it safe
+    using namespace Rpi::Dma::Ti ;
     
-    ti.      srcInc() =  false ; 
-    ti.    srcWidth() =  false ; // play it safe
-    ti.     srcDreq() =  false ;  
-    ti.   srcIgnore() =  false ;  
+    Word w ;
+    w = Inten       ::make<0>() ; 
+    w = Tdmode      ::make<0>() ; 
+    w = WaitResp    ::make<1>() ; // play it safe
+    
+    w = SrcInc      ::make<0>() ; 
+    w = SrcWidth    ::make<0>() ; // play it safe 
+    w = SrcDreq     ::make<0>() ; 
+    w = SrcIgnore   ::make<0>() ;
+    
+    w = DestInc     ::make<0>() ; 
+    w = DestWidth   ::make<0>() ; // play it safe
+    w = DestDreq    ::make<0>() ; 
+    w = DestIgnore  ::make<0>() ;
+    
+    w = BurstLength ::make<0>() ; 
+    w = Permap      ::make<0>() ;
+    w = Waits       ::make<0>() ; 
+    w = NoWideBursts::make<1>() ; // play it safe
 
-    ti.     destInc() =  false ; 
-    ti.   destWidth() =  false ; // play it safe
-    ti.    destDreq() =  false ; 
-    ti.  destIgnore() =  false ; 
-
-    ti. burstLength() = Rpi::Dma::Ti::BurstLength::Uint::make<0>() ; 
-    ti.      permap() = Rpi::Dma::Ti::     Permap::Uint::make<0>() ; 
-    ti.       waits() = Rpi::Dma::Ti::      Waits::Uint::make<0>() ;
-
-    return ti ;
+    return w ;
 }
 
 // transfer buffer to peripheral register, no pacing
-static Rpi::Dma::Ti make_Nx1()
+static Rpi::Dma::Ti::Word make_Nx1()
 {
-    Rpi::Dma::Ti ti ;
-
-    ti.       inten() =  false ; 
-    ti.      tdmode() =  false ; 
-    ti.    waitResp() =   true ; // play it safe
-    ti.noWideBursts() =   true ; // play it safe
+    using namespace Rpi::Dma::Ti ;
     
-    ti.      srcInc() =   true ; // buffer gets incremented
-    ti.    srcWidth() =  false ; // play it safe
-    ti.     srcDreq() =  false ;  
-    ti.   srcIgnore() =  false ;  
+    Word w ;
+    w = Inten       ::make<0>() ; 
+    w = Tdmode      ::make<0>() ; 
+    w = WaitResp    ::make<1>() ; // play it safe
+    
+    w = SrcInc      ::make<1>() ; // buffer gets incremented
+    w = SrcWidth    ::make<0>() ; // play it safe 
+    w = SrcDreq     ::make<0>() ; 
+    w = SrcIgnore   ::make<0>() ;
+    
+    w = DestInc     ::make<0>() ; 
+    w = DestWidth   ::make<0>() ; // play it safe
+    w = DestDreq    ::make<0>() ; 
+    w = DestIgnore  ::make<0>() ;
+    
+    w = BurstLength ::make<0>() ; 
+    w = Permap      ::make<0>() ;
+    w = Waits       ::make<0>() ; 
+    w = NoWideBursts::make<1>() ; // play it safe
 
-    ti.     destInc() =  false ; // register
-    ti.   destWidth() =  false ; // only 32-bit words
-    ti.    destDreq() =  false ; 
-    ti.  destIgnore() =  false ; 
-
-    ti. burstLength() = Rpi::Dma::Ti::BurstLength::Uint::make<0>() ; 
-    ti.      permap() = Rpi::Dma::Ti::     Permap::Uint::make<0>() ; 
-    ti.       waits() = Rpi::Dma::Ti::      Waits::Uint::make<0>() ;
-
-    return ti ;
+    return w ;
 }
 
 // transfer peripheral register (fifo) to buffer, with pacing
-static Rpi::Dma::Ti make_1xN(Rpi::Dma::Ti::Permap::Uint permap)
+static Rpi::Dma::Ti::Word make_1xN(Rpi::Dma::Ti::Permap permap)
 {
-    Rpi::Dma::Ti ti ;
+    using namespace Rpi::Dma::Ti ;
     
-    ti.       inten() =  false ; 
-    ti.      tdmode() =  false ; 
-    ti.    waitResp() =   true ; // play it safe
-    ti.noWideBursts() =   true ; // play it safe
+    Word w ;
+    w = Inten       ::make<0>() ; 
+    w = Tdmode      ::make<0>() ; 
+    w = WaitResp    ::make<1>() ; // play it safe
     
-    ti.      srcInc() =  false ; // register
-    ti.    srcWidth() =  false ; // only 32-bit words
-    ti.     srcDreq() =   true ; // paced by peripheral
-    ti.   srcIgnore() =  false ; 
+    w = SrcInc      ::make<0>() ; 
+    w = SrcWidth    ::make<0>() ; // only 32-bit words
+    w = SrcDreq     ::make<1>() ; // paced by peripheral
+    w = SrcIgnore   ::make<0>() ;
     
-    ti.     destInc() =   true ; // buffer gets incremented
-    ti.   destWidth() =  false ; // play it safe
-    ti.    destDreq() =  false ;  
-    ti.  destIgnore() =  false ;
+    w = DestInc     ::make<1>() ; // buffer gets incremented
+    w = DestWidth   ::make<0>() ; // play it safe
+    w = DestDreq    ::make<0>() ; 
+    w = DestIgnore  ::make<0>() ;
     
-    ti. burstLength() = Rpi::Dma::Ti::BurstLength::Uint::make<0>() ; 
-    ti.      permap() = permap ;
-    ti.       waits() = Rpi::Dma::Ti::      Waits::Uint::make<0>() ;
+    w = BurstLength ::make<0>() ; 
+    w =                  permap ;
+    w = Waits       ::make<0>() ; 
+    w = NoWideBursts::make<1>() ; // play it safe
 
-    return ti ;
+    return w ;
 }
 
 // ----[ specific DMA CB setup ]---------------------------------------
@@ -164,7 +167,7 @@ static Rpi::Bus::Alloc::Chunk alloc_ts_cb(Rpi::Bus::Alloc *alloc,Rpi::Bus::Alloc
 
 static Rpi::Bus::Alloc::Chunk alloc_rx_cb(Rpi::Bus::Alloc *alloc,Rpi::Bus::Alloc::Chunk const &data)
 {
-    return alloc_cb(alloc,make_1xN(Rpi::Dma::Ti::Permap::Uint::make<7>()),Rpi::Spi0::fifo_addr(),data.address(),data.nbytes()) ;
+    return alloc_cb(alloc,make_1xN(Rpi::Dma::Ti::Permap::make<7>()),Rpi::Spi0::fifo_addr(),data.address(),data.nbytes()) ;
 }
 
 // ----[ DMA memory layout ]-------------------------------------------

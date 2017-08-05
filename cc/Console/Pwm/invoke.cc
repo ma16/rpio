@@ -9,6 +9,7 @@
 #include <Posix/base.h>
 #include <Rpi/GpuMem.h>
 #include <Rpi/Timer.h>
+#include <RpiExt/Dma.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>
 #include <Ui/ostream.h>
@@ -283,7 +284,8 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << std::setw(5) << s.test(Status::Rerr)
 	      << std::setw(5) << s.test(Status::Werr)
 	      << std::setw(5) << s.test(Status::Empt)
-	      << std::setw(5) << s.test(Status::Full) ;
+	      << std::setw(5) << s.test(Status::Full)
+	      << '\n' ;
 
     std::cout
 	<< "# sta gap msen usef pola sbit rptl mode pwen     data    range\n"
@@ -340,7 +342,7 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     auto dma_cs = Lib::optCs(argL,Rpi::Dma::Cs()) ;
   
-    auto dma_ti = Lib::optTi(argL,Rpi::Dma::Ti::send(Rpi::Pwm::DmaC::Permap)) ;
+    auto dma_ti = Lib::optTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
 
     auto allocator = RpiExt::VcMem::
 	getFactory(rpi,argL,RpiExt::VcMem::defaultFactory()) ;
@@ -352,24 +354,24 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // ---- remaining setup ----
 
   
-    Lib::Control ctl(allocator->allocate((2+1) * 32)) ;
+    RpiExt::Dma::Control ctl(allocator->allocate((2+1) * 32)) ;
   
     auto t0 = allocator->allocate(sizeof(uint32_t)) ; 
-    Lib::write(&ctl,Rpi::Dma::Ti(),
-	       Rpi::Timer::Address,
-	       t0.get(),0u,
-	       sizeof(uint32_t)) ;
+    RpiExt::Dma::write(&ctl,Rpi::Dma::Ti::Word(),
+		       Rpi::Timer::Address,
+		       t0.get(),0u,
+		       sizeof(uint32_t)) ;
     
-    Lib::write(&ctl,dma_ti,
-	       file_data.get(),0u,
-	       Rpi::Pwm::Fifo::Address,
-	       file_data->nbytes()) ;
+    RpiExt::Dma::write(&ctl,dma_ti,
+		       file_data.get(),0u,
+		       Rpi::Pwm::Fifo::Address,
+		       file_data->nbytes()) ;
     
     auto t1 = allocator->allocate(sizeof(uint32_t)) ; 
-    Lib::write(&ctl,Rpi::Dma::Ti(),
-	       Rpi::Timer::Address,
-	       t1.get(),0u,
-	       sizeof(uint32_t)) ;
+    RpiExt::Dma::write(&ctl,Rpi::Dma::Ti::Word(),
+		       Rpi::Timer::Address,
+		       t1.get(),0u,
+		       sizeof(uint32_t)) ;
 
     // (3) ---- run ----
 
@@ -381,7 +383,11 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     while (0 != (dma_channel.getCs().active().bits()))
 	Posix::nanosleep(1e3) ;
     // ...arbitrary sleep value
-  
+
+    // [todo] if there is any exception, then the DMA must stop first
+    // and thereafter the memory can be released. On process abortion,
+    // the (VC) memory stays allocated and the DMA continues running.
+    
     // (4) ---- log statistics ----
   
     std::cout.setf(std::ios::scientific) ;

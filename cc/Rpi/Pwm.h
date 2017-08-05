@@ -177,7 +177,7 @@ struct Pwm
 
 	void write(Word w) { (*p) = w.value() ; }
 
-	static constexpr auto Permap = Dma::Ti::Permap::Uint::make<5>() ;
+	static constexpr auto Permap = Dma::Ti::Permap::make<5>() ;
 	
     private:
 	

@@ -7,6 +7,7 @@
 
 #include <limits>
 #include <type_traits>
+#include <stdexcept>
 
 namespace Neat { namespace Bit {
 
@@ -71,6 +72,43 @@ template<typename U,U M> struct Word
 	return Bit(this,d) ;
     }
     
+    template<unsigned O,unsigned L> struct Set
+    {
+	static constexpr auto Offset = O ;
+	static constexpr auto Len    = L ;
+	
+	static constexpr auto Mask =
+	    (~Unsigned(0) << Offset) ^ (~Unsigned(0) << (Offset+Len)) ;
+	//static_assert(Mask == (Mask & Word::Mask),"out of range") ;
+	
+	template<Unsigned I>static constexpr Set make()
+	{
+	    static_assert((I << Offset) == ((I << Offset) & Mask),"out of range") ;
+	    return (I << Offset) ;
+	}
+
+	static Set make(Unsigned i)
+	{
+	    if (i != (i & Mask))
+		throw std::runtime_error("invalid value") ; // [todo]
+	    return i ;
+	}
+
+	Unsigned value() const { return i ; }
+
+    private:
+
+	Unsigned i ; constexpr Set(unsigned i) : i(i) {}
+
+    } ;
+
+    template<unsigned Offset,unsigned Len> Word& operator=(Set<Offset,Len> set)
+    {
+	this->i &= ~set.Mask ;
+	this->i |=  set.value() ;
+	return (*this) ;
+    }
+
     constexpr Unsigned value() const { return i ; }
 
     constexpr Word() : i(0) {}
