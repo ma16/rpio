@@ -9,7 +9,7 @@
 #include <Posix/base.h>
 #include <Rpi/GpuMem.h>
 #include <Rpi/Timer.h>
-#include <RpiExt/Dma.h>
+#include <RpiExt/Dma/Control.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>
 #include <Ui/ostream.h>
@@ -353,7 +353,7 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     // ---- remaining setup ----
   
-    RpiExt::Dma::Control ctl(allocator->allocate((2+1) * 32)) ;
+    RpiExt::Dma::Control ctl(allocator) ;
 
     auto t0 = allocator->allocate(sizeof(uint32_t)) ; 
     ctl.add(Rpi::Dma::Ti::Word(),Rpi::Timer::Address,t0.get()) ;
@@ -366,7 +366,7 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // (3) ---- run ----
 
     auto dma_channel = Rpi::Dma::Ctrl(rpi).channel(dma_index) ;
-    dma_channel.setup(ctl.addr(),dma_cs) ;
+    dma_channel.setup(ctl.address(),dma_cs) ;
     dma_channel.start() ;
     // ...fill up the PWM queue first ?!
 

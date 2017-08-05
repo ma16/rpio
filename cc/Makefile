@@ -100,7 +100,7 @@ LSRC=\
 	Rpi/Spi1.cc \
 	Rpi/Timer.cc \
 	RpiExt/Bang.cc \
-	RpiExt/Dma.cc \
+	RpiExt/Dma/Control.cc \
 	RpiExt/Pwm.cc \
 	RpiExt/Serialize.cc \
 	RpiExt/Spi0.cc \
