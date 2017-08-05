@@ -352,26 +352,16 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
 
     // ---- remaining setup ----
-
   
     RpiExt::Dma::Control ctl(allocator->allocate((2+1) * 32)) ;
-  
+
     auto t0 = allocator->allocate(sizeof(uint32_t)) ; 
-    RpiExt::Dma::write(&ctl,Rpi::Dma::Ti::Word(),
-		       Rpi::Timer::Address,
-		       t0.get(),0u,
-		       sizeof(uint32_t)) ;
+    ctl.add(Rpi::Dma::Ti::Word(),Rpi::Timer::Address,t0.get()) ;
     
-    RpiExt::Dma::write(&ctl,dma_ti,
-		       file_data.get(),0u,
-		       Rpi::Pwm::Fifo::Address,
-		       file_data->nbytes()) ;
+    ctl.add(dma_ti,file_data.get(),Rpi::Pwm::Fifo::Address) ;
     
     auto t1 = allocator->allocate(sizeof(uint32_t)) ; 
-    RpiExt::Dma::write(&ctl,Rpi::Dma::Ti::Word(),
-		       Rpi::Timer::Address,
-		       t1.get(),0u,
-		       sizeof(uint32_t)) ;
+    ctl.add(Rpi::Dma::Ti::Word(),Rpi::Timer::Address,t1.get()) ;
 
     // (3) ---- run ----
 

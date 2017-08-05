@@ -3,11 +3,8 @@
 #ifndef INCLUDE_RpiExt_Dma_h
 #define INCLUDE_RpiExt_Dma_h
 
-#include <cassert>
-#include <Neat/cast.h>
 #include <Rpi/Bus/Memory.h>
 #include <Rpi/Dma.h>
-#include <Rpi/Peripheral.h>
 
 namespace RpiExt {
 
@@ -24,21 +21,28 @@ namespace Dma
 	// ...mem must be 32-byte aligned and hold a multiple of
 	// 32-byte blocks
   
-	void write(Rpi::Dma::Ti::Word ti,
-		   Rpi::Bus::Address src,
-		   Rpi::Bus::Address dst,
-		   uint32_t       nbytes,
-		   uint32_t       stride) ;
-	// ...throws if the given memory (in the c'tor) is exhausted
+	// read buffer from peripheral (register)
+	void add(Rpi::Dma::Ti::Word ti,
+		 Rpi::Bus::Address src, 
+		 Rpi::Bus::Memory *dst) ;
 
-	void repeat(size_t ofs) ;
-
-	Rpi::Bus::Memory* mem() { assert(i>0) ; return mem_.get() ; }
+	// write buffer to peripheral (register)
+	void add(Rpi::Dma::Ti::Word ti,
+		 Rpi::Bus::Memory *src,
+		 Rpi::Bus::Address dst) ;
+	
+	Rpi::Bus::Memory* mem()
+	{
+	    if (i == 0)
+		throw Error("empty list of control-blocks") ;
+	    return mem_.get() ;
+	}
 	// ...the physical memory address to be ued by Rpi::Dma
 
 	Rpi::Bus::Address addr()
 	{
-	    assert(i>0) ;
+	    if (i == 0)
+		throw Error("empty list of control-blocks") ;
 	    return Rpi::Bus::Address(mem_->phys(0).first) ;
 	}
   
@@ -47,24 +51,14 @@ namespace Dma
     private:
   
 	Rpi::Bus::Memory::shared_ptr mem_ ; uint32_t i=0 ;
-    } ;
-  
-    void write(Control          *ctl,
-	       Rpi::Dma::Ti::Word ti,
-	       Rpi::Bus::Address src,
-	       Rpi::Bus::Memory *dst,
-	       uint32_t         dofs,
-	       uint32_t       nbytes) ;
 
-    void write(Control          *ctl,
-	       Rpi::Dma::Ti::Word ti,
-	       Rpi::Bus::Memory *src,
-	       uint32_t         sofs,
-	       Rpi::Bus::Address dst,
-	       uint32_t       nbytes) ;
-  
-    
-    
+	void add(Rpi::Dma::Ti::Word ti,
+		 Rpi::Bus::Address src,
+		 Rpi::Bus::Address dst,
+		 uint32_t       nbytes,
+		 uint32_t       stride) ;
+	// ...throws if the given memory (in the c'tor) is exhausted
+    } ;
 } }
 
 #endif // INCLUDE_RpiExt_Dma_h
