@@ -38,41 +38,43 @@
 #include <type_traits> // std::is_pointer		
 #include <utility> // std::pair
 
-namespace Rpi { namespace Bus { struct Memory
+namespace Rpi { namespace Bus {
+
+struct Memory
 {
-  using shared_ptr = std::shared_ptr<Memory> ;
+    using shared_ptr = std::shared_ptr<Memory> ;
   
-  virtual void* virt() = 0 ;
-  // ...contiguous area of virtual memory (p,p+n]
+    virtual void* virt() = 0 ;
+    // ...contiguous area of virtual memory (p,p+n]
 
-  template<typename P> P as() const
-  {
-    static_assert(std::is_pointer<P>::value,"not a pointer") ;
-    auto p = Neat::clip_const(this)->virt() ;
-    return reinterpret_cast<P>(p) ;
-  }
+    template<typename P> P as() const
+    {
+	static_assert(std::is_pointer<P>::value,"not a pointer") ;
+	auto p = Neat::clip_const(this)->virt() ;
+	return reinterpret_cast<P>(p) ;
+    }
   
-  template<typename P> P as()
-  {
-    auto p = Neat::as_const(this)->as<P>() ; return Neat::clip_const(p) ;
-  }
+    template<typename P> P as()
+    {
+	auto p = Neat::as_const(this)->as<P>() ; return Neat::clip_const(p) ;
+    }
   
-  virtual std::pair<Bus::Address,size_t> phys(size_t ofs) = 0 ;
-  // ...memory block (p,p+m] at given offset
+    virtual std::pair<Bus::Address,size_t> phys(size_t ofs) = 0 ;
+    // ...memory block (p,p+m] at given offset
   
-  virtual size_t nbytes() const = 0 ;
-  // ...allocated memory size
+    virtual size_t nbytes() const = 0 ;
+    // ...allocated memory size
 
-  virtual ~Memory() {}
+    virtual ~Memory() {}
 
-  struct Factory
-  {
-    using shared_ptr = std::shared_ptr<Factory> ;
+    struct Factory
+    {
+	using shared_ptr = std::shared_ptr<Factory> ;
     
-    virtual Memory::shared_ptr allocate(size_t nbytes) = 0 ;
+	virtual Memory::shared_ptr allocate(size_t nbytes) = 0 ;
 
-    virtual ~Factory() {}
-  } ;
+	virtual ~Factory() {}
+    } ;
   
 } ; } }
 
