@@ -5,7 +5,6 @@
 // --------------------------------------------------------------------
 
 #include "../rpio.h"
-#include "Lib.h"
 #include <Neat/cast.h>
 #include <Neat/safe_int.h>
 #include <Linux/Shm.h>
@@ -13,6 +12,7 @@
 #include <Rpi/Dma.h>
 #include <Rpi/GpuMem.h>
 #include <Rpi/Timer.h>
+#include <Rpi/Ui/Dma.h>
 #include <Ui/strto.h>
 #include <chrono>
 #include <cstring>
@@ -159,7 +159,7 @@ static void startInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   auto channel = Rpi::Dma::Ctrl(rpi).channel(Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index())) ;
   auto cb = Ui::strto<uint32_t>(argL->pop()) ;
-  auto cs = Lib::optCs(argL,Rpi::Dma::Cs()) ;
+  auto cs = Rpi::Ui::Dma::optCs(argL,Rpi::Dma::Cs()) ;
   argL->finalize() ;
   channel.setup(Rpi::Bus::Address(cb),cs) ;
   channel.start() ;
@@ -172,7 +172,7 @@ static void startInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
 static void tiInvoke(Rpi::Peripheral*,Ui::ArgL *argL)
 {
-  auto ti = Lib::optTi(argL,Rpi::Dma::Ti::Word()) ;
+  auto ti = Rpi::Ui::Dma::optTi(argL,Rpi::Dma::Ti::Word()) ;
   argL->finalize() ;
   std::cout << std::hex << ti.value() << std::endl ;
 }

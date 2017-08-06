@@ -4,7 +4,6 @@
 #include <deque>
 #include <iomanip>
 #include <iostream>
-#include <Console/Dma/Lib.h>
 #include <Neat/stream.h>
 #include <Posix/base.h>
 #include <Rpi/GpuMem.h>
@@ -12,6 +11,7 @@
 #include <RpiExt/Dma/Control.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>
+#include <Rpi/Ui/Dma.h>
 #include <Ui/ostream.h>
 #include <Ui/strto.h>
 
@@ -329,20 +329,17 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "  CS = DMA control and status\n"
 		  << "  TI = DMA transfer information\n"
 		  << " MEM = type of memory to be used for DMA setup\n"
-		  << "FILE = name of file with data to be sent\n"
-		  << std::flush ;
+		  << "FILE = name of file with data to be sent\n" ;
 	return ;
     }
 
-    using namespace Console::Dma ; // makes Lib:: visible
-    
     // ---- configuration ----
 
     auto dma_index = Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index()) ;
     
-    auto dma_cs = Lib::optCs(argL,Rpi::Dma::Cs()) ;
+    auto dma_cs = Rpi::Ui::Dma::optCs(argL,Rpi::Dma::Cs()) ;
   
-    auto dma_ti = Lib::optTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
+    auto dma_ti = Rpi::Ui::Dma::optTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
 
     auto allocator = RpiExt::VcMem::
 	getFactory(rpi,argL,RpiExt::VcMem::defaultFactory()) ;
@@ -372,7 +369,7 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     while (0 != (dma_channel.getCs().active().bits()))
 	Posix::nanosleep(1e3) ;
-    // ...arbitrary sleep value
+    // ...arbitrary sleep value [todo] C++ sleep
 
     // [todo] if there is any exception, then the DMA must stop first
     // and thereafter the memory can be released. On process abortion,
@@ -386,6 +383,9 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 				  t0->as<uint32_t*>()[0]) / 1e6 ;
     std::cout << dt << "s "
 	      << static_cast<double>(file_data->nbytes()/4*32)/dt << "/s\n" ;
+
+    // [note] this is faster than pwm.clock since we fill up the PWM
+    // FIFO (16 words) in almost zero-time.
 }
 
 // --------------------------------------------------------------------

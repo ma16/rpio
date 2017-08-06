@@ -35,7 +35,6 @@ LSRC=\
 	Console/Device/Mcp3008/invoke.cc \
 	Console/Device/Max7219/invoke.cc \
 	Console/Device/Ws2812b/invoke.cc \
-	Console/Dma/Lib.cc \
 	Console/Dma/invoke.cc \
 	Console/Gpio/invoke.cc \
 	Console/Intr/invoke.cc \
@@ -105,6 +104,7 @@ LSRC=\
 	RpiExt/Serialize.cc \
 	RpiExt/Spi0.cc \
 	RpiExt/VcMem.cc \
+	Rpi/Ui/Dma.cc \
 	Ui/ArgL.cc \
 	Ui/strto.cc
 
