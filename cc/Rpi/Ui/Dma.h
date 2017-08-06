@@ -17,6 +17,7 @@ namespace Dma
     Rpi::Dma::Cs optCs(::Ui::ArgL *argL,Rpi::Dma::Cs cs) ;
 
     Rpi::Dma::Ti::Word optTi(::Ui::ArgL *argL,Rpi::Dma::Ti::Word ti) ;
+    
 } } } 
 
 #endif // HEADER_Rpi_Ui_Dma_h

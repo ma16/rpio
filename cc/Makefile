@@ -104,6 +104,8 @@ LSRC=\
 	RpiExt/Serialize.cc \
 	RpiExt/Spi0.cc \
 	RpiExt/VcMem.cc \
+	Rpi/Ui/Bus/Coherency.cc \
+	Rpi/Ui/Bus/Memory.cc \
 	Rpi/Ui/Dma.cc \
 	Ui/ArgL.cc \
 	Ui/strto.cc

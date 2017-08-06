@@ -11,6 +11,7 @@
 #include <RpiExt/Dma/Control.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>
+#include <Rpi/Ui/Bus/Memory.h>
 #include <Rpi/Ui/Dma.h>
 #include <Ui/ostream.h>
 #include <Ui/strto.h>
@@ -322,14 +323,13 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     {
-	std::cout << "arguments: DIX [CS] [TI] [MEM] FILE\n"
+	std::cout << "arguments: CHANNEL [CS] [TI] [MEMORY] FILE\n"
 		  << '\n'
-		  << " DIX : 0..15  # DMA channel index to use\n"
-		  << '\n'
-		  << "  CS = DMA control and status\n"
-		  << "  TI = DMA transfer information\n"
-		  << " MEM = type of memory to be used for DMA setup\n"
-		  << "FILE = name of file with data to be sent\n" ;
+		  << " CHANNEL = DMA channel (0..15)\n"
+		  << "      CS = DMA control and status register\n"
+		  << "      TI = DMA transfer information\n"
+		  << "  MEMORY = type of memory to be used for DMA setup\n"
+		  << "    FILE = name of file with data to be sent\n" ;
 	return ;
     }
 
@@ -341,10 +341,10 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     auto dma_ti = Rpi::Ui::Dma::optTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
 
-    auto allocator = RpiExt::VcMem::
+    auto allocator = Rpi::Ui::Bus::Memory::
 	getFactory(rpi,argL,RpiExt::VcMem::defaultFactory()) ;
   
-    auto file_data = RpiExt::VcMem::read(argL->pop(),allocator.get()) ;
+    auto file_data = Rpi::Ui::Bus::Memory::read(argL->pop(),allocator.get()) ;
 
     argL->finalize() ;
 
