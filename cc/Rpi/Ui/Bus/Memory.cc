@@ -8,16 +8,17 @@
 #include <Rpi/GpuMem.h>
 #include <Ui/strto.h>
 
-Rpi::Bus::Memory::Factory::shared_ptr Rpi::Ui::Bus::Memory::
-getFactory(Rpi::Peripheral *rpi,::Ui::ArgL *argL) 
+Rpi::Bus::Memory::Allocator::shared_ptr Rpi::Ui::Bus::Memory::
+getAllocator(Rpi::Peripheral *rpi,::Ui::ArgL *argL) 
 {
     auto type = argL->pop({"arm","gpu"}) ;
-    switch (type) {
+    switch (type)
+    {
     case 0:
     {
 	auto co = Coherency::get(argL) ;
 	auto stick = argL->pop_if("-s") ;
-	return Rpi::ArmMem::Factory::shared_ptr(new Rpi::ArmMem::Factory(co,stick)) ;
+	return Rpi::ArmMem::Allocator::shared_ptr(new Rpi::ArmMem::Allocator(co,stick)) ;
     }
     case 1:
     {
@@ -33,17 +34,17 @@ getFactory(Rpi::Peripheral *rpi,::Ui::ArgL *argL)
 	    auto vcio = Rpi::Mbox::Vcio::shared_ptr(new Rpi::Mbox::Vcio()) ;
 	    iface = Rpi::Mbox::Interface::make(vcio) ;
 	}
-	return Rpi::GpuMem::Factory::shared_ptr(new Rpi::GpuMem::Factory(iface,align,mode)) ;
+	return Rpi::GpuMem::Allocator::shared_ptr(new Rpi::GpuMem::Allocator(iface,align,mode)) ;
     }
     }
     abort() ;
 }
 
-Rpi::Bus::Memory::Factory::shared_ptr Rpi::Ui::Bus::Memory::
-getFactory(Rpi::Peripheral *rpi,::Ui::ArgL *argL,Memory::Factory::shared_ptr def) 
+Rpi::Bus::Memory::Allocator::shared_ptr Rpi::Ui::Bus::Memory::
+getAllocator(Rpi::Peripheral *rpi,::Ui::ArgL *argL,Memory::Allocator::shared_ptr def) 
 {
     if (argL->pop_if("--memf"))
-	return getFactory(rpi,argL) ;
+	return getAllocator(rpi,argL) ;
     return def ;
 }
 
@@ -62,7 +63,8 @@ static std::shared_ptr<std::istream> getIn(Ui::ArgL *argL)
     
 static void readIn(std::istream *is,Rpi::Bus::Memory *mem)
 {
-    if (is != nullptr) {
+    if (is != nullptr)
+    {
 	auto p = mem->as<char*>() ;
 	auto n = Neat::to_signed(mem->nbytes()) ;
 	is->read(p,n) ;
@@ -72,7 +74,7 @@ static void readIn(std::istream *is,Rpi::Bus::Memory *mem)
 }
 
 Rpi::Bus::Memory::shared_ptr Rpi::Ui::Bus::Memory::
-read(std::string const &fname,Rpi::Bus::Memory::Factory *mem)
+read(std::string const &fname,Rpi::Bus::Memory::Allocator *mem)
 {
     std::ifstream is ; Neat::open(&is,fname) ;
     auto nbytes = Neat::demote<size_t>(Neat::size(&is).as_unsigned()) ; 

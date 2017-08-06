@@ -4,7 +4,7 @@
 #include <Ui/strto.h>
 #include <iomanip> // setw
 
-Rpi::Dma::Cs Rpi::Ui::Dma::optCs(::Ui::ArgL *argL,Rpi::Dma::Cs cs)
+Rpi::Dma::Cs Rpi::Ui::Dma::getCs(::Ui::ArgL *argL,Rpi::Dma::Cs cs)
 {
     while (!argL->empty())
     {
@@ -28,7 +28,7 @@ Rpi::Dma::Cs Rpi::Ui::Dma::optCs(::Ui::ArgL *argL,Rpi::Dma::Cs cs)
     return cs ;
 }
 
-Rpi::Dma::Ti::Word Rpi::Ui::Dma::optTi(::Ui::ArgL *argL,Rpi::Dma::Ti::Word ti)
+Rpi::Dma::Ti::Word Rpi::Ui::Dma::getTi(::Ui::ArgL *argL,Rpi::Dma::Ti::Word ti)
 {
     using namespace Rpi::Dma ;
   

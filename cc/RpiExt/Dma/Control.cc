@@ -29,7 +29,7 @@ void RpiExt::Dma::Control::add(Rpi::Dma::Ti::Word ti,
 			       uint32_t       nbytes,
 			       uint32_t       stride)
 {
-    auto block = this->factory->allocate(32) ; 
+    auto block = this->allocator->allocate(32) ; 
 
     auto p = block->as<uint32_t volatile(*)[8]>() ;
     (*p)[0] = ti.value() ;

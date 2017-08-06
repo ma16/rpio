@@ -159,7 +159,7 @@ static void startInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   auto channel = Rpi::Dma::Ctrl(rpi).channel(Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index())) ;
   auto cb = Ui::strto<uint32_t>(argL->pop()) ;
-  auto cs = Rpi::Ui::Dma::optCs(argL,Rpi::Dma::Cs()) ;
+  auto cs = Rpi::Ui::Dma::getCs(argL,Rpi::Dma::Cs()) ;
   argL->finalize() ;
   channel.setup(Rpi::Bus::Address(cb),cs) ;
   channel.start() ;
@@ -172,7 +172,7 @@ static void startInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
 static void tiInvoke(Rpi::Peripheral*,Ui::ArgL *argL)
 {
-  auto ti = Rpi::Ui::Dma::optTi(argL,Rpi::Dma::Ti::Word()) ;
+  auto ti = Rpi::Ui::Dma::getTi(argL,Rpi::Dma::Ti::Word()) ;
   argL->finalize() ;
   std::cout << std::hex << ti.value() << std::endl ;
 }
@@ -194,27 +194,10 @@ void Console::Dma::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << "INDEX : 0..15              # one of the 16 DMA channels\n"
 	      << '\n'
 	      << "Control and Status Register CS:\n"
-	      << "   | --cs-priority 0..15               # 16:19\n"
-	      << "   | --cs-panic-priority 0..15         # 20:23\n"
-	      << "   | --cs-wait-for-outstanding-writes  # 28   \n"
-	      << "   | --cs-disdebug                     # 29   \n"
+	      << Rpi::Ui::Dma::csSynopsis()
 	      << '\n'
 	      << "Transfer Information TI:\n"
-	      << "   | --ti-inten               #  0   \n"
-	      << "   | --ti-tdmode              #  1   \n"
-	      << "   | --ti-wait-resp           #  3   \n"
-	      << "   | --ti-dest-inc            #  4   \n"
-	      << "   | --ti-dest-width          #  5   \n"
-	      << "   | --ti-dest-dreq           #  6   \n"
-	      << "   | --ti-dest-ignore         #  7   \n"
-	      << "   | --ti-src-inc             #  8   \n"
-	      << "   | --ti-src-width           #  9   \n"
-	      << "   | --ti-src-dreq            # 10   \n"
-	      << "   | --ti-src-ignore          # 11   \n"
-	      << "   | --ti-burst-length 0..15  # 12:15\n"
-	      << "   | --ti-permap 0..31        # 16:20\n"
-	      << "   | --ti-waits 0..31         # 21:25\n"
-	      << "   | --ti-no-wide-bursts      # 26   \n"
+	      << Rpi::Ui::Dma::tiSynopsis()
 	      << std::flush ;
     return ;
     // [future] INDEX 0..6 vs 7..14 (Lite) vs 15 (not operational at all)

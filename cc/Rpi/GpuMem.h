@@ -30,11 +30,11 @@ struct GpuMem : Bus::Memory
 
   ~GpuMem() override { }
 
-  struct Factory : Bus::Memory::Factory
+  struct Allocator : Bus::Memory::Allocator
   {
     virtual GpuMem::shared_ptr allocate(size_t nbytes) override { return GpuMem::allocate(iface,nbytes,align,mode) ; }
 
-    Factory(Mbox::Interface::shared_ptr iface,uint32_t align,Mbox::Property::Memory::Mode mode)
+    Allocator(Mbox::Interface::shared_ptr iface,uint32_t align,Mbox::Property::Memory::Mode mode)
       : iface(iface),align(align),mode(mode) {}
 
   private:

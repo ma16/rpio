@@ -67,13 +67,13 @@ struct Memory
 
     virtual ~Memory() {}
 
-    struct Factory
+    struct Allocator
     {
-	using shared_ptr = std::shared_ptr<Factory> ;
+	using shared_ptr = std::shared_ptr<Allocator> ;
     
 	virtual Memory::shared_ptr allocate(size_t nbytes) = 0 ;
 
-	virtual ~Factory() {}
+	virtual ~Allocator() {}
     } ;
   
 } ; } }

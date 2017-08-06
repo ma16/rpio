@@ -323,13 +323,22 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     {
-	std::cout << "arguments: CHANNEL [CS] [TI] [MEMORY] FILE\n"
-		  << '\n'
-		  << " CHANNEL = DMA channel (0..15)\n"
-		  << "      CS = DMA control and status register\n"
-		  << "      TI = DMA transfer information\n"
-		  << "  MEMORY = type of memory to be used for DMA setup\n"
-		  << "    FILE = name of file with data to be sent\n" ;
+	std::cout
+	    << "arguments: CHANNEL [CS] [TI] [ALLOC] FILE\n"
+	    << '\n'
+	    << "CHANNEL = DMA channel (0..15)\n"
+	    << '\n'
+	    << "CS = DMA control and status:\n"
+	    << Rpi::Ui::Dma::csSynopsis()
+	    << '\n'
+	    << "TI = DMA transfer information:\n"
+	    << Rpi::Ui::Dma::tiSynopsis()
+	    << '\n'
+	    << "ALLOC = allocator for DMA memory:\n"
+	    << Rpi::Ui::Bus::Memory::allocatorSynopsis()
+	    << '\n'
+	    << "FILE = name of file with data to be sent\n"
+	    ;
 	return ;
     }
 
@@ -337,12 +346,12 @@ static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     auto dma_index = Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index()) ;
     
-    auto dma_cs = Rpi::Ui::Dma::optCs(argL,Rpi::Dma::Cs()) ;
+    auto dma_cs = Rpi::Ui::Dma::getCs(argL,Rpi::Dma::Cs()) ;
   
-    auto dma_ti = Rpi::Ui::Dma::optTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
+    auto dma_ti = Rpi::Ui::Dma::getTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
 
     auto allocator = Rpi::Ui::Bus::Memory::
-	getFactory(rpi,argL,RpiExt::VcMem::defaultFactory()) ;
+	getAllocator(rpi,argL,RpiExt::VcMem::defaultAllocator()) ;
   
     auto file_data = Rpi::Ui::Bus::Memory::read(argL->pop(),allocator.get()) ;
 

@@ -28,7 +28,7 @@ size_t Rpi::ArmMem::nbytes() const
   return this->mem->nbytes() ;
 }
 
-Rpi::ArmMem::shared_ptr Rpi::ArmMem::Factory::allocate(size_t nbytes)
+Rpi::ArmMem::shared_ptr Rpi::ArmMem::Allocator::allocate(size_t nbytes)
 {
   return ArmMem::allocate(nbytes,co,stick) ;
 }

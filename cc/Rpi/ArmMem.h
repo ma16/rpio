@@ -18,11 +18,11 @@ namespace Rpi { struct ArmMem : Bus::Memory
   
   virtual size_t nbytes() const override ;
 
-  struct Factory : Bus::Memory::Factory
+  struct Allocator : Bus::Memory::Allocator
   {
     virtual ArmMem::shared_ptr allocate(size_t nbytes) override ;
 
-    Factory(Rpi::Bus::Coherency co,bool stick) : co(co),stick(stick) {}
+    Allocator(Rpi::Bus::Coherency co,bool stick) : co(co),stick(stick) {}
     // since allocate() takes only size as argument, we have to have
     // coherency and sticky (shared memory segment) to set up here
 

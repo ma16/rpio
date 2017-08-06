@@ -27,10 +27,10 @@ struct Control
 	Error(std::string const &s) : Neat::Error("RpiExt:Dma:Control:" + s) {}
     } ;
 
-    using Factory = Rpi::Bus::Memory::Factory ;
+    using Allocator = Rpi::Bus::Memory::Allocator ;
 	
-    Control(Factory::shared_ptr factory) : factory(factory) {}
-    // ...the factory is used to allocate DMA control blocks
+    Control(Allocator::shared_ptr allocator) : allocator(allocator) {}
+    // ...the allocator is used to allocate DMA control blocks
   
     // read buffer from peripheral (register)
     void add(Rpi::Dma::Ti::Word ti,
@@ -52,7 +52,7 @@ struct Control
   
 private:
   
-    Factory::shared_ptr factory ;
+    Allocator::shared_ptr allocator ;
 
     std::deque<Rpi::Bus::Memory::shared_ptr> blocks ;
 

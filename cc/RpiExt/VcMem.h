@@ -11,7 +11,7 @@ namespace RpiExt { namespace VcMem
 {
   using Memory = Rpi::Bus::Memory ;
   
-  Memory::Factory::shared_ptr defaultFactory() ;
+  Memory::Allocator::shared_ptr defaultAllocator() ;
 
 } } 
 
