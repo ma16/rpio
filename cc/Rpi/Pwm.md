@@ -210,11 +210,64 @@ The overflow won't happen if the DMA controller uses TI.WAIT_RESP=1. This makes 
 
 ## Defects
 
+### No Transmission on Channel #2
+
+Even though the channel is active, the peripheral won't transmit a newly enqueued word (Use-Case-1). The control test on channel #1 succeeds however (Use-Case-2).
+
+There is a slight difference between these two test cases: RPTL1 is implicitly set for channel #2. However, setting of RPTL2=1 to imitate this behavior doesn't make any difference (Use-Case-3).
+
+**Work-around**: The FIFO should be cleared whenever channel #2 is used (Use-Case-4).
+
 ### CONTROL.RPTL1
 
-The peripheral behaves always as if RPTL1=1, whether the flag is actually set or not. However, RPTL2 works as speficied. This defect was verified on a Pi model-0 (BCM2835), model-2 (BCM2836) and model-3 (BCM2837).
+The peripheral behaves always as if RPTL1=1, whether the flag is actually set or not (Use-Case-2). This is corroborated by the Status flags since STA1=1 and GAP1=0. A logic analyzer shows the continuous repetition of the signal.
 
-This use-case runs on a newly bootet Raspbian:
+The control test is performed on channel #2 (Use-Case-4). The RPTL1 flag is not set. A logic analyzer shwows only a single occurrance of the signal; without any repetitions. Since there is no more data in the FIFO, the transmission stopped (STA2=0, GAP2=1).
+
+Note: There is a difference between an explicitly set RPTL2 flag and the implicitly set RPTL1 flag. On start-up, channel #1 is not transmitting any signal; however, channel #2 is if RPTL2=1 (compare Use-Case-2 and Use-Case-3).
+
+## Use Cases
+
+All use-cases were run on a Pi model-0 (BCM2835), on model-2 (BCM2836) and on model-3 (BCM2837). Raspbian was just booted up unless otherwise mentioned.
+
+### Use-Case-1
+
+Put a single word into the FIFO for transmission on the active channel #2.
+
+```
+$ ./rpio cm set pwm -f 0 -i 200 -s 6
+$ ./rpio cm switch pwm on
+$ ./rpio pwm control usef2=1 mode2=1 pwen2=1
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   0   0    0    1    0    0    0    1    1        0       20
+$ ./rpio gpio mode 13 0
+$ ./rpio pwm enqueue 0xf0555500
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    0    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   0   0    0    1    0    0    0    1    1        0       20
+```
+
+Observe: The word remains in the FIFO. No transmission took place.
+
+### Use-Case-2
+
+Put a single word into the FIFO for transmission on the active channel #1.
+
 ```
 $ ./rpio cm set pwm -f 0 -i 200 -s 6
 $ ./rpio cm switch pwm on
@@ -225,7 +278,7 @@ berr rerr werr empt full
    0    0    0    1    0
 # sta gap msen usef pola sbit rptl mode pwen     data    range
 --------------------------------------------------------------
-1   1   0    0    1    0    0    0    1    1        0       20
+1   0   0    0    1    0    0    0    1    1        0       20
 2   0   0    0    0    0    0    0    0    0        0       20
 $ ./rpio gpio mode 12 0
 $ ./rpio pwm enqueue 0xf0555500
@@ -240,9 +293,47 @@ berr rerr werr empt full
 1   1   0    0    1    0    0    0    1    1        0       20
 2   0   0    0    0    0    0    0    0    0        0       20
 ```
-The RPTL1 flag is not set. However, with a logic analyzer you'll see the repetition of the signal. The peripheral behaves as if RPTL1 is set. This is corroborated by the still set STA1 flag and the not-raised GAP1 flag. Transmission should stop and the GAP flag should be raised if there is no data in the FIFO, unless the RPTL flag is set.
 
-The control test is performed on channel #2. This use-case runs also on a newly bootet Raspbian:
+Observe: The peripheral repeats the transmission of the word even though RPTL1 is not set.
+
+### Use-Case-3
+
+Put a single word into the FIFO for transmission on the active channel #2. RPTL2 is set.
+
+```
+$ ./rpio cm set pwm -f 0 -i 200 -s 6
+$ ./rpio cm switch pwm on
+$ ./rpio pwm control usef2=1 mode2=1 rptl2=1 pwen2=1
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   1   0    0    1    0    0    1    1    1        0       20
+$ ./rpio gpio mode 13 0
+$ ./rpio pwm enqueue 0xf0555500
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    0    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   1   1    0    1    0    0    1    1    1        0       20
+```
+
+Observe: The word remains in the FIFO. No transmission took place even though STA2=1.
+
+### Use-Case-4
+
+Put a single word into the FIFO for transmission on the active channel #2. The FIFO is cleared beforhand.
+
 ```
 $ ./rpio cm set pwm -f 0 -i 200 -s 6
 $ ./rpio cm switch pwm on
@@ -271,12 +362,13 @@ berr rerr werr empt full
 1   0   0    0    0    0    0    0    0    0        0       20
 2   0   1    0    1    0    0    0    1    1        0       20
 ```
-The RPTL1 flag is not set. With a logic analyzer you'll see only a single occurrance of the signal; without any repetitions. Since there is no data in the FIFO, the transmission stops (STA2=0) and the GAP2 flag is raised as specified.
 
-Note:
-* Clearing the FIFO beforhand is required. Otherwise, no transmission will start. However, on channel #1, this isn't necessary [todo].
+Observe: The transmission is stopped (STA=1) and the GAP flag is raised since there is no more data in the FIFO.
 
-With a logic analyzer you'll see that the signal repeats if RPTL2 is enabled:
+### Use-Case-5
+
+This continues Use-Case-4. Activate RPTL and deactivate again.
+
 ```
 $ ./rpio pwm control rptl2=1
 $ ./rpio pwm clear gap2
@@ -290,11 +382,6 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    0    0    0    0    0    0        0       20
 2   1   0    0    1    0    0    1    1    1        0       20
-```
-As specified for RPTL=1, the transmission continues (STA2=1) and the GAP2 flag is not raised.
-
-Repetition will stop again after clearing the RPTL2 flag:
-```
 $ ./rpio pwm control rptl2=0
 # ./rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
@@ -307,6 +394,8 @@ berr rerr werr empt full
 1   0   0    0    0    0    0    0    0    0        0       20
 2   0   1    0    1    0    0    0    1    1        0       20
 ```
+
+Observe: The transmission is continued (STA=1) when the RPTL is set and stopped (STA=0) again if reset.
 
 ## Errata
 
