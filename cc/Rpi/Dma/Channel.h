@@ -91,7 +91,13 @@ namespace Rpi { namespace Dma { struct Channel
   }
 
   std::string toStr() const ;
-    
+
+  ~Channel()
+  {
+    this->stop() ;
+    // [todo] there may be situations when we want to keep DMA running
+  }
+  
 private:
 
   friend Ctrl ;

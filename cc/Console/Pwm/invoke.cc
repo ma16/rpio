@@ -15,8 +15,6 @@
 #include <Rpi/Ui/Dma.h>
 #include <Ui/strto.h>
 
-// --------------------------------------------------------------------
-
 static void clear(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
