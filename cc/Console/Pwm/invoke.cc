@@ -28,11 +28,21 @@ static void clear(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     {
 	using Status = Rpi::Pwm::Status ;
 	auto arg = argL->pop() ;
-	if (arg == "all" || arg == "berr") w.at(Status::Berr) = 1 ;
-	if (arg == "all" || arg == "gap1") w.at(Status::Gap1) = 1 ;
-	if (arg == "all" || arg == "gap2") w.at(Status::Gap2) = 1 ;
-	if (arg == "all" || arg == "rerr") w.at(Status::Rerr) = 1 ;
-	if (arg == "all" || arg == "werr") w.at(Status::Werr) = 1 ;
+	
+	if (arg == "all")
+	{
+	    w.at(Status::Berr) = 1 ;
+	    w.at(Status::Gap1) = 1 ;
+	    w.at(Status::Gap2) = 1 ;
+	    w.at(Status::Rerr) = 1 ;
+	    w.at(Status::Werr) = 1 ;
+	}
+	else if (arg == "berr") w.at(Status::Berr) = 1 ;
+	else if (arg == "gap1") w.at(Status::Gap1) = 1 ;
+	else if (arg == "gap2") w.at(Status::Gap2) = 1 ;
+	else if (arg == "rerr") w.at(Status::Rerr) = 1 ;
+	else if (arg == "werr") w.at(Status::Werr) = 1 ;
+	
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
     Rpi::Pwm(rpi).status().clear(w) ;
@@ -45,16 +55,15 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout
 	    << "arguments: OPTION+\n"
 	    << '\n'
-	    << "clear              # clear FIFO (single shot)\n"
-	    << "mode.CHANNEL=BOOL  # 1=Serial 0=PWM\n"
-	    << "msen.CHANNEL=BOOL  # 1=Mark-Space 0=coherent (if mode=0)\n"
-	    << "pwen.CHANNEL=BOOL  # 1=start transmission 0=stop\n"
-	    << "pola.CHANNEL=BOOL  # 1=inverse output polarity\n"
-	    << "rptl.CHANNEL=BOOL  # 1=repeat word when idle (if usef=1)\n"
-	    << "sbit.CHANNEL=BOOL  # 1=High 0=Low output when idle\n"
-	    << "usef.CHANNEL=BOOL  # 1=read FIFO 0=read Data register\n"
-	    << '\n'
-	    << "CHANNEL must be either 1 or 2; BOOL must be either 0 or 1\n" ;
+	    << "clear            # clear FIFO (single shot)\n"
+	    << "mode[1|2]=[0|1]  # 1=Serial 0=PWM\n"
+	    << "msen[1|2]=[0|1]  # 1=Mark-Space 0=coherent (if mode=0)\n"
+	    << "pwen[1|2]=[0|1]  # 1=start transmission 0=stop\n"
+	    << "pola[1|2]=[0|1]  # 1=inverse output polarity\n"
+	    << "rptl[1|2]=[0|1]  # 1=repeat word when idle (if usef=1)\n"
+	    << "sbit[1|2]=[0|1]  # 1=High 0=Low output when idle\n"
+	    << "usef[1|2]=[0|1]  # 1=read FIFO 0=read Data register\n"
+	    ;
 	return ;
     }
   
@@ -69,35 +78,35 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 	else if (arg == "clear")  w.at(Control::Clrf) = 1 ;
 	
-    	else if (arg == "mode.1=0") w.at(Control::Mode1) = 0 ;
-    	else if (arg == "mode.2=0") w.at(Control::Mode2) = 0 ;
-    	else if (arg == "msen.1=0") w.at(Control::Msen1) = 0 ;
-    	else if (arg == "msen.2=0") w.at(Control::Msen2) = 0 ;
-    	else if (arg == "pola.1=0") w.at(Control::Pola1) = 0 ;
-    	else if (arg == "pola.2=0") w.at(Control::Pola2) = 0 ;
-    	else if (arg == "pwen.1=0") w.at(Control::Pwen1) = 0 ;
-    	else if (arg == "pwen.2=0") w.at(Control::Pwen2) = 0 ;
-    	else if (arg == "rptl.1=0") w.at(Control::Rptl1) = 0 ;
-    	else if (arg == "rptl.2=0") w.at(Control::Rptl2) = 0 ;
-    	else if (arg == "sbit.1=0") w.at(Control::Sbit1) = 0 ;
-    	else if (arg == "sbit.2=0") w.at(Control::Sbit2) = 0 ;
-    	else if (arg == "usef.1=0") w.at(Control::Usef1) = 0 ;
-    	else if (arg == "usef.2=0") w.at(Control::Usef2) = 0 ;
+    	else if (arg == "mode1=0") w.at(Control::Mode1) = 0 ;
+    	else if (arg == "mode2=0") w.at(Control::Mode2) = 0 ;
+    	else if (arg == "msen1=0") w.at(Control::Msen1) = 0 ;
+    	else if (arg == "msen2=0") w.at(Control::Msen2) = 0 ;
+    	else if (arg == "pola1=0") w.at(Control::Pola1) = 0 ;
+    	else if (arg == "pola2=0") w.at(Control::Pola2) = 0 ;
+    	else if (arg == "pwen1=0") w.at(Control::Pwen1) = 0 ;
+    	else if (arg == "pwen2=0") w.at(Control::Pwen2) = 0 ;
+    	else if (arg == "rptl1=0") w.at(Control::Rptl1) = 0 ;
+    	else if (arg == "rptl2=0") w.at(Control::Rptl2) = 0 ;
+    	else if (arg == "sbit1=0") w.at(Control::Sbit1) = 0 ;
+    	else if (arg == "sbit2=0") w.at(Control::Sbit2) = 0 ;
+    	else if (arg == "usef1=0") w.at(Control::Usef1) = 0 ;
+    	else if (arg == "usef2=0") w.at(Control::Usef2) = 0 ;
 
-    	else if (arg == "mode.1=1") w.at(Control::Mode1) = 1 ;
-    	else if (arg == "mode.2=1") w.at(Control::Mode2) = 1 ;
-    	else if (arg == "msen.1=1") w.at(Control::Msen1) = 1 ;
-    	else if (arg == "msen.2=1") w.at(Control::Msen2) = 1 ;
-    	else if (arg == "pola.1=1") w.at(Control::Pola1) = 1 ;
-    	else if (arg == "pola.2=1") w.at(Control::Pola2) = 1 ;
-    	else if (arg == "pwen.1=1") w.at(Control::Pwen1) = 1 ;
-    	else if (arg == "pwen.2=1") w.at(Control::Pwen2) = 1 ;
-    	else if (arg == "rptl.1=1") w.at(Control::Rptl1) = 1 ;
-    	else if (arg == "rptl.2=1") w.at(Control::Rptl2) = 1 ;
-    	else if (arg == "sbit.1=1") w.at(Control::Sbit1) = 1 ;
-    	else if (arg == "sbit.2=1") w.at(Control::Sbit2) = 1 ;
-    	else if (arg == "usef.1=1") w.at(Control::Usef1) = 1 ;
-    	else if (arg == "usef.2=1") w.at(Control::Usef2) = 1 ;
+    	else if (arg == "mode1=1") w.at(Control::Mode1) = 1 ;
+    	else if (arg == "mode2=1") w.at(Control::Mode2) = 1 ;
+    	else if (arg == "msen1=1") w.at(Control::Msen1) = 1 ;
+    	else if (arg == "msen2=1") w.at(Control::Msen2) = 1 ;
+    	else if (arg == "pola1=1") w.at(Control::Pola1) = 1 ;
+    	else if (arg == "pola2=1") w.at(Control::Pola2) = 1 ;
+    	else if (arg == "pwen1=1") w.at(Control::Pwen1) = 1 ;
+    	else if (arg == "pwen2=1") w.at(Control::Pwen2) = 1 ;
+    	else if (arg == "rptl1=1") w.at(Control::Rptl1) = 1 ;
+    	else if (arg == "rptl2=1") w.at(Control::Rptl2) = 1 ;
+    	else if (arg == "sbit1=1") w.at(Control::Sbit1) = 1 ;
+    	else if (arg == "sbit2=1") w.at(Control::Sbit2) = 1 ;
+    	else if (arg == "usef1=1") w.at(Control::Usef1) = 1 ;
+    	else if (arg == "usef2=1") w.at(Control::Usef2) = 1 ;
 
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
@@ -336,8 +345,8 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto d = pwm.dmaC().read() ;
     std::cout << std::hex
 	      << "DMA-Control: enable=" << d.enable << " "
-	      << "panic=" << d.panic << " "
-	      << "dreq="  << d.dreq << "\n\n" ;
+	      << "panic=" << static_cast<int>(d.panic) << " "
+	      << "dreq="  << static_cast<int>(d. dreq) << "\n\n" ;
     
     using Status = Rpi::Pwm::Status ;
     auto s = pwm.status().read() ;
@@ -447,11 +456,5 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 //   middle of the previous word.
 // --there is no indication by any status flag (BERR,GAPO,RERR) when
 //   the transfer is completed (even so the spec says so).
-// --after the transfer of the last word is completed, the transfer
-//   of the last word will be indefinitely repeated regardless
-//   whether the RPTL flag is set or not (spec is wrong again).
-// --hence, if the transmission is stopped (PWEN=0) as soon as the
-//   FIFO gets empty, the caller should append two (?) dummy word
-//   (i.e. all bits high or all bits low, as needed).
 // --it appears, that gaps are detected on channel #2 but not on
 //   channel #1
