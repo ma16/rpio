@@ -11,7 +11,7 @@ Highlights:
 
 ## Clock Rate
 
-Clock source and pre-scaler are configured by the [clock-manager](../Cm) peripheral (CM):
+Clock source and pre-scaler are configured by the [clock-manager](../Console/Cm) peripheral (CM):
 * The Control register is CM_PWMCTL at address 7E10:10A0.
 * The Divider register is CM_PWMDIV at address 7E10:10A4.
 
@@ -58,14 +58,24 @@ Offset | Name | Abstract | Channel
 
 Name | Description
 :--- | :----------
-CLRF | Write 1 to clear the FIFO. Write 0 has no effect. Read returns always zero.
-MODE# | 0 = PWM, 1 = Serial 
-MSEN# | 0 = coherent, 1 = mark-space; only effective if MODE=0
+CLRF1 | Write 1 to clear the FIFO. Writing 0 has no effect. Read returns always zero.
+MODE# | 0 = PWM, 1 = Serial; see sections below
+MSEN# | 0 = coherent, 1 = mark-space; see sections below; only effective if MODE=0
 POLA# | 0 = normal, 1 = inverse output polarity
 PWEN# |	0 = disable, 1 = enable transmission 
-RPTL# | 0 = normal, 1 = repeat last-sent word if idle; only effective if USEF=1
+RPTL# | 0 = normal, 1 = repeat last-sent word if idle and don't set the GAP Status flag; only effective if USEF=1
 SBIT# | 0 = Low, 1 = High output if idle
-USEF# | 0 = use Data register, 1 = use FIFO instead
+USEF# | 0 = use Data register, 1 = use FIFO instead; see sections below
+
+**RPTL**
+
+This flag defines the behavior of the peripheral when the FIFO runs empty.
+
+If RPTL=0, the peripheral will stop the transmission. GAP will be set and STA will be cleared. The output signal will be as configured in CONTROL.SBIT. When a new word is put into the FIFO, the transmission will continue with this word (STA=1).
+
+If RPTL=1, the peripheral will continue transmission and repeat the last word.  GAP won't be raised and STA remains set. When a new word is put into the FIFO, the transmission will continue with this word.
+
+It appears that channel #1 operates always as if RPTL1=1 (see Defect section).
 
 ### PWM Mode
 
@@ -170,7 +180,7 @@ In Serial mode (CTL.MODE#=1) the value defines the data to transmit (again and a
 
 ## DMA-Control Register (DMAC)
 
-The DMA controller supports writing the FIFO. The DMA controller needs to be set-up with TI.PERMAP=5. This is the peripheral mapping to pace write operations for the PWM-FIFO.
+The peripheral mapping (TI.PERMAP) to pace DMA write operations to the PWM-FIFO is 5.
 
 Offset | Size | Name | Abstract | Default
 -----: | ---: | :--- | :------- | ------:
@@ -178,7 +188,7 @@ Offset | Size | Name | Abstract | Default
 8 | 8 | PANIC | Threshold when to put PANIC signal on the bus | 7
 31 | 1 | ENAB | Enable DMA pacing, i.e. DREQ and PANIC signals | -
 
-That is: the DREQ signal is raised on the AXI bus when the number entries in the FIFO drops to DMAC.DREQ. This signal tells the DMA controller to resume the transfer (and stop if the signal is cleared).
+That is: the DREQ signal is raised on the AXI bus when the number of entries in the FIFO drops to DMAC.DREQ. This signal tells the DMA controller to resume the transfer (and stop if the signal is cleared).
 
  The value of DMAC.DREQ needs to be chosen carefully: there will be a FIFO underrun if DREQ is too small; and there will be a FIFO overflow if DREQ is too big.
 
@@ -194,9 +204,109 @@ DREQ |0..15|  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  24 |  25 |  26 |  
 14 | 0..15| *| *|18|19|20| *| *| *| *| *|26|27|28| *| *| *
 15 | 0..15| *| *|18|19| *| *| *| *| *| *|26|27| *| *| *| *
 
-So there are missing values (*) because of writing into a full FIFO; this appears to be reproducible at different speeds.
+So there are missing values (*) because of writing into a full FIFO; this appears to be reproducible at different speeds. 
 
-The overflow won't happen if the DMA controller uses TI.WAIT_RESP=1. This makes the DMA controller wait until it receives the AXI write response for each write. It ensures that multiple writes cannot get stacked in the AXI bus  pipeline. The maximum transfer rate will drop accordingly.
+The overflow won't happen if the DMA controller uses TI.WAIT_RESP=1. This makes the DMA controller wait after each write until it receives the AXI write-response. It ensures that multiple writes cannot get stacked in the AXI bus pipeline. The maximum transfer rate will drop accordingly.
+
+## Defects
+
+### CONTROL.RPTL1
+
+The peripheral behaves always as if RPTL1=1, whether the flag is actually set or not. However, RPTL2 works as speficied. This defect was verified on a Pi model-0 (BCM2835), model-2 (BCM2836) and model-3 (BCM2837).
+
+This use-case runs on a newly bootet Raspbian:
+```
+$ ./rpio cm set pwm -f 0 -i 200 -s 6
+$ ./rpio cm switch pwm on
+$ ./rpio pwm control usef1=1 mode1=1 pwen1=1
+$ ./rpio pwm status
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   1   0    0    1    0    0    0    1    1        0       20
+2   0   0    0    0    0    0    0    0    0        0       20
+$ ./rpio gpio mode 12 0
+$ ./rpio pwm enqueue 0xf0555500
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   1   0    0    1    0    0    0    1    1        0       20
+2   0   0    0    0    0    0    0    0    0        0       20
+```
+The RPTL1 flag is not set. However, with a logic analyzer you'll see the repetition of the signal. The peripheral behaves as if RPTL1 is set. This is corroborated by the still set STA1 flag and the not-raised GAP1 flag. Transmission should stop and the GAP flag should be raised if there is no data in the FIFO, unless the RPTL flag is set.
+
+The control test is performed on channel #2. This use-case runs also on a newly bootet Raspbian:
+```
+$ ./rpio cm set pwm -f 0 -i 200 -s 6
+$ ./rpio cm switch pwm on
+$ ./rpio pwm control usef2=1 mode2=1 pwen2=1
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   0   0    0    1    0    0    0    1    1        0       20
+$ ./rpio gpio mode 13 0
+$ ./rpio pwm control clear
+$ ./rpio pwm enqueue 0xf0555500
+# ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   0   1    0    1    0    0    0    1    1        0       20
+```
+The RPTL1 flag is not set. With a logic analyzer you'll see only a single occurrance of the signal; without any repetitions. Since there is no data in the FIFO, the transmission stops (STA2=0) and the GAP2 flag is raised as specified.
+
+Note:
+* Clearing the FIFO beforhand is required. Otherwise, no transmission will start. However, on channel #1, this isn't necessary [todo].
+
+With a logic analyzer you'll see that the signal repeats if RPTL2 is enabled:
+```
+$ ./rpio pwm control rptl2=1
+$ ./rpio pwm clear gap2
+# ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   1   0    0    1    0    0    1    1    1        0       20
+```
+As specified for RPTL=1, the transmission continues (STA2=1) and the GAP2 flag is not raised.
+
+Repetition will stop again after clearing the RPTL2 flag:
+```
+$ ./rpio pwm control rptl2=0
+# ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   0   1    0    1    0    0    0    1    1        0       20
+```
 
 ## Errata
 
@@ -208,14 +318,14 @@ Page | Description
 | | The FIFO holds 16 32-bit words. So, if only one channel is used, all 16 words make up a "block".
 138 | "Both modes clocked by clk_pwm which is nominally 100MHz"
 | | The "nominal" clock seems to be zero. It needs to be set-up by the clock-manager.
+140 | "PWM DMA is mapped to DMA channel 5."
+| | The peripheral mapping to pace DMA writes to the PWM FIFO is 5 (TI.PERMAP).
 141 | "PWM clock source and frequency is controlled in CPRMAN."
 | | It doesn't say what *CPRMAN* is or how to set it. Luckily there are people who dug into the topic a bit deeper. It is assumed that *CPRMAN* is the abbrevation for *Clock Power Reset MANager*; which isn't much help either. However, the people contributing to eLinux provided a description for the [clock-manager](http://elinux.org/BCM2835_registers#CM) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
 141 | The base-address for the register-block is missing.
 | | The base-address is 0x7e20:c000.
 143 | CLRF1 is marked as RO (read-only).
 | | It is write-only and reads as zero.
-143 | For RPTL=0: "Transmission interrupts when FIFO is empty"
-| | For none-DMA mode: when the FIFO gets empty, the last word is repeated regardless whether this bit is set or not; even if the FIFO is cleared (CLRF). However, there is nothing to repeat if the serializer starts up with a cleared FIFO.
 143 | For SBIT: "Defines the state of the output when no transmission takes place"
 | | This is only true:
 | | If MODE=0 & MSEN=1 & SBIT=1.
