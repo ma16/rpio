@@ -1,19 +1,18 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../rpio.h"
+#include <chrono>
 #include <deque>
 #include <iomanip>
 #include <iostream>
+#include <thread> // this_thread::sleep_for
 #include <Neat/stream.h>
-#include <Posix/base.h>
-#include <Rpi/GpuMem.h>
 #include <Rpi/Timer.h>
 #include <RpiExt/Dma/Control.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>
 #include <Rpi/Ui/Bus/Memory.h>
 #include <Rpi/Ui/Dma.h>
-#include <Ui/ostream.h>
 #include <Ui/strto.h>
 
 // --------------------------------------------------------------------
@@ -118,6 +117,71 @@ static void data(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto word = Ui::strto<uint32_t>(argL->pop()) ;
     argL->finalize() ;
     Rpi::Pwm(rpi).data(index).write(word) ;
+}
+
+static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    if (argL->empty() || argL->peek() == "help")
+    {
+	std::cout
+	    << "arguments: CHANNEL [CS] [TI] [ALLOC] FILE\n"
+	    << '\n'
+	    << "CHANNEL = DMA channel (0..15)\n"
+	    << '\n'
+	    << "CS = DMA control and status:\n"
+	    << Rpi::Ui::Dma::csSynopsis()
+	    << '\n'
+	    << "TI = DMA transfer information:\n"
+	    << Rpi::Ui::Dma::tiSynopsis()
+	    << '\n'
+	    << "ALLOC = allocator for DMA memory:\n"
+	    << Rpi::Ui::Bus::Memory::allocatorSynopsis()
+	    << '\n'
+	    << "FILE = name of file with data to be sent\n"
+	    ;
+	return ;
+    }
+
+    // dma channel index
+    auto index = Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index()) ;
+
+    // dma channel
+    auto channel = Rpi::Dma::Ctrl(rpi).channel(index) ;
+
+    // dma control and status register
+    auto cs = Rpi::Ui::Dma::getCs(argL,Rpi::Dma::Cs()) ;
+
+    // dma transfer information 
+    auto ti = Rpi::Ui::Dma::getTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
+
+    // bus memory (video core memory) allocator
+    auto allocator = Rpi::Ui::Bus::Memory::
+	getAllocator(rpi,argL,RpiExt::VcMem::defaultAllocator()) ;
+
+    // bus memory with data to transfer
+    auto data = Rpi::Ui::Bus::Memory::read(argL->pop(),allocator.get()) ;
+
+    argL->finalize() ;
+
+    // manage dma control block list
+    RpiExt::Dma::Control cb(allocator) ;
+
+    // control block to copy (user) data to PWM FIFO
+    cb.add(ti,data.get(),Rpi::Pwm::Fifo::Address) ;
+
+    // intialize dma controller
+    channel.setup(cb.address(),cs) ;
+
+    // start dma transfer
+    channel.start() ;
+
+    // wait until transfer is completed
+    while (0 != (channel.getCs().active().bits()))
+	std::this_thread::sleep_for(std::chrono::milliseconds(1)) ;
+    
+    // [note] If there is any exception, then the DMA must stop first
+    // and thereafter the memory can be released. On process abortion,
+    // the (VC) memory stays allocated and the DMA continues running.
 }
 
 static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -317,88 +381,6 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     while (i.next()) ;
 }
 
-// --------------------------------------------------------------------
-
-static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    if (argL->empty() || argL->peek() == "help")
-    {
-	std::cout
-	    << "arguments: CHANNEL [CS] [TI] [ALLOC] FILE\n"
-	    << '\n'
-	    << "CHANNEL = DMA channel (0..15)\n"
-	    << '\n'
-	    << "CS = DMA control and status:\n"
-	    << Rpi::Ui::Dma::csSynopsis()
-	    << '\n'
-	    << "TI = DMA transfer information:\n"
-	    << Rpi::Ui::Dma::tiSynopsis()
-	    << '\n'
-	    << "ALLOC = allocator for DMA memory:\n"
-	    << Rpi::Ui::Bus::Memory::allocatorSynopsis()
-	    << '\n'
-	    << "FILE = name of file with data to be sent\n"
-	    ;
-	return ;
-    }
-
-    // ---- configuration ----
-
-    auto dma_index = Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index()) ;
-    
-    auto dma_cs = Rpi::Ui::Dma::getCs(argL,Rpi::Dma::Cs()) ;
-  
-    auto dma_ti = Rpi::Ui::Dma::getTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
-
-    auto allocator = Rpi::Ui::Bus::Memory::
-	getAllocator(rpi,argL,RpiExt::VcMem::defaultAllocator()) ;
-  
-    auto file_data = Rpi::Ui::Bus::Memory::read(argL->pop(),allocator.get()) ;
-
-    argL->finalize() ;
-
-    // ---- remaining setup ----
-  
-    RpiExt::Dma::Control ctl(allocator) ;
-
-    auto t0 = allocator->allocate(sizeof(uint32_t)) ; 
-    ctl.add(Rpi::Dma::Ti::Word(),Rpi::Timer::Address,t0.get()) ;
-    
-    ctl.add(dma_ti,file_data.get(),Rpi::Pwm::Fifo::Address) ;
-    
-    auto t1 = allocator->allocate(sizeof(uint32_t)) ; 
-    ctl.add(Rpi::Dma::Ti::Word(),Rpi::Timer::Address,t1.get()) ;
-
-    // (3) ---- run ----
-
-    auto dma_channel = Rpi::Dma::Ctrl(rpi).channel(dma_index) ;
-    dma_channel.setup(ctl.address(),dma_cs) ;
-    dma_channel.start() ;
-    // ...fill up the PWM queue first ?!
-
-    while (0 != (dma_channel.getCs().active().bits()))
-	Posix::nanosleep(1e3) ;
-    // ...arbitrary sleep value [todo] C++ sleep
-
-    // [todo] if there is any exception, then the DMA must stop first
-    // and thereafter the memory can be released. On process abortion,
-    // the (VC) memory stays allocated and the DMA continues running.
-    
-    // (4) ---- log statistics ----
-  
-    std::cout.setf(std::ios::scientific) ;
-    std::cout.precision(2) ;
-    auto dt = static_cast<double>(t1->as<uint32_t*>()[0] -
-				  t0->as<uint32_t*>()[0]) / 1e6 ;
-    std::cout << dt << "s "
-	      << static_cast<double>(file_data->nbytes()/4*32)/dt << "/s\n" ;
-
-    // [note] this is faster than pwm.clock since we fill up the PWM
-    // FIFO (16 words) in almost zero-time.
-}
-
-// --------------------------------------------------------------------
-
 void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") { 
@@ -429,6 +411,8 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     } ;
     argL->pop(map)(rpi,argL) ;
 }
+
+// --------------------------------------------------------------------
 
 // serializer of both channels does not always work in-sync
 // $ rpio cp set 3 -f 0 -i 200 -m 0 -s 6
@@ -471,3 +455,5 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 // --hence, if the transmission is stopped (PWEN=0) as soon as the
 //   FIFO gets empty, the caller should append two (?) dummy word
 //   (i.e. all bits high or all bits low, as needed).
+// --it appears, that gaps are detected on channel #2 but not on
+//   channel #1
