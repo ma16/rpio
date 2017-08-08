@@ -75,7 +75,7 @@ If RPTL=0, the peripheral will stop the transmission. GAP will be set and STA wi
 
 If RPTL=1, the peripheral will continue transmission and repeat the last word.  GAP won't be raised and STA remains set. When a new word is put into the FIFO, the transmission will continue with this word.
 
-It appears that channel #1 operates always as if RPTL1=1 (see Defect section).
+It appears that channel #1 operates always as if RPTL1=1 (see Defect section). This makes the Status flags STA1 and GAP1 ineffective.
 
 ### PWM Mode
 
@@ -115,36 +115,26 @@ Offset | Name | Abstract | Channel | Clear
 4 | GAP1 | FIFO underrun | #1 | ✓
 5 | GAP2 | FIFO underrun | #2 | ✓
 8 | BERR | Bus Error | - | ✓
-9 | STA1 | Status | #1 | -
-10 | STA2 | Status | #2 | -
+9 | STA1 | Channel is currently transmitting data | #1 | -
+10 | STA2 | Channel is currently transmitting data | #2 | -
 
 A bit remains set until cleared. Write 1 to clear a bit. Write 0 has no effect.
 
+The flags GAP1 and STA1 are ineffective since peripheral acts as if the Control flag RPTL1 is always set (see Defects).
+
 **BERR**
 
-An error has occurred while writing to registers via APB. This may happen if the bus tries to write successively to same set of registers faster than the synchroniser block can cope with. Multiple switching may occur and contaminate the data during synchronisation.
+An error has occurred while writing to registers via APB. This may happen if the bus tries to write successively to the same set of registers faster than the synchronizer block can cope with. Multiple switching may occur and contaminate the data during synchronisation.
+
+This kind of problem can be observed when writing twice in a row to the Control register (Use-Case-6). Since the effects are unpredictable, application developers should check for BERR after and try to prevent it. Adding additional read-cyles may be used as **work-around**. Still, this remains an open issue.
+
+Note that the BERR flag appears always to be raised when the Control register is written but the clock-manager wasn't set-up yet (CM.PWM.CONTROL.ENAB=0).
 
 **RERR**
 
 There is no explanation under which circumstances this flag ist set.
 
-A test shows that the flag is not set when reading from an empty FIFO. Reading returns 0x70776d30 which spells "pwm0":
-
-```
-$ ./rpio pwm status
-DMA-Control: enable=0 panic=7 dreq=7
-
-sta2 sta1 berr gap2 gap1 rerr werr empt full
---------------------------------------------
-   0    0    0    0    0    0    0    1    0 (0x2)
-
-# msen usef pola sbit rptl mode pwen     data    range
-------------------------------------------------------
-1    0    1    0    0    0    1    0        0       20
-2    0    0    0    0    0    0    0        0       20
-$ ./rpio poke -p 0x20c018 get
-70776d30
-```
+Reading the FIFO doesn't raise the flag (Use-Case-7).
 
 ## FIFO Register (FIF1)
 
@@ -159,6 +149,14 @@ The FIFO is shared between both channels. Hence, when both channels are enabled 
 * The range register should hold the same value for both channels.
 * The datasheet says that RPTL# is not meaningful as there is no defined channel to own the last data in the FIFO. Therefore both RPTL# flags must be set to zero. However, observations show, it doesn't has to.
 * If the configuration has changed in any of the two channels, the FIFO should be cleared before writing new data.
+
+### FIFO Underrun
+
+A FIFO underrun in Serial mode will distort the transferred data. This might not be acceptable for many applications. Still, it cannot be prevented. At least not for data that exceeds the FIFO buffer.
+
+In a DMA mode, a FIFO underrun is less likely. However, in CPU mode, the operating thread can be suspended at any time for any duration. At the very least it might be quite helpful to detect a FIFO underrun. So, this kind of information is provided by the GAP Status flag (Use-Case-8).
+
+The GAP flag is not raised in RPTL mode. If data is transferred on channel #1, the GAP1 flag is never raised since channel #1 operates as if RPTL1=1 (see defect list).
 
 ## Range Register (RNG#)
 
@@ -214,7 +212,7 @@ The overflow won't happen if the DMA controller uses TI.WAIT_RESP=1. This makes 
 
 Even though the channel is active, the peripheral won't transmit a newly enqueued word (Use-Case-1). The control test on channel #1 succeeds however (Use-Case-2).
 
-There is a slight difference between these two test cases: RPTL1 is implicitly set for channel #2. However, setting of RPTL2=1 to imitate this behavior doesn't make any difference (Use-Case-3).
+There is a slight difference between these two test cases: RPTL1 is implicitly set for channel #1. However, setting RPTL2 to imitate this behavior doesn't make any difference (Use-Case-3).
 
 **Work-around**: The FIFO should be cleared whenever channel #2 is used (Use-Case-4).
 
@@ -370,8 +368,8 @@ Observe: The transmission is stopped (STA=1) and the GAP flag is raised since th
 This continues Use-Case-4. Activate RPTL and deactivate again.
 
 ```
-$ ./rpio pwm control rptl2=1
 $ ./rpio pwm clear gap2
+$ ./rpio pwm control rptl2=1
 # ./rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
@@ -395,7 +393,120 @@ berr rerr werr empt full
 2   0   1    0    1    0    0    0    1    1        0       20
 ```
 
-Observe: The transmission is continued (STA=1) when the RPTL is set and stopped (STA=0) again if reset.
+Observe: The transmission is continued (STA=1) when RPTL is set and stopped (STA=0) again if reset.
+
+### Use-Case-6
+
+Read the Control word N times and write it back. This is done in a loop with 100 repetitions.
+
+The CM has to be set-up beforhand. Otherwise the BERR flag is always set.
+
+```
+$ ./rpio pwm clear berr
+$ ./rpio pwm berr 5
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   1    0    0    0    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+1   0   0    0    0    0    0    0    0    0        0       20
+$ ./rpio pwm clear berr
+$ ./rpio pwm berr 20
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   1    0    0    0    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+1   0   0    0    0    0    0    0    0    0        0       20
+```
+
+Observe: The BERR Status flag is raised if the Control register is written consecutively in a fast manner (N=5); and not raised if there is some delay (N=20).
+
+### Use-Case-7
+
+Read the FIFO when it is empty.
+
+```
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+sta2 sta1 berr gap2 gap1 rerr werr empt full
+--------------------------------------------
+   0    0    0    0    0    0    0    1    0 (0x2)
+
+# msen usef pola sbit rptl mode pwen     data    range
+------------------------------------------------------
+1    0    1    0    0    0    1    0        0       20
+2    0    0    0    0    0    0    0        0       20
+$ ./rpio poke -p 0x20c018 get
+70776d30
+```
+
+Observe: Reading returns 0x70776d30 which spells "pwm0".
+
+### Use-Case-8
+
+Force a FIFO underrun on channel #2 while data transmission is in progress.
+
+The rate is set to about 12 MHz so the signal can be watched with an inexpensive logic analyzer. The data range is set to 2: only two bits per word are transmitted. This makes the peripheral read the FIFO six million times per second. The process that fills the FIFO cannot keep-up.
+
+Four words are enqueued for transmission. If you don't see any gap, you may want to increase the number of words.
+
+```
+$ ./rpio cm set pwm -f 0 -i 21 -s 6
+$ ./rpio cm switch pwm on
+$ ./rpio pwm range 2 2
+$ ./rpio pwm control clear
+$ ./rpio gpio mode 13 0
+$./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   0   0    0    1    0    0    0    1    1        0        2
+$ ./rpio pwm enqueue 0x80000000 0x80000000 0x80000000 0x80000000
+berr=0 empt=1 full=0 gap1=0 gap2=1 rerr=0 sta1=0 sta2=0 werr=0
+```
+
+Observe: The GAP2 flag is raised. When watching the signal with a logic analyzer you will probably see at least one gap immediately after the first word.
+
+You can re-iterate the test:
+```
+$ ./rpio pwm clear gap2
+$ ./rpio pwm status
+DMA-Control: enable=0 panic=7 dreq=7
+
+berr rerr werr empt full
+------------------------
+   0    0    0    1    0
+# sta gap msen usef pola sbit rptl mode pwen     data    range
+--------------------------------------------------------------
+1   0   0    0    0    0    0    0    0    0        0       20
+2   0   0    0    1    0    0    0    1    1        0        2
+$ ./rpio pwm enqueue 0x80000000 0x80000000 0x80000000 0x80000000
+berr=0 empt=1 full=0 gap1=0 gap2=1 rerr=0 sta1=0 sta2=0 werr=0
+```
+
+If the range is increased to 4, the process that fills the FIFO does keep-up. The GAP2 flag is not raised:
+```
+$ ./rpio pwm range 2 4
+$ ./rpio pwm clear gap2
+$ ./rpio pwm status
+$ ./rpio pwm enqueue -u 0x80000000 0x80000000 0x80000000 0x80000000
+berr=0 empt=0 full=0 gap1=0 gap2=0 rerr=0 sta1=0 sta2=1 werr=0
+```
 
 ## Errata
 
@@ -419,17 +530,7 @@ Page | Description
 | | This is only true:
 | | If MODE=0 & MSEN=1 & SBIT=1.
 | | If MODE=1 & RANGE>32 for the 33rd "bit" and all following.
-143 | USEF
-| | [defect] channel #2 seems not always to be working properly in FIFO-mode. *Sometimes* no transmission takes place (in serializer mode) even if the FIFO is full and STA=1. The FIFO simply stays full. [open issue]
-144 | "BERR sets to high when an error has occurred while writing to registers via APB. This may happen if the bus tries to write successively to same set of registers faster than the synchroniser block can cope with. Multiple switching may occur and contaminate the data during synchronisation."
-| | This kind of problem can be observed when writing twice in a row to the Control register. Since the effects are unpredictable, application developers should check for BERR after each write, and abort if set. Or try to prevent BERR at all; e.g. by adding additional read-cyles.
-144 | For STA: "1 means channel is transmitting data."
-| | For USEF=1 & RPTL=1: if PWEN is enabled on an empty FIFO then STA is set immediately.
-| | For USEF=1 & RPTL=0: if PWEN is enabled on an empty FIFO then STA remains cleared until a word is written to the FIFO (or RPTL is enabled).
-| | [defect] STA may remain set even if PWEN is cleared. This can be observed sometimes for operations that cause BERR=1. In order to clear STA, BERR needs to be cleared first, thereafter PWEN.
 144 | "RERR1 bit sets to high when a read when empty error occurs."
 | | There is no explanation under which circumstances this may happen.
 145 | For EMPT1,FULL1: they are marked as RW (read-write)
 | | Since a write-operation has no effect, it should be RO (read-only).
-145 | EMPT1
-| | Note that the serializer may still be busy with the transfer even after the FIFO gets empty. So the flag is no indicator to disable PWEN after the end of a transmission.

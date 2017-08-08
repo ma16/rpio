@@ -15,6 +15,32 @@
 #include <Rpi/Ui/Dma.h>
 #include <Ui/strto.h>
 
+static void berr(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    if (argL->empty() || argL->peek() == "help")
+    {
+	std::cout
+	    << "arguments: N\n"
+	    << '\n'
+	    << "This call is used  to force the peripheral to raise the BERR\n"
+	    << "flag. The function reads the Control register N times before\n"
+	    << "writing it back. This is done in a loop with 100 repetitions.\n"
+	    << "With N<5 the BERR flag is almost often set, with N>20 none.\n"
+	    ;
+	return ;
+    }
+    auto n = Ui::strto<size_t>(argL->pop()) ;
+    argL->finalize() ;
+    Rpi::Pwm pwm(rpi) ;
+    for (auto i=0 ; i<100 ; ++i)
+    {
+	decltype(pwm.control().read()) w ;
+	for (decltype(n) j=0 ; j<n ; ++j)
+	    w = pwm.control().read() ;
+	pwm.control().write(w) ;
+    }
+}
+
 static void clear(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
@@ -259,6 +285,7 @@ static void enqueue(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	data = std::vector<uint32_t>(q.begin(),q.end()) ;
     }
     argL->finalize() ;
+    Rpi::Pwm pwm(rpi) ;
     if (mode == Checked)
     {
 	auto nwords = RpiExt::Pwm(rpi).convey(&data[0],data.size(),padding) ;
@@ -267,7 +294,6 @@ static void enqueue(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
     else if (mode == Unpaced)
     {
-	Rpi::Pwm pwm(rpi) ;
 	for (auto w: data)
 	    pwm.fifo().write(w) ;
     }
@@ -276,6 +302,17 @@ static void enqueue(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	assert(mode == Topup) ;
 	RpiExt::Pwm(rpi).write(&data[0],data.size()) ;
     }
+    using Status = Rpi::Pwm::Status ;
+    auto s = pwm.status().read() ;
+    std::cout << "berr=" << s.test(Status::Berr) << ' '
+	      << "empt=" << s.test(Status::Empt) << ' '
+	      << "full=" << s.test(Status::Full) << ' '
+	      << "gap1=" << s.test(Status::Gap1) << ' '
+	      << "gap2=" << s.test(Status::Gap2) << ' '
+	      << "rerr=" << s.test(Status::Rerr) << ' '
+	      << "sta1=" << s.test(Status::Sta1) << ' '
+	      << "sta2=" << s.test(Status::Sta2) << ' '
+	      << "werr=" << s.test(Status::Werr) << '\n' ;
 }
 
 static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -393,7 +430,8 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (argL->empty() || argL->peek() == "help") { 
 	std::cout << "arguments: MODE [help]\n"
 		  << '\n'
-		  << "MODE : clear      # clear Status register\n"
+		  << "MODE : berr       # raise BERR status flag\n"
+		  << "     | clear      # clear Status register\n"
 		  << "     | control    # set Control registers\n"
 		  << "     | data       # set Data register\n"
 		  << "     | dma        # put word(s) into FIFO register (DMA)\n"
@@ -406,6 +444,7 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
 
     std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map = {
+	{ "berr"     ,     berr },
 	{ "clear"    ,    clear },
 	{ "control"  ,  control },
 	{ "data"     ,     data },
@@ -421,31 +460,8 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-// serializer of both channels does not always work in-sync
-// $ rpio cp set 3 -f 0 -i 200 -m 0 -s 6
-// $ rpio cp switch 3 on
-// $ rpio gpio mode -l 12,13 0
-// $ rpio pwm ctrl
-//   index 0 pwen 0 msen 0 usef 1 pola 0 sbit 1	rptl 0 mode 1 range 40
-//   index 1 pwen 0 msen 0 usef 1 pola 0 sbit 1 rptl 0 mode 1 range 40
-//   reset clear 
-//   queue 0x55555554 queue 0x0000fffe queue 0x33333332 
-//   queue 0x00ff00fe queue 0x55555554 queue 0x0000fffe	
-//   sync
-// $ rpio pwm ctrl index 0 pwen 0 index 1 pwen 0
-
-#if 0
-    // [todo] test case to force BERR
-    else if (arg == "berr")
-    {
-	auto c = pwm.control().read() ;
-	pwm.control().write(c) ;
-	pwm.control().write(c) ;
-	// [todo] comment as defect-test-case
-    }
-#endif
-
-// observed behavior:
+// observed behavior [open issues]
+//
 // --if a gap occurs right here, before wrting to the queue, we
 //   won't detect it. there is actually no indication by any status
 //   flag (BERR,GAPO,RERR) whether a gap occured -- even the spec
@@ -458,3 +474,32 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 //   the transfer is completed (even so the spec says so).
 // --it appears, that gaps are detected on channel #2 but not on
 //   channel #1
+// --STA may remain set even if PWEN is cleared. This can be observed
+//   sometimes for operations that cause BERR=1. In order to clear
+//   STA, BERR needs to be cleared first, thereafter PWEN.
+// --EMPT1: the serializer may still be busy with the transfer even
+//   after the FIFO gets empty. So the flag is no indicator to disable
+//   PWEN after the end of a transmission.
+// --if both channels are used (even at the same frequency) and e.g.
+//   one of them is still transmitting (i.e. RPTL) new FIFO words
+//   will be probably be not in sync transmitted
+//
+// If taking a time-stamp, the serializer may be at any point in a
+// (long) word. hence, the time-stamp should be taken the moment
+// the FIFO's _full_ flag turns to false. This may become a non-issue
+// if there are the odds of process suspensions anyway. Still, if there
+// is a sequence (full=1,time-stamp,full=1) the point of time is
+// guaranteed to be in the period that takes a word to serialize.
+//
+// There seems to be no way to figure out when the PWM peripheral
+// actually finishes processing of all the FIFO entries. Even if
+// the status flag indicates an empty FIFO, the serializer may
+// still be busy. Sometimes it appears as if the serializer reads two
+// FIFO entries ahead. [provide test-case]
+//
+// So, what the client needs to do, is to put two additional words
+// into the FIFO. These words may be transmitted, or not. The
+// client should keep that in mind and set the levels
+// appropriately. Also, the last word is always transmitted again
+// and again [regardless of the RPT flag] if the FIFO runs empty (and
+// if the serializer gets to this point at all).

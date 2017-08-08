@@ -167,24 +167,3 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
     // [todo] we might stop the timing whenever a gap is encountered
 }
 
-// [notes]
-//
-// If taking a time-stamp, the serializer may be at any point in a
-// (long) word. hence, the time-stamp should be taken the moment
-// the FIFO's _full_ flag turns to false. This may become a non-issue
-// if there are the odds of process suspensions anyway. Still, if there
-// is a sequence (full=1,time-stamp,full=1) the point of time is
-// guaranteed to be in the period that takes a word to serialize.
-//
-// There seems to be no way to figure out when the PWM peripheral
-// actually finishes processing of all the FIFO entries. Even if
-// the status flag indicates an empty FIFO, the serializer may
-// still be busy. Sometimes it appears as if the serializer reads two
-// FIFO entries ahead. [provide test-case]
-//
-// So, what the client needs to do, is to put two additional words
-// into the FIFO. These words may be transmitted, or not. The
-// client should keep that in mind and set the levels
-// appropriately. Also, the last word is always transmitted again
-// and again [regardless of the RPT flag] if the FIFO runs empty (and
-// if the serializer gets to this point at all).
