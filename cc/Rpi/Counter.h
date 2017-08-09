@@ -7,6 +7,7 @@
 #ifndef _Rpi_Counter_h_
 #define _Rpi_Counter_h_
 
+#include "Bus/Address.h"
 #include <Neat/cast.h>
 #include "Peripheral.h"
 
@@ -51,6 +52,8 @@ namespace Rpi
       return page->at<0x420/4>() ;
     }
 
+    static constexpr auto Address = Bus::Address(0x7e00b420) ;
+    
     double frequency() const ;
     
     Counter(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x00b>())) {}

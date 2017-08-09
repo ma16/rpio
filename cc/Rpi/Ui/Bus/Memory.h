@@ -19,8 +19,8 @@ namespace Memory
     static inline std::string allocatorSynopsis()
     {
 	std::stringstream os ;
-	os << "ALLOC : arm [COHERENCY] [-s]\n"
-	   << "      | gpu [-a ALIGN] [-m MODE] [-d COHERENCY]\n"
+	os << "ALLOC : --memf arm [COHERENCY] [-s]\n"
+	   << "      | --memf gpu [-a ALIGN] [-m MODE] [-d COHERENCY]\n"
 	   << '\n'
 	   << "COHERENCY:\n"
 	   << Coherency::synopsis()

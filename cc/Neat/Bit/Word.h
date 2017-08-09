@@ -8,6 +8,7 @@
 #include <limits>
 #include <type_traits>
 #include <stdexcept>
+#include "../Error.h"
 
 namespace Neat { namespace Bit {
 
@@ -89,9 +90,10 @@ template<typename U,U M> struct Word
 
 	static Set make(Unsigned i)
 	{
-	    if (i != (i & Mask))
-		throw std::runtime_error("invalid value") ; // [todo]
-	    return i ;
+	    auto j = i << Offset ;
+	    if (j != (j & Mask))
+		throw Neat::Error("Neat::Word::Set:out of range") ;
+	    return j ;
 	}
 
 	Unsigned value() const { return i ; }

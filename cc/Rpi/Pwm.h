@@ -58,6 +58,8 @@ struct Pwm
 	
 	void write(Word w) { (*p) = w.value() ; }
 
+	static constexpr auto Address = Bus::Address(0x7e20c000) ;
+	
     private:
 	
 	friend Pwm ; uint32_t volatile *p ;
@@ -94,6 +96,8 @@ struct Pwm
 
 	void clear(Word w) { (*p) = w.value() ; }
 
+	static constexpr auto Address = Bus::Address(0x7e20c004) ;
+	
     private:
 	
 	friend Pwm ; uint32_t volatile *p ;

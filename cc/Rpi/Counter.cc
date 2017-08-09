@@ -3,6 +3,8 @@
 #include "Counter.h"
 #include <chrono>
 
+constexpr Rpi::Bus::Address Rpi::Counter::Address ;
+
 double Rpi::Counter::frequency() const
 {
     using namespace std::chrono ;

@@ -67,6 +67,8 @@ size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
 
 bool RpiExt::Pwm::writable(uint32_t timeout)
 {
+    if (!this->pwm.status().read().test(Status::Full))
+	return true ;
     auto t0 = this->timer.cLo() ; 
     while (this->pwm.status().read().test(Status::Full))
     {
@@ -127,7 +129,7 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
     auto status = this->pwm.status().read() ;
     if (!status.test(Status::Werr))
 	// either the serializer reads faster than we're able to write
-	// (likey) or we got suspended more than once (very unlikely)
+	// (likely) or we got suspended more than once (very unlikely)
 	return std::make_pair(std::numeric_limits<double>::infinity(),0) ;
     this->pwm.status().clear(Status::Werr.mask()) ;
 

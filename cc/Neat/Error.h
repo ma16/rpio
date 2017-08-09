@@ -9,7 +9,7 @@ namespace Neat
 {
   struct Error : std::runtime_error
   {
-    Error(std::string const &s) : std::runtime_error("Neat:" + s) {}
+    Error(std::string const &s) : std::runtime_error(s) {}
     // remember that the message-string-creation might cause a
     // "premature" exception (e.g. bad_alloc) here, or in the
     // runtime_error constructor or in the client code that creates

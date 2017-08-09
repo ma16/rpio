@@ -43,7 +43,7 @@ namespace Ti
 	w = DestIgnore  ::make<0>() ; // destination is peripheral address
 	w = SrcInc      ::make<1>() ; // source is memory block
 	w = SrcWidth    ::make<0>() ; // +++ can be overwritten by client +++
-	w = SrcDreq     ::make<0>() ; // paced by destination peripheral
+	w = SrcDreq     ::make<0>() ; // source is memory block
 	w = SrcIgnore   ::make<0>() ; // source is memory block
 	w = BurstLength ::make<0>() ; // +++ can be overwritten by client +++
 	w = permap ; // e.g. 5 for PWM

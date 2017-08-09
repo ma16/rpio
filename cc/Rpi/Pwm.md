@@ -120,7 +120,7 @@ Offset | Name | Abstract | Channel | Clear
 
 A bit remains set until cleared. Write 1 to clear a bit. Write 0 has no effect.
 
-The flags GAP1 and STA1 are ineffective since peripheral acts as if the Control flag RPTL1 is always set (see Defects).
+The flags GAP1 and STA1 are ineffective since the peripheral acts as if the Control flag RPTL1 is always set (see Defects).
 
 **BERR**
 
@@ -152,11 +152,15 @@ The FIFO is shared between both channels. Hence, when both channels are enabled 
 
 ### FIFO Underrun
 
-A FIFO underrun in Serial mode will distort the transferred data. This might not be acceptable for many applications. Still, it cannot be prevented. At least not for data that exceeds the FIFO buffer.
+A FIFO underrun in Serial mode will distort the transferred data. This might not be acceptable for many applications. Still, it cannot be prevented. At least not for data that exceeds the FIFO buffer. A FIFO underrun is obvious if the peripheral reads the FIFO faster than the application is able to write the FIFO. It may be obscured by bus overloads and process suspensions.
 
-In a DMA mode, a FIFO underrun is less likely. However, in CPU mode, the operating thread can be suspended at any time for any duration. At the very least it might be quite helpful to detect a FIFO underrun. So, this kind of information is provided by the GAP Status flag (Use-Case-8).
+In DMA mode, a FIFO underrun is less likely. However, in CPU mode, the operating thread can be suspended at any time for any duration. At the very least it might be quite helpful to detect a FIFO underrun. So, this kind of information is provided by the GAP Status flag (Use-Case-8).
 
-The GAP flag is not raised in RPTL mode. If data is transferred on channel #1, the GAP1 flag is never raised since channel #1 operates as if RPTL1=1 (see defect list).
+The GAP flag is not raised in RPTL mode. If data is transferred on channel #1, the GAP1 flag is never raised since channel #1 operates as if RPTL1=1 (see defect list). So the FIFO may run out of data unnoticed in the middle of a transmission.
+
+The EMPT Status flag is no reliable indicator: simply imagine the writing thread gets suspended immediately after checking the EMPT Status flag. If the suspension lasts long enough, the FIFO runs empty. This is a less likely, but still probable scenario.
+
+Luckily there is another way. The FIFO can hold a maximum of 16 words. So you can detect a FIFO underrun by writing data in blocks of 16 words. You start by filling the FIFO with padding words until full. Then you write your data in block of 16 words. If the FIFO isn't full after 15 or less words have been written, there might have been an underrun. (It might also be a false positive.) If the data gets less than 16 words, you fill it (again) with padding words.
 
 ## Range Register (RNG#)
 
@@ -233,10 +237,10 @@ All use-cases were run on a Pi model-0 (BCM2835), on model-2 (BCM2836) and on mo
 Put a single word into the FIFO for transmission on the active channel #2.
 
 ```
-$ ./rpio cm set pwm -f 0 -i 200 -s 6
-$ ./rpio cm switch pwm on
-$ ./rpio pwm control usef2=1 mode2=1 pwen2=1
-$ ./rpio pwm status
+$ rpio cm set pwm -f 0 -i 200 -s 6
+$ rpio cm switch pwm on
+$ rpio pwm control usef2=1 mode2=1 pwen2=1
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -246,9 +250,9 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    0    0    0    0    0    0        0       20
 2   0   0    0    1    0    0    0    1    1        0       20
-$ ./rpio gpio mode 13 0
-$ ./rpio pwm enqueue 0xf0555500
-$ ./rpio pwm status
+$ rpio gpio mode 13 0
+$ rpio pwm enqueue 0xf0555500
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -267,10 +271,10 @@ Observe: The word remains in the FIFO. No transmission took place.
 Put a single word into the FIFO for transmission on the active channel #1.
 
 ```
-$ ./rpio cm set pwm -f 0 -i 200 -s 6
-$ ./rpio cm switch pwm on
-$ ./rpio pwm control usef1=1 mode1=1 pwen1=1
-$ ./rpio pwm status
+$ rpio cm set pwm -f 0 -i 200 -s 6
+$ rpio cm switch pwm on
+$ rpio pwm control usef1=1 mode1=1 pwen1=1
+$ rpio pwm status
 berr rerr werr empt full
 ------------------------
    0    0    0    1    0
@@ -278,9 +282,9 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    1    0    0    0    1    1        0       20
 2   0   0    0    0    0    0    0    0    0        0       20
-$ ./rpio gpio mode 12 0
-$ ./rpio pwm enqueue 0xf0555500
-$ ./rpio pwm status
+$ rpio gpio mode 12 0
+$ rpio pwm enqueue 0xf0555500
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -299,10 +303,10 @@ Observe: The peripheral repeats the transmission of the word even though RPTL1 i
 Put a single word into the FIFO for transmission on the active channel #2. RPTL2 is set.
 
 ```
-$ ./rpio cm set pwm -f 0 -i 200 -s 6
-$ ./rpio cm switch pwm on
-$ ./rpio pwm control usef2=1 mode2=1 rptl2=1 pwen2=1
-$ ./rpio pwm status
+$ rpio cm set pwm -f 0 -i 200 -s 6
+$ rpio cm switch pwm on
+$ rpio pwm control usef2=1 mode2=1 rptl2=1 pwen2=1
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -312,9 +316,9 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    0    0    0    0    0    0        0       20
 2   1   0    0    1    0    0    1    1    1        0       20
-$ ./rpio gpio mode 13 0
-$ ./rpio pwm enqueue 0xf0555500
-$ ./rpio pwm status
+$ rpio gpio mode 13 0
+$ rpio pwm enqueue 0xf0555500
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -333,10 +337,10 @@ Observe: The word remains in the FIFO. No transmission took place even though ST
 Put a single word into the FIFO for transmission on the active channel #2. The FIFO is cleared beforhand.
 
 ```
-$ ./rpio cm set pwm -f 0 -i 200 -s 6
-$ ./rpio cm switch pwm on
-$ ./rpio pwm control usef2=1 mode2=1 pwen2=1
-$ ./rpio pwm status
+$ rpio cm set pwm -f 0 -i 200 -s 6
+$ rpio cm switch pwm on
+$ rpio pwm control usef2=1 mode2=1 pwen2=1
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -346,10 +350,10 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    0    0    0    0    0    0        0       20
 2   0   0    0    1    0    0    0    1    1        0       20
-$ ./rpio gpio mode 13 0
-$ ./rpio pwm control clear
-$ ./rpio pwm enqueue 0xf0555500
-# ./rpio pwm status
+$ rpio gpio mode 13 0
+$ rpio pwm control clear
+$ rpio pwm enqueue 0xf0555500
+# rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -368,9 +372,9 @@ Observe: The transmission is stopped (STA=1) and the GAP flag is raised since th
 This continues Use-Case-4. Activate RPTL and deactivate again.
 
 ```
-$ ./rpio pwm clear gap2
-$ ./rpio pwm control rptl2=1
-# ./rpio pwm status
+$ rpio pwm clear gap2
+$ rpio pwm control rptl2=1
+# rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -380,8 +384,8 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    0    0    0    0    0    0        0       20
 2   1   0    0    1    0    0    1    1    1        0       20
-$ ./rpio pwm control rptl2=0
-# ./rpio pwm status
+$ rpio pwm control rptl2=0
+# rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -402,9 +406,9 @@ Read the Control word N times and write it back. This is done in a loop with 100
 The CM has to be set-up beforhand. Otherwise the BERR flag is always set.
 
 ```
-$ ./rpio pwm clear berr
-$ ./rpio pwm berr 5
-$ ./rpio pwm status
+$ rpio pwm clear berr
+$ rpio pwm berr 5
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -414,9 +418,9 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    0    0    0    0    0    0        0       20
 1   0   0    0    0    0    0    0    0    0        0       20
-$ ./rpio pwm clear berr
-$ ./rpio pwm berr 20
-$ ./rpio pwm status
+$ rpio pwm clear berr
+$ rpio pwm berr 20
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -435,7 +439,7 @@ Observe: The BERR Status flag is raised if the Control register is written conse
 Read the FIFO when it is empty.
 
 ```
-$ ./rpio pwm status
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 sta2 sta1 berr gap2 gap1 rerr werr empt full
@@ -446,7 +450,7 @@ sta2 sta1 berr gap2 gap1 rerr werr empt full
 ------------------------------------------------------
 1    0    1    0    0    0    1    0        0       20
 2    0    0    0    0    0    0    0        0       20
-$ ./rpio poke -p 0x20c018 get
+$ rpio poke -p 0x20c018 get
 70776d30
 ```
 
@@ -454,20 +458,20 @@ Observe: Reading returns 0x70776d30 which spells "pwm0".
 
 ### Use-Case-8
 
-Force a FIFO underrun on channel #2 while data transmission is in progress.
+**Setup**:
 
-The rate is set to about 12 MHz so the signal can be watched with an inexpensive logic analyzer. The data range is set to 2: only two bits per word are transmitted. This makes the peripheral read the FIFO six million times per second. The process that fills the FIFO cannot keep-up.
-
-Four words are enqueued for transmission. If you don't see any gap, you may want to increase the number of words.
+The PWM rate is set to about 23 M/s (500/22) so the signal can still be watched with an inexpensive logic analyzer. The word's Range is set to 2: only the two MSB of each word are transmitted. This makes the PWM channel read the FIFO at a rate of something above 11 M/s. That is also about the maximum rate to write to the FIFO. DMA pacing is enabled.
 
 ```
-$ ./rpio cm set pwm -f 0 -i 21 -s 6
-$ ./rpio cm switch pwm on
-$ ./rpio pwm range 2 2
-$ ./rpio pwm control clear
-$ ./rpio gpio mode 13 0
-$./rpio pwm status
-DMA-Control: enable=0 panic=7 dreq=7
+$ rpio cm set pwm -f 0 -i 22 -s 6 ;\
+  rpio cm switch pwm on ;\
+  rpio pwm range 2 2 ;\
+  rpio pwm control usef2=1 mode2=1 pwen2=1 ;\
+  rpio pwm control clear ;\
+  rpio gpio mode 13 0 ;\
+  rpio pwm dmac enable 1 ;\
+  rpio pwm status
+DMA-Control: enable=1 panic=7 dreq=7
 
 berr rerr werr empt full
 ------------------------
@@ -476,7 +480,51 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    0    0    0    0    0    0        0       20
 2   0   0    0    1    0    0    0    1    1        0        2
-$ ./rpio pwm enqueue 0x80000000 0x80000000 0x80000000 0x80000000
+```
+
+** Unpaced Writes (CPU) **
+
+```
+$ rpio cm set pwm -f 0 -i 12 -s 6 ;
+$ rpio pwm clear gap2 ;
+$ rpio pwm enqueue -u file block_16
+berr=0 empt=0 full=0 gap1=0 gap2=0 rerr=0 sta1=0 sta2=1 werr=0
+```
+** Paced Writes (CPU) **
+
+```
+$ rpio cm set pwm -f 0 -i 30 -s 6
+$ rpio pwm clear gap2
+$ rpio pwm enqueue file block_256
+berr=0 empt=1 full=0 gap1=0 gap2=1 rerr=0 sta1=0 sta2=1 werr=0
+```
+
+** Block Writes (CPU) **
+
+```
+$ rpio cm set pwm -f 0 -i 50 -s 6
+$ rpio pwm clear gap2
+$ rpio pwm enqueue -c 0xffffffff file block_256
+berr=0 empt=0 full=0 gap1=0 gap2=0 rerr=0 sta1=0 sta2=1 werr=0
+```
+
+** Unpaced Writes (DMA) **
+
+** Paced Writes (DMA) **
+```
+$ rpio pwm clear gap2 ; ./rpio pwm dma 0 --ti=burst-length 7 block_16
+berr=0 empt=0 full=0 gap1=0 gap2=0 rerr=0 sta1=0 sta2=1 werr=0
+```
+
+
+Force a FIFO underrun on channel #2 while data transmission is in progress.
+
+The process that fills the FIFO cannot keep-up.
+
+Four words are enqueued for transmission. If you don't see any gap, you may want to increase the number of words.
+
+```
+$ rpio pwm enqueue 0x80000000 0x80000000 0x80000000 0x80000000
 berr=0 empt=1 full=0 gap1=0 gap2=1 rerr=0 sta1=0 sta2=0 werr=0
 ```
 
@@ -484,8 +532,8 @@ Observe: The GAP2 flag is raised. When watching the signal with a logic analyzer
 
 You can re-iterate the test:
 ```
-$ ./rpio pwm clear gap2
-$ ./rpio pwm status
+$ rpio pwm clear gap2
+$ rpio pwm status
 DMA-Control: enable=0 panic=7 dreq=7
 
 berr rerr werr empt full
@@ -495,16 +543,16 @@ berr rerr werr empt full
 --------------------------------------------------------------
 1   0   0    0    0    0    0    0    0    0        0       20
 2   0   0    0    1    0    0    0    1    1        0        2
-$ ./rpio pwm enqueue 0x80000000 0x80000000 0x80000000 0x80000000
+$ rpio pwm enqueue 0x80000000 0x80000000 0x80000000 0x80000000
 berr=0 empt=1 full=0 gap1=0 gap2=1 rerr=0 sta1=0 sta2=0 werr=0
 ```
 
 If the range is increased to 4, the process that fills the FIFO does keep-up. The GAP2 flag is not raised:
 ```
-$ ./rpio pwm range 2 4
-$ ./rpio pwm clear gap2
-$ ./rpio pwm status
-$ ./rpio pwm enqueue -u 0x80000000 0x80000000 0x80000000 0x80000000
+$ rpio pwm range 2 4
+$ rpio pwm clear gap2
+$ rpio pwm status
+$ rpio pwm enqueue -u 0x80000000 0x80000000 0x80000000 0x80000000
 berr=0 empt=0 full=0 gap1=0 gap2=0 rerr=0 sta1=0 sta2=1 werr=0
 ```
 

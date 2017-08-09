@@ -51,6 +51,10 @@ Rpi::Pwm::Status::Bank const& Rpi::Pwm::Status::Bank::select(Index i)
     return array[i.value()] ;
 }
 
+constexpr Rpi::Bus::Address Rpi::Pwm::Control::Address ;
+
+constexpr Rpi::Bus::Address Rpi::Pwm::Status::Address ;
+
 constexpr Rpi::Bus::Address Rpi::Pwm::Fifo::Address ;
 
 Rpi::Pwm::DmaC::Word Rpi::Pwm::DmaC::Word::make(uint32_t r)

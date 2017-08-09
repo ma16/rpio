@@ -18,9 +18,15 @@ Rpi::Dma::Cs Rpi::Ui::Dma::getCs(::Ui::ArgL *argL,Rpi::Dma::Cs cs)
 	else if (arg == "--cs+wait-for-outstanding-writes") cs.wait() =  true ;
     
 	else if (arg == "--cs=panic-priority")
-	    cs.panic() = ::Ui::strto(argL->pop(),Rpi::Dma::Cs::Panic::Uint()) ;
+	{
+	    argL->pop() ;
+	    cs.panic() = ::Ui::strto(argL->peek(),Rpi::Dma::Cs::Panic::Uint()) ;
+	}
 	else if (arg == "--cs=priority")
-	    cs.priority() = ::Ui::strto(argL->pop(),Rpi::Dma::Cs::Panic::Uint()) ;
+	{
+	    argL->pop() ;
+	    cs.priority() = ::Ui::strto(argL->peek(),Rpi::Dma::Cs::Panic::Uint()) ;
+	}
     
 	else break ;
 	argL->pop() ;
@@ -74,14 +80,20 @@ Rpi::Dma::Ti::Word Rpi::Ui::Dma::getTi(::Ui::ArgL *argL,Rpi::Dma::Ti::Word ti)
 	else if (arg == "--ti+inten") ti = Ti::Inten::make<1>() ;
     
 	else if (arg == "--ti=waits")
-	    ti = Ti::Waits::make(::Ui::strto<Ti::Word::Unsigned>(argL->pop())) ;
-								
+	{
+	    argL->pop() ;
+	    ti = Ti::Waits::make(::Ui::strto<Ti::Word::Unsigned>(argL->peek())) ;
+	}
 	else if (arg == "--ti=permap")
-	    ti = Ti::Permap::make(::Ui::strto<Ti::Word::Unsigned>(argL->pop())) ;
-								 
+	{
+	    argL->pop() ;
+	    ti = Ti::Permap::make(::Ui::strto<Ti::Word::Unsigned>(argL->peek())) ;
+	}							 
 	else if (arg == "--ti=burst-length")
-	    ti = Ti::BurstLength::make(::Ui::strto<Ti::Word::Unsigned>(argL->pop())) ;
-
+	{
+	    argL->pop() ;
+	    ti = Ti::BurstLength::make(::Ui::strto<Ti::Word::Unsigned>(argL->peek())) ;
+	}
 	else break ;
 	argL->pop() ;
     }
