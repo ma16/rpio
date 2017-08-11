@@ -5,97 +5,207 @@ See [PWM](../../Rpi/Pwm.md) description in the library section.
 ## Synopsis
 
 ```
-$ ./rpio pwm help
+$ rpio pwm help
 arguments: MODE [help]
 
-MODE : control    # write peripheral registers
-     | dma        # send data in DMA/FIFO mode
-     | dummy      # send dummy data in DMA/FIFO mode
-     | frequency  # estimate current frequency
-     | send       # send data in CPU/FIFO mode
-     | status     # display status
+MODE : berr       # raise BERR status flag
+     | clear      # clear Status register
+     | control    # set Control registers
+     | data       # set Data register
+     | dmac       # set DMA-Control register
+     | fifo-cpu   # write FIFO by CPU
+     | fifo-dma   # write FIFO by DMA
+     | frequency  # estimate active transfer rate
+     | range      # set Range register
+     | status     # display register values
 ```
 
-The clock-pulse needs to be set-up by the clock-generator beforhand.
+The clock rate needs to be set-up by the [clock-manager](../Cm).
 
 ### Status
 
 There are no command line arguments.
 
 Example:
-
 ```
-$ ./rpio pwm status
-DMA-Control: enable=0 panic=7 dreq=7
+# rpio pwm status
 
-sta2 sta1 berr gap2 gap1 rerr werr empt full
---------------------------------------------
-   0    0    0    0    0    0    0    1    0 (0x2)
+berr=0 empt=1 full=0 rerr=0 werr=0 DMA: enable=0 panic=7 dreq=7
 
-# msen usef pola sbit rptl mode pwen     data    range
-------------------------------------------------------
-0    0    1    0    0    0    1    0        0       20
-1    0    0    0    0    0    0    0        0       20
+# | gap sta | mode msen pola pwen rptl sbit usef |     data |     range
+--+---------+------------------------------------+----------+----------
+1 |   0   0 |    0    0    0    0    0    0    0 |        0 |       20
+2 |   0   0 |    0    0    0    0    0    0    0 |        0 |       20
 ```
 
-### Control
+### Control Register
 
 ```
-$ ./rpio pwm control help
-arguments: COMMAND+
+$ rpio pwm control help
+arguments: OPTION+
 
-General commands:
-clear         # clear FIFO
-dma   BOOL    # enable/disable DMA signals
-dreq    U8    # threshold for DMA DREQ signal
-panic   U8    # threshold for DMA PANIC signal
-pwen  BOOL    # start (1) or stop (0) both channels
-send   U32    # enqueue word in FIFO
-reset         # reset status flags
+clear             # clear FIFO
+(+|-) mode (1|2)  # Serial or PWM mode
+(+|-) msen (1|2)  # Mark-Space or coherent signal
+(+|-) pwen (1|2)  # enable or disable transmission
+(+|-) pola (1|2)  # inverse output polarity or don't
+(+|-) rptl (1|2)  # repeat last word when idle or don't
+(+|-) sbit (1|2)  # High or Low output when off
+(+|-) usef (1|2)  # read FIFO or use Data register
 
-Channel-specific commands:
-data.CH  U32  # set data register
-mode.CH BOOL  # serialize (1) or PWM (0)
-msen.CH BOOL  # enable M/S (only for PWM-mode)
-pwen.CH BOOL  # start (1) or stop (0)
-pola.CH BOOL  # inverse output polarity
-range.CH U32  # set range register
-rptl.CH BOOL  # repeat last data when FIFO is empty
-sbit.CH BOOL  # silence-bit for gaps
-usef.CH BOOL  # use FIFO
-CH must be either 0 or 1, e.g. pola.1 for channel 1
+E.g. -mode2 activates PWM mode for channel #2
+```
+
+The Control register is read, the options are applied and the value is written back. Hence, if the same flag is applied multiple times, only the last value sticks. I.e. if +pwen1 -pwen1, the Control register is written with PWEN1=0. 
+
+### Control Register (DMA)
+
+Set up DMA pacing:
+
+```
+$ rpio pwm dmac help
+arguments: OPTION+
+
+OPTION : enable BOOL
+       | dreq     U8
+       | panic    U8
 ```
 
 ### Frequency
 
-Feed the FIFO and wait until the serializer gets idle. The frequency results from the number of Words fed into the FIFO, multiplied by the number of configured bits per Word, divided by the measured time. Since PWM can be set-p by any clock-source, this is a simple way to determine the base frequency of each clock-source (see clock-manager).
-
-
-
-### Send
-
-Feed a binary file of 32-bit words into the FIFO. A proper set-up is required beforhand.
+Feed the FIFO and wait until the peripheral gets idle. The frequency results from the number of Words fed into the FIFO, multiplied by the number of configured bits per Word, divided by the measured time. Since PWM can be set-up with any clock-source, this is a simple way to determine the base frequency for each clock-source (see clock-manager).
 
 ```
-$ ./rpio pwm send help
-arguments: INDEX FILE
+$ rpio pwm frequency help
+arguments: [-d DURATION]
 
-INDEX = channel to use (0,1)
- FILE = name of file with data to transfer
-
-you may want to set up the registers beforehand
+DURATION: time in seconds to fill-up FIFO (default: 0.1)
 ```
 
-### Send (Example)
+For example:
+```
+$ rpio cm set pwm -f 0 -i 500 -s 6 ;\
+  rpio cm switch pwm on ;\
+  rpio pwm control +mode1 +usef1 +pwen1 ;\
+  rpio pwm status
 
-Set a stripe of 30x WS2812B LEDs to the brightest value.
+berr=0 empt=1 full=0 rerr=0 werr=0 DMA: enable=0 panic=7 dreq=7
 
-The data to send consists of a 50us-Low signal to reset, 30x24 *bits* representing each a *1-bit*, and another 50us-Low signal. Each *1-bit* is a H-H-L signal, where each level lasts for 400ns. Hence we apply a frequency of 2.5 MHz.
+# | gap sta | mode msen pola pwen rptl sbit usef |     data |     range
+--+---------+------------------------------------+----------+----------
+1 |   0   0 |    1    0    0    1    0    0    1 |        0 |       20
+2 |   0   0 |    0    0    0    0    0    0    0 |        0 |       20
+  
+$ rpio pwm frequency
+1.00e+06 (3.13e+04,0)
+```
 
-The file is create by shell and AWK command:
+The current PWM rate is 1 M/s which is 31.3 k words/s multiplied with 32 bits per word. There were no gaps (0).
+
+### Fill FIFO (CPU)
+
+Feed a binary file of 32-bit words by CPU into the FIFO. 
+
+```
+$ rpio pwm fifo-cpu help
+arguments: [ -c U32 | -u ] FILE
+
+-c  # detect underruns, this requires padding
+-u  # unpaced write (ignores FIFO status)
+default: fill FIFO whenver there is space
+
+FILE = file with binary data to enqueue
+```
+
+There are three modes:
+* In default mode, the FIFO is written whenever there is space.
+* In "-c" mode, the FIFO is written in blocks of 16 words (if there is enough space).
+* In "-u" mode, the FIFO is written regardless whether there is space or not.
+
+The creation of a file with binary data is quite easy:
+```
+# seq 1 1 32 | while read ; do printf "\x00\x00\x00\x80" ; done > block_32
+```
+The file block_32 holds 32 words with the value 0x80000000.
+
+Example (for a setup see the frequency example above):
+```
+$ rpio pwm status
+
+berr=0 empt=1 full=0 rerr=0 werr=0 DMA: enable=0 panic=7 dreq=7
+
+# | gap sta | mode msen pola pwen rptl sbit usef |     data |     range
+--+---------+------------------------------------+----------+----------
+1 |   0   1 |    1    0    0    1    0    0    1 |        0 |       20
+2 |   0   0 |    0    0    0    0    0    0    0 |        0 |       20
+
+$ rpio pwm fifo-cpu -u block_32 
+berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 1 0 0 0 1 0 1
+```
+The FIFO is written regardless whether there is space or not. This causes a write error (WERR=1).
+
+
+### Fill FIFO (DMA)
+
+Feed a binary file of 32-bit words by DMA into the FIFO. 
+
+```
+$ rpio pwm fifo-dma help
+arguments: CHANNEL [CS] [TI] [ALLOC] FILE
+
+CHANNEL = DMA channel (0..15)
+
+CS = DMA Control and Status:
+--cs[+-]disdebug
+--cs=panic-priority 0..15
+--cs=priority 0..15
+--cs[+-]wait-for-outstanding-writes
+
+TI = DMA Transfer Information:
+--ti=burst-length 0..16
+--ti[+-]dest-dreq
+--ti[+-]dest-inc
+--ti[+-]dest-ignore
+--ti[+-]dest-width
+--ti[+-]inten
+--ti[+-]no-wide-bursts
+--ti=permap 0..31
+--ti[+-]src-dreq
+--ti[+-]src-inc
+--ti[+-]src-ignore
+--ti[+-]src-width
+--ti[+-]tdmode
+--ti[+-]wait-resp
+--ti=waits 0..31
+
+ALLOC = allocator for DMA bus memory:
+ALLOC : --memf arm [COHERENCY] [-s]
+      | --memf gpu [-a ALIGN] [-m MODE] [-d COHERENCY]
+
+COHERENCY:
+[--co-[0|4|8|c]] (default --co-4)
+
+ALIGN = align the memory segment (U32)
+
+MODE
+bit:0: discardable
+bit:2: direct allocation
+bit:3: coherent allocation
+bit:4: fill with zeros
+bit:5: don't initialize
+bit:6: lock permenently
+
+-d: don't use /dev/vcio
+
+FILE = file with binary data to enqueue
+```
+
+Example: Set a strip of 30x WS2812B LEDs to the brightest value. The data to send consists of a 50us Low-signal as reset, 30x24 *bits* each represented by a 1-1-0 sequence at 400ns, and another 50us Low-signal. 
+
+The binary file is create by shell and AWK command:
 ```
 $ ( \
-for i in `seq 1 1 125` ; do echo -n "00 " ; done ;  \
+for i in `seq 1 1 125` ; do echo -n "00 " ; done ; \
 for i in `seq 1 1 90` ; do echo -n "DB 6D B6 " ; done ; \
 for i in `seq 1 1 125` ; do echo -n "00 " ; done \
 ) | \
@@ -103,7 +213,7 @@ awk '{for (i=1;i<=NF;i+=4) print $(i+3),$(i+2),$(i+1),$(i)}' |\
 while read a b c d ; do printf "\x$a\x$b\x$c\x$d" ; done > ws.on
 ```
 
-Let's have a look at the generated file (note that Pi uses little endian):
+That is:
 ```
 $ od -Ad -txC ws.on
 0000000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
@@ -132,12 +242,33 @@ $ od -Ad -txC ws.on
 0000520
 ```
 
-We use channel 0. If properly set-up and connected, the stripe should turn on with:
+Setup PWM at 2.5 M/s for channel #1:
 ```
-$ ./rpio pwm send 0 ws.on
+$ rpio cm set pwm -f 0 -i 200 -s 6 ;\
+  rpio cm switch pwm on ;\
+  rpio pwm control +mode1 +usef1 +pwen1 ;\
+  rpio pwm dmac enable 1 ;\
+  rpio gpio mode 12 0
+
+$ rpio pwm status
+
+berr=0 empt=1 full=0 rerr=0 werr=1 DMA: enable=1 panic=7 dreq=7
+
+# | gap sta | mode msen pola pwen rptl sbit usef |     data |     range
+--+---------+------------------------------------+----------+----------
+1 |   0   0 |    1    0    0    1    0    0    1 |        0 |       20
+2 |   0   0 |    0    0    0    0    0    0    0 |        0 |       20
+  
+$ rpio pwm frequency
+2.50e+06 (7.81e+04,1)
 ```
 
-To switch off the lights, we use 30x24 *0-bits* as H-L-L signal:
+Switch the LEDs on:
+```
+$ rpio pwm fifo-dma 0 ws.on
+```
+
+The file generated below can be used to switch the lights off.
 ```
 $ ( \
 for i in `seq 1 1 125` ; do echo -n "00 " ; done ;  \
@@ -150,6 +281,6 @@ while read a b c d ; do printf "\x$a\x$b\x$c\x$d" ; done > ws.off
 
 The stripe should turn off with:
 ```
-$ ./rpio pwm send 0 ws.off
+$ rpio pwm send 0 ws.off
 ```
 

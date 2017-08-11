@@ -113,15 +113,17 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     {
 	std::cout
 	    << "arguments: OPTION+\n"
-	    << '\n'
-	    << "clear            # clear FIFO (single shot)\n"
-	    << "mode[1|2]=[0|1]  # 1=Serial 0=PWM\n"
-	    << "msen[1|2]=[0|1]  # 1=Mark-Space 0=coherent (if mode=0)\n"
-	    << "pwen[1|2]=[0|1]  # 1=start transmission 0=stop\n"
-	    << "pola[1|2]=[0|1]  # 1=inverse output polarity\n"
-	    << "rptl[1|2]=[0|1]  # 1=repeat word when idle (if usef=1)\n"
-	    << "sbit[1|2]=[0|1]  # 1=High 0=Low output when idle\n"
-	    << "usef[1|2]=[0|1]  # 1=read FIFO 0=read Data register\n"
+	    << "\n"
+	    << "clear             # clear FIFO\n"
+	    << "(+|-) mode (1|2)  # Serial or PWM mode\n"
+	    << "(+|-) msen (1|2)  # Mark-Space or coherent signal\n"
+	    << "(+|-) pwen (1|2)  # enable or disable transmission\n"
+	    << "(+|-) pola (1|2)  # inverse output polarity or don't\n"
+	    << "(+|-) rptl (1|2)  # repeat last word when idle or don't\n"
+	    << "(+|-) sbit (1|2)  # High or Low output when off\n"
+	    << "(+|-) usef (1|2)  # read FIFO or use Data register\n"
+	    << "\n"
+	    << "E.g. -mode2 activates PWM mode for channel #2\n"
 	    ;
 	return ;
     }
@@ -137,35 +139,35 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 	else if (arg == "clear")  w.at(Control::Clrf) = 1 ;
 	
-    	else if (arg == "mode1=0") w.at(Control::Mode1) = 0 ;
-    	else if (arg == "mode2=0") w.at(Control::Mode2) = 0 ;
-    	else if (arg == "msen1=0") w.at(Control::Msen1) = 0 ;
-    	else if (arg == "msen2=0") w.at(Control::Msen2) = 0 ;
-    	else if (arg == "pola1=0") w.at(Control::Pola1) = 0 ;
-    	else if (arg == "pola2=0") w.at(Control::Pola2) = 0 ;
-    	else if (arg == "pwen1=0") w.at(Control::Pwen1) = 0 ;
-    	else if (arg == "pwen2=0") w.at(Control::Pwen2) = 0 ;
-    	else if (arg == "rptl1=0") w.at(Control::Rptl1) = 0 ;
-    	else if (arg == "rptl2=0") w.at(Control::Rptl2) = 0 ;
-    	else if (arg == "sbit1=0") w.at(Control::Sbit1) = 0 ;
-    	else if (arg == "sbit2=0") w.at(Control::Sbit2) = 0 ;
-    	else if (arg == "usef1=0") w.at(Control::Usef1) = 0 ;
-    	else if (arg == "usef2=0") w.at(Control::Usef2) = 0 ;
+    	else if (arg == "-mode1") w.at(Control::Mode1) = 0 ;
+    	else if (arg == "-mode2") w.at(Control::Mode2) = 0 ;
+    	else if (arg == "-msen1") w.at(Control::Msen1) = 0 ;
+    	else if (arg == "-msen2") w.at(Control::Msen2) = 0 ;
+    	else if (arg == "-pola1") w.at(Control::Pola1) = 0 ;
+    	else if (arg == "-pola2") w.at(Control::Pola2) = 0 ;
+    	else if (arg == "-pwen1") w.at(Control::Pwen1) = 0 ;
+    	else if (arg == "-pwen2") w.at(Control::Pwen2) = 0 ;
+    	else if (arg == "-rptl1") w.at(Control::Rptl1) = 0 ;
+    	else if (arg == "-rptl2") w.at(Control::Rptl2) = 0 ;
+    	else if (arg == "-sbit1") w.at(Control::Sbit1) = 0 ;
+    	else if (arg == "-sbit2") w.at(Control::Sbit2) = 0 ;
+    	else if (arg == "-usef1") w.at(Control::Usef1) = 0 ;
+    	else if (arg == "-usef2") w.at(Control::Usef2) = 0 ;
 
-    	else if (arg == "mode1=1") w.at(Control::Mode1) = 1 ;
-    	else if (arg == "mode2=1") w.at(Control::Mode2) = 1 ;
-    	else if (arg == "msen1=1") w.at(Control::Msen1) = 1 ;
-    	else if (arg == "msen2=1") w.at(Control::Msen2) = 1 ;
-    	else if (arg == "pola1=1") w.at(Control::Pola1) = 1 ;
-    	else if (arg == "pola2=1") w.at(Control::Pola2) = 1 ;
-    	else if (arg == "pwen1=1") w.at(Control::Pwen1) = 1 ;
-    	else if (arg == "pwen2=1") w.at(Control::Pwen2) = 1 ;
-    	else if (arg == "rptl1=1") w.at(Control::Rptl1) = 1 ;
-    	else if (arg == "rptl2=1") w.at(Control::Rptl2) = 1 ;
-    	else if (arg == "sbit1=1") w.at(Control::Sbit1) = 1 ;
-    	else if (arg == "sbit2=1") w.at(Control::Sbit2) = 1 ;
-    	else if (arg == "usef1=1") w.at(Control::Usef1) = 1 ;
-    	else if (arg == "usef2=1") w.at(Control::Usef2) = 1 ;
+    	else if (arg == "+mode1") w.at(Control::Mode1) = 1 ;
+    	else if (arg == "+mode2") w.at(Control::Mode2) = 1 ;
+    	else if (arg == "+msen1") w.at(Control::Msen1) = 1 ;
+    	else if (arg == "+msen2") w.at(Control::Msen2) = 1 ;
+    	else if (arg == "+pola1") w.at(Control::Pola1) = 1 ;
+    	else if (arg == "+pola2") w.at(Control::Pola2) = 1 ;
+    	else if (arg == "+pwen1") w.at(Control::Pwen1) = 1 ;
+    	else if (arg == "+pwen2") w.at(Control::Pwen2) = 1 ;
+    	else if (arg == "+rptl1") w.at(Control::Rptl1) = 1 ;
+    	else if (arg == "+rptl2") w.at(Control::Rptl2) = 1 ;
+    	else if (arg == "+sbit1") w.at(Control::Sbit1) = 1 ;
+    	else if (arg == "+sbit2") w.at(Control::Sbit2) = 1 ;
+    	else if (arg == "+usef1") w.at(Control::Usef1) = 1 ;
+    	else if (arg == "+usef2") w.at(Control::Usef2) = 1 ;
 
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
@@ -221,7 +223,7 @@ static void fifo_cpu(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "-u  # unpaced write (ignores FIFO status)\n"
 		  << "default: fill FIFO whenver there is space\n"
 		  << '\n'
-		  << "FILE = file with binary data to transfer\n"
+		  << "FILE = file with binary data to enqueue\n"
 	    ;
 	return ;
     }
@@ -284,7 +286,7 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    << "ALLOC = allocator for DMA bus memory:\n"
 	    << Rpi::Ui::Bus::Memory::allocatorSynopsis()
 	    << '\n'
-	    << "FILE = file with data to be written\n"
+	    << "FILE = file with binary data to enqueue\n"
 	    ;
 	return ;
     }
@@ -432,25 +434,23 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Rpi::Pwm pwm(rpi) ;
     
     auto d = pwm.dmaC().read() ;
-    std::cout << std::hex
-	      << "DMA-Control: enable=" << d.enable << " "
-	      << "panic=" << static_cast<int>(d.panic) << " "
-	      << "dreq="  << static_cast<int>(d. dreq) << "\n\n" ;
-    
     using Status = Rpi::Pwm::Status ;
     auto s = pwm.status().read() ;
-    std::cout << "berr rerr werr empt full\n"
-	      << "------------------------\n"
-	      << std::setw(4) << s.test(Status::Berr)
-	      << std::setw(5) << s.test(Status::Rerr)
-	      << std::setw(5) << s.test(Status::Werr)
-	      << std::setw(5) << s.test(Status::Empt)
-	      << std::setw(5) << s.test(Status::Full)
-	      << '\n' ;
+    std::cout << '\n'
+	      << "berr=" << s.test(Status::Berr) << ' '
+	      << "empt=" << s.test(Status::Empt) << ' '
+	      << "full=" << s.test(Status::Full) << ' ' 
+	      << "rerr=" << s.test(Status::Rerr) << ' '
+	      << "werr=" << s.test(Status::Werr) << ' ' 
+	      << "DMA: "
+	      << "enable=" << d.enable << ' '
+	      << "panic="  << d.panic + 0 << ' '
+	      << "dreq="   << d.dreq  + 0 << "\n\n" ;
 
     std::cout
-	<< "# sta gap msen usef pola sbit rptl mode pwen     data    range\n"
-	<< "--------------------------------------------------------------\n" ;
+	<< std::hex
+	<< "# | gap sta | mode msen pola pwen rptl sbit usef |     data |     range\n"
+	<< "--+---------+------------------------------------+----------+----------\n" ;
     auto c = pwm.control().read() ;
     auto i = Rpi::Pwm::Channel1 ;
     do
@@ -459,18 +459,20 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	auto sbank = Rpi::Pwm:: Status::Bank::select(i) ;
 	
 	std::cout << std::setw(1) << i.value() + 1
-		  << std::setw(4) << s.test(sbank.sta) 
+		  << " |"
 		  << std::setw(4) << s.test(sbank.gap)
-	
-		  << std::setw(5) << c.test(cbank.msen)
-		  << std::setw(5) << c.test(cbank.usef)
-		  << std::setw(5) << c.test(cbank.pola)
-		  << std::setw(5) << c.test(cbank.sbit)
-		  << std::setw(5) << c.test(cbank.rptl)
+		  << std::setw(4) << s.test(sbank.sta)
+		  << " |"
 		  << std::setw(5) << c.test(cbank.mode)
+		  << std::setw(5) << c.test(cbank.msen)
+		  << std::setw(5) << c.test(cbank.pola)
 		  << std::setw(5) << c.test(cbank.pwen)
-	
+		  << std::setw(5) << c.test(cbank.rptl)
+		  << std::setw(5) << c.test(cbank.sbit)
+		  << std::setw(5) << c.test(cbank.usef)
+		  << " |"
 		  << std::setw(9) << pwm. data(i).read() 
+		  << " |"
 		  << std::setw(9) << pwm.range(i).read()
 		  << '\n' ;
     }

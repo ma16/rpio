@@ -515,7 +515,7 @@ berr rerr werr empt full
 Below some odds to successfully transfer small blocks of data (32 words):
 ```
 $ seq 1 1 32 | while read ; do printf "\x00\x00\x00\x80" ; done > block_32
-seq 1 1 20 | while read ; do rpio pwm clear gap2 ; rpio pwm fifo-cpu block_256 ; done
+$ seq 1 1 20 | while read ; do rpio pwm clear gap2 ; rpio pwm fifo-cpu block_256 ; done
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 0 0 0 1 0
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 0 0 0 1 0
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 0 0 0 1 0
@@ -543,7 +543,7 @@ Observe: The Status is read after all words were written to FIFO: The transmissi
 The same for transfer of 1k words:
 ```
 $ seq 1 1 1000 | while read ; do printf "\x00\x00\x00\x80" ; done > block_1k
-$ seq 1 1 20 | while read ; do rpio pwm clear gap2 ; chrt -f 99 rpio pwm fifo-cpu block_1k ; done
+$ seq 1 1 20 | while read ; do rpio pwm clear gap2 ; rpio pwm fifo-cpu block_1k ; done
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 0 0 0 1 0
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 0 0 0 1 0
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 0 0 0 1 0
@@ -568,10 +568,10 @@ berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 1 0 0 1 0
 
 Observe: The number of transfers without a gap decreases.
 
-The same for transfer of 50k words:
+The same for a transfer of 50k words:
 ```
 $ seq 1 1 50000 | while read ; do printf "\x00\x00\x00\x80" ; done > block_50k
-$ seq 1 1 20 | while read ; do rpio pwm clear gap2 ; chrt -f 99 rpio pwm fifo-cpu block_50k ; done
+$ seq 1 1 20 | while read ; do rpio pwm clear gap2 ; rpio pwm fifo-cpu block_50k ; done
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 1 0 0 1 0
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 1 0 0 1 0
 berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: 0 0 0 0 1 0 0 1 0
