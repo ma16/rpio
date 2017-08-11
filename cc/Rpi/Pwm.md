@@ -4,7 +4,7 @@ See [BCM2835 ARM Peripherals](https://www.raspberrypi.org/app/uploads/2012/02/BC
 
 Highlights:
 * Two output channels.
-* Operates also as generic serializer.
+* Operates also in Serial mode.
 * 16-word deep FIFO with 32-bit words.
 * DMA pacing.
 * Clock-manager.
@@ -21,20 +21,22 @@ This enables effective clock-rates in a range of about 5 kHz to 125 MHz.
 
 The base-address of the register-block is 7E20:C000.
 
-Offset | Name | Abstract | Channel
+Offset | Register | Abstract | Channel
 ---: | :--- | :--- | ---:
 0x0 | CTL | Control | both
 0x4 | STA | Status | both
-0x8 | DMAC | DMA-Control | -
-0x10 | RNG1 | Data-range as bits per word | #1
-0x14 | DAT1 | 32-bit data-word | #1
-0x18 | FIF1 | FIFO | -
-0x20 | RNG2 | Data-range as bits per word | #2
-0x24 | DAT2 | 32-bit data-word | #2
+0x8 | DMAC | DMA Control | -
+0x10 | RNG1 | Data Range (i.e. bits per word) | #1
+0x14 | DAT1 | Data Word | #1
+0x18 | FIF1 | FIFO Write Acccess | -
+0x20 | RNG2 | Data Range (i.e. bits per word) | #2
+0x24 | DAT2 | Data Word | #2
 
-The registers are described below. The range registers RNG1 and RNG2 are described in the RNG# section and the data registers DAT1 and DAT2 are described in the DAT# section.
+The registers are described below. The range registers RNG1 and RNG2 are described in the RNG section and the data registers DAT1 and DAT2 are described in the DAT section.
 
 ## Control Register (CTL)
+
+There are seven flags per channel plus CLRF1.
 
 ### Overview
 
@@ -56,33 +58,34 @@ Offset | Name | Abstract | Channel
 13 | USEF2 | Use FIFO instead of Data register | #2
 15 | MSEN2 | Mark-Space-Enable | #2
 
+A short description of the eight different flags:
+
 Name | Description
 :--- | :----------
 CLRF1 | Write 1 to clear the FIFO. Writing 0 has no effect. Read returns always zero.
-MODE# | 0 = PWM, 1 = Serial; see sections below
-MSEN# | 0 = coherent, 1 = mark-space; see sections below; only effective if MODE=0
+MODE# | 0 = PWM, 1 = Serial (needs also USEF=1)
+MSEN# | 0 = coherent, 1 = mark-space; only effective if MODE=0
 POLA# | 0 = normal, 1 = inverse output polarity
 PWEN# |	0 = disable, 1 = enable transmission 
-RPTL# | 0 = normal, 1 = repeat last-sent word if idle and don't set the GAP Status flag; only effective if USEF=1
-SBIT# | 0 = Low, 1 = High output if idle
-USEF# | 0 = use Data register, 1 = use FIFO instead; see sections below
+RPTL# | 0 = normal, 1 = repeat last-sent word if idle; only effective if USEF=1
+SBIT# | 0 = Low, 1 = High output; only if STATUS.STA=0
+USEF# | 0 = use Data register, 1 = read FIFO
 
 **RPTL**
 
-This flag defines the behavior of the peripheral when the FIFO runs empty.
+This flag defines the behavior of the peripheral when the FIFO runs empty:
 
-If RPTL=0, the peripheral will stop the transmission. GAP will be set and STA will be cleared. The output signal will be as configured in CONTROL.SBIT. When a new word is put into the FIFO, the transmission will continue with this word (STA=1).
+* RPTL=0: The peripheral stops the transmission (GAP=1 & STA=0). The output signal is set according to the value of SBIT. When a new word is put into the FIFO, the transmission will continue with this word (STA=1). The GAP flag is not cleared (GAP=1).
+* RPTL=1: The peripheral continues transmission and repeats the last sent word. GAP won't be raised and STA remains set. When a new word is put into the FIFO, the transmission will continue with this word.
 
-If RPTL=1, the peripheral will continue transmission and repeat the last word.  GAP won't be raised and STA remains set. When a new word is put into the FIFO, the transmission will continue with this word.
-
-It appears that channel #1 operates always as if RPTL1=1 (see Defect section). This makes the Status flags STA1 and GAP1 ineffective.
+It appears that channel #1 operates always as if RPTL1=1 if only channel #1 is activated (PWEN1=1 & PWEN2=0). This makes the flags STA1 and GAP1 mostly ineffective. (see Defects)
 
 ### PWM Mode
 
 In PWM mode (MODE=0) the output signal is defined by the period and by the ratio:
 
-* The *period* (P) is the duration of a single PWM-cylce that repeats again and again. It is given as a number of clock-pulses.
-* The *ratio* (R) reflects the average strength of the output signal. It is given as as the number of clock-pulses (within a PWM-cycle) when the output-level is High (R<=P).
+* The *period* (P) is the duration of a single PWM-cylce that repeats again and again. It is given as a number of clock-pulses in the Range register.
+* The *ratio* (R) reflects the average strength of the output signal. It is given as as the number of clock-pulses (within a PWM-cycle) when the output-level is High (R<=P). Either the value in the Data register is used or the FIFO value.
 
 R | Output Signal | Description
 ---: | ---: | :---
@@ -91,18 +94,20 @@ R | Output Signal | Description
 P-1 | (P-1) / P | Highest sensible value below High
 P | 1 | Permanently High
 
-In *mark-space* operation (M/S), the output is set to Low for (*P*-*R*) clock-pulses and then to High for *R* clock-pulses.
+In *mark-space* operation (M/S), the output is set to High for *R* clock-pulses and then to Low for (*P*-*R*) clock-pulses.
 
-A *coherent* operation is also supported which spreads the Lows and Highs (within a cycle) evenly. For example: (*R*,*P*) = (3,10)
+A *coherent* operation is also supported which spreads the Highs and Lows (within a cycle) evenly. For example: (*R*,*P*) = (3,10)
 
 ```
-       M/S cycle: 0 0 0 0 0 0 0 1 1 1
-  coherent cycle: 0 1 0 0 1 0 0 1 0 0
+       M/S cycle: 1 1 1 0 0 0 0 0 0 0
+  coherent cycle: 1 0 0 0 1 0 0 1 0 0
 ```
 
 ### Serial Mode
 
-If Serial mode (MODE=1) is used instead of PWM, the output signal corresponds to the bits of a given word. Most significant bits are put out first. This enables arbitrary bit-stream of almost any length in FIFO mode (USEF=1).
+In Serial mode (MODE=1 & USEF=1), the output signal corresponds to the bits of a given word. This enables arbitrary bit-stream of almost any length.
+
+The number of bits per cycle is defined by the Range register. The actual bits are read word by word from the FIFO. Each word makes a cycle. Most significant bits are put out first. If the range is less than 32, the least significant bits are ignored. If the range is greater than 32, padding bits are appended (corresponding to the SBIT).
 
 ## Status Register (STA)
 
@@ -120,13 +125,13 @@ Offset | Name | Abstract | Channel | Clear
 
 The flags FULL, EMPT, STA1 and STA2 are set and reset by the peripheral.
 
-The flags WERR, RERR, GAP1, GAP2 and BERR are raised by the peripheral and remains set until cleared by the application. Write 1 to clear a flag. (Writing 0 has no effect.)
+The flags WERR, RERR, GAP1, GAP2 and BERR are raised by the peripheral and remain set until cleared by the application. Write 1 to clear a flag. (Writing 0 has no effect.)
 
 **BERR**
 
 An error has occurred while writing to registers via APB. This may happen if the bus tries to write successively to the same set of registers faster than the synchronizer block can cope with. Multiple switching may occur and contaminate the data during synchronisation.
 
-This kind of problem can be observed when writing twice in a row to the Control register (Use-Case-6). Since the effects are unpredictable, application developers should check for BERR after and try to prevent it. Adding additional read-cyles may be used as **work-around**. Still, this remains an open issue.
+This kind of problem can be observed when writing twice in a row to the Control register (Use-Case-6). Since the effects are unpredictable, application developers should check for BERR and retry the operation if BERR is raised.
 
 Note that the BERR flag appears always to be raised when the Control register is written but the clock-manager wasn't set-up yet (CM.PWM.CONTROL.ENAB=0).
 
@@ -140,7 +145,7 @@ It appears the flag is often raised even tough there was no FIFO underrun (see D
 
 The flag is only effective if both channels are activated (PWEN1=1 & PWEN2=1).
 
-If only channel #1 is activated (PWEN1=1 & PWEN2=0) the peripheral acts as if RPTL1=1, and thus does never raise GAP1 (see Defects).
+If only channel #1 is activated (PWEN1=1 & PWEN2=0) the peripheral acts as if RPTL1=1, and thus does never raise GAP1 (see Use-Case-9).
 
 **RERR**
 
@@ -150,7 +155,7 @@ Reading the FIFO doesn't raise the flag (Use-Case-7).
 
 **STA**
 
-The peripheral sets the flag when data transmission is in progress and clear the flag when no data transmission takes place. Hence, when the channel is not active (PWEN=0) the flag is not set. If the channel is active (PWEN=1) and there is no data in the FIFO, the flag is cleared until new data is available (unless RPTL1=1).
+The peripheral sets the flag when data transmission is in progress and clears the flag when no data transmission takes place. Hence, when the channel is not active (PWEN=0) the flag is not set. If the channel is active (PWEN=1) and there is no data in the FIFO, the flag is cleared. If the channel is active and in repetion mode (PWEN=1 & RPTL1=1) the transmission continues (STA=1) even if there is no more data.
 
 **STA1**
 
@@ -163,14 +168,14 @@ If only channel #1 is activated (PWEN1=1 & PWEN2=0) the peripheral acts as if RP
 A write operation to this register appends a word onto the FIFO. The FIFO itself is 16 words deep. Each word is 32-bit wide. The FIFO can not be read. The status of the FIFO is reflected by STA.EMPT, STA.FULL, STA.RERR and STA.WERR.
 
 When writing the register you should make sure: 
-* either beforhand that the FIFO is not full
+* either beforehand that the FIFO is not full
 * or afterwards that no write-error has occurred.
 
-The FIFO is shared between both channels. Hence, when both channels are enabled for FIFO usage:
-* The data is shared between these channels in turn. For example, with the word sequence A B C D E F G H, the first channel will use A C E G and the second channel will use B D F H.
+When both channels read the FIFO:
+* The data is shared between the channels in turn. For example, with the word sequence A B C D, the first channel will read A C and the second channel will read B D.
 * The range register should hold the same value for both channels.
-* The datasheet says that RPTL# is not meaningful as there is no defined channel to own the last data in the FIFO. Therefore both RPTL# flags must be set to zero. However, observations show, it doesn't has to.
-* If the configuration has changed in any of the two channels, the FIFO should be cleared before writing new data.
+* The datasheet says that RPTL is not meaningful as there is no defined channel to own the last data in the FIFO. Therefore both RPTL flags must be set to zero. 
+* If the configuration has changed for any of the two channels, the FIFO should be cleared before writing new data.
 
 ### FIFO Underrun
 
@@ -184,33 +189,33 @@ The GAP flag is not raised in RPTL=1 mode. If data is transferred on channel #1 
 
 In general, the GAP flag seems to produce many false positives, especially on a Pi model Zero (Use-Case-9). Hence, if the FIFO is written by DMA, there is no reliable indicator whether there was an underrun. This is an open issue.
 
-If the FIFO written by CPU, the EMPT Status flag is no reliable indicator either for a FIFO underrun: Imagine that the writing thread gets suspended immediately after checking the EMPT Status flag. If the suspension lasts long enough, the FIFO runs empty. This is a less likely, but still probable scenario, especially if vast amounts of data are transferred.
+If the FIFO is written by CPU, the EMPT Status flag is no reliable indicator to detect a a FIFO underrun: Imagine that the writing thread gets suspended immediately after checking the EMPT Status flag. If the suspension lasts long enough, the FIFO runs empty. This is a less likely, but still probable scenario, especially if vast amounts of data are transferred.
 
-The following approach may help to detect a FIFO underrun (Use-Case-9): The user data is written in blocks of 16 words (which is the FIFO size). A word is only written if there is still space (FULL=0). When 16 words are written in a row, there might have been an underrun. (It might also be a false positive.) If less then 16 words were written (when the FIFO became full again), an underrun can be ruled out.
+The following approach may help to detect a FIFO underrun (Use-Case-9): The user data is written in blocks of 16 words (which is the FIFO size). A word is only written if there is still space (FULL=0). When 16 words are written in a row, there might have been an underrun. (It might also be a false positive.) If less then 16 words were written (since the FIFO became full again), an underrun can be ruled out.
 
-If no peripheral is active, the FIFO should be topped-up with user data before the transfer starts. Otherwise, the FIFO should be flooded with padding words (i.e. by "fast" writes w/o checking whether there is space or not). Likewise, the end of the user data needs be padded to enable 16-word block-writes until the last word of user data was written.
+If no peripheral is active, the FIFO should be topped-up with user data before the transfer starts. Otherwise, the FIFO should be flooded with padding words (i.e. by "fast" writes w/o checking whether there is space or not). Likewise, the end of the user data needs to be padded to enable 16-word block-writes until the last word of user data was written.
 
-## Range Register (RNG#)
+## Range Register (RNG)
 
-In PWM mode (CTL.MODE#=0) the range defines the duration of a period; by the number of corresponding clock-cycles.
+In PWM mode (CTL.MODE=0) the range defines the duration of a period; by the number of corresponding clock-cycles.
 
-In Serial mode (CTL.MODE#=1) the range defines the number of bits in a word to transmit:
+In Serial mode (CTL.MODE=1) the range defines the number of bits in a word to transmit:
 * If range < 32, only the most significant bits of a word are transmitted. The remaining (least signficant) bits in the word are ignored.
 * If range > 32, the word is filled-up with (least significant) padding bits.
 
-Note: in Serial mode (CTL.MODE#=1) with FIFO (CTL.USEF#=1) two bits are transferred per word even if RNG#=1. If RNG#=0 there are strange effects, i.e. a single write to an empty FIFO enables STA.STA# (if CTL.PWEN#=1), but the FIFO remains empty. Two writes in a row make the FIFO non-empty.
+Note: in Serial mode (CTL.MODE=1) with FIFO (CTL.USEF=1) two bits are transferred per word even if RNG=1. If RNG=0 there are strange effects, i.e. a single write to an empty FIFO enables STA.STA (if CTL.PWEN=1), but the FIFO remains empty. Two writes in a row make the FIFO non-empty.
 
-## Data Register (DAT#)
+## Data Register (DAT)
 
-This register is only relevant if CTL.USEF#=0.
+This register is only used if CTL.USEF=0.
 
-In PWM mode (CTL.MODE#=0) the value effects the ratio. The register defines the number of clock-cycles within a period (RNG#) the output should be set to High.
+In PWM mode (CTL.MODE=0) the value effects the ratio. The register defines the number of clock-cycles within a period (RNG) the output should be set to High.
 
-In Serial mode (CTL.MODE#=1) the value defines the data to transmit (again and again).
+The register is not used in Serial mode (CTL.MODE=1 & CTL.USEF=1).
 
 ## DMA-Control Register (DMAC)
 
-The peripheral mapping (TI.PERMAP) to pace DMA write operations to the PWM-FIFO is 5.
+The peripheral mapping (DMA.TI.PERMAP) to pace DMA write operations for the PWM-FIFO is 5. Pacing is enabled as follows:
 
 Offset | Size | Name | Abstract | Default
 -----: | ---: | :--- | :------- | ------:
@@ -222,7 +227,7 @@ That is: the DREQ signal is raised on the AXI bus when the number of entries in 
 
  The value of DMAC.DREQ needs to be chosen carefully: there will be a FIFO underrun if DREQ is too small; and there will be a FIFO overflow if DREQ is too big.
 
-From observation: DMAC.DREQ > 9 leads to a FIFO overflow. The DMA controller doesn't stop the transfer in time, so data is still written when the FIFO is already full.
+From observation: DMAC.DREQ > 9 leads to a FIFO overflow. The DMA controller doesn't stop the transfer in time and data is still written when the FIFO is already full.
 
 DREQ |0..15|  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  24 |  25 |  26 |  27 |  28 |  29|  30 |  31
 ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- 
@@ -234,7 +239,7 @@ DREQ |0..15|  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  24 |  25 |  26 |  
 14 | 0..15| *| *|18|19|20| *| *| *| *| *|26|27|28| *| *| *
 15 | 0..15| *| *|18|19| *| *| *| *| *| *|26|27| *| *| *| *
 
-So there are missing values (*) because of writing into a full FIFO; this appears to be reproducible at different speeds. 
+There are missing values (*) because of DMA writes into a full FIFO; this appears to be reproducible at different PWM rates. 
 
 The overflow won't happen if the DMA controller uses TI.WAIT_RESP=1. This makes the DMA controller wait after each write until it receives the AXI write-response. It ensures that multiple writes cannot get stacked in the AXI bus pipeline. The maximum transfer rate will drop accordingly.
 
@@ -242,23 +247,23 @@ The overflow won't happen if the DMA controller uses TI.WAIT_RESP=1. This makes 
 
 ### No Transmission on Channel #2
 
-Even though the channel is active, the peripheral won't transmit a newly enqueued word (Use-Case-1). The control test on channel #1 succeeds however (Use-Case-2).
+Even though the channel is active, the peripheral won't transmit a newly enqueued word (Use-Case-1). The same use-case succeeds however on channel #1 (Use-Case-2).
 
-There is a slight difference between these two test cases: RPTL1 is implicitly set for channel #1. However, setting RPTL2 to imitate this behavior doesn't make any difference (Use-Case-3).
+There is a slight difference between these use-cases: RPTL1 is implicitly set for channel #1 (see Defects). Still, there is no change in the result even if RPTL2 is explicitly set for channel #2 (Use-Case-3).
 
 **Work-around**: The FIFO should be cleared whenever channel #2 is used (Use-Case-4).
 
 ### CONTROL.RPTL1
 
-The peripheral behaves always as if RPTL1=1, whether the flag is actually set or not (Use-Case-2). This is corroborated by the Status flags since STA1=1 and GAP1=0. A logic analyzer shows the continuous repetition of the signal.
+The peripheral behaves always as if RPTL1=1, whether the flag is actually set or not (Use-Case-2). This is corroborated by the Status flags (STA1=1 and GAP1=0). Also, a logic analyzer shows the repetition of the signal.
 
-The control test is performed on channel #2 (Use-Case-4). The RPTL1 flag is not set. A logic analyzer shwows only a single occurrance of the signal; without any repetitions. Since there is no more data in the FIFO, the transmission stopped (STA2=0, GAP2=1).
+The use-case succeeds on channel #2 (Use-Case-4). The RPTL1 flag is not set. A logic analyzer shows only a single occurrance of the signal; without any repetitions. Since there is no more data in the FIFO, the transmission stopped (STA2=0, GAP2=1).
 
-Note: There is a difference between an explicitly set RPTL2 flag and the implicitly set RPTL1 flag. On start-up, channel #1 is not transmitting any signal; however, channel #2 is if RPTL2=1 (compare Use-Case-2 and Use-Case-3).
+Note: There is a difference. Channel #1 is not transmitting any signal on startup. However, channel #2 does send a signal if RPTL2=1 (compare Use-Case-2 and Use-Case-3).
 
 ## Use Cases
 
-All use-cases were run on a Pi model-0 (BCM2835), on model-2 (BCM2836) and on model-3 (BCM2837). Raspbian was just booted up unless otherwise mentioned.
+Most of these use-cases have been run immediately after the Raspbian oeprating system was booted up.  The Raspbian Pi Models Zero (BCM2835), 2 (BCM2836) and 3 (BCM2837) were used.
 
 ### Use-Case-1
 
@@ -645,27 +650,23 @@ Observe: The Status is read after all words were written to FIFO: The transmissi
 
 ## Errata
 
-This includes the errata on [eLinux](http://elinux.org/BCM2835_datasheet_errata).
+This is the errata for the [BCM2835 ARM Peripherals](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf) document. It includes the errata on [eLinux](http://elinux.org/BCM2835_datasheet_errata).
 
 Page | Description
 --- | ---
 138 | "read data from a FIFO storage block, which can store up to eight 32-bit words."
-| | The FIFO holds 16 32-bit words. So, if only one channel is used, all 16 words make up a "block".
+| | The FIFO is 16 words deep.
 138 | "Both modes clocked by clk_pwm which is nominally 100MHz"
-| | The "nominal" clock seems to be zero. It needs to be set-up by the clock-manager.
+| | There is no clock-pulse unless set-up by the clock-manager.
 140 | "PWM DMA is mapped to DMA channel 5."
-| | The peripheral mapping to pace DMA writes to the PWM FIFO is 5 (TI.PERMAP).
+| | In order to pace DMA-writes to the PWM-FIFO, the DMA controller needs to be set-up acordingly: The DMA transfer information (TI) holds a PERMAP field (peripheral mapping) that has to be set to 5.
 141 | "PWM clock source and frequency is controlled in CPRMAN."
-| | It doesn't say what *CPRMAN* is or how to set it. Luckily there are people who dug into the topic a bit deeper. It is assumed that *CPRMAN* is the abbrevation for *Clock Power Reset MANager*; which isn't much help either. However, the people contributing to eLinux provided a description for the [clock-manager](http://elinux.org/BCM2835_registers#CM) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
+| | The document does not say what CPRMAN is or how to set it. Luckily there are people who dug into the topic a bit deeper. It is assumed that CPRMAN is the abbrevation for Clock Power Reset MANager; which isn't much help either. However, the people contributing to eLinux provided a description for the [clock-manager](http://elinux.org/BCM2835_registers#CM) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
 141 | The base-address for the register-block is missing.
 | | The base-address is 0x7e20:c000.
 143 | CLRF1 is marked as RO (read-only).
 | | It is write-only and reads as zero.
-143 | For SBIT: "Defines the state of the output when no transmission takes place"
-| | This is only true:
-| | If MODE=0 & MSEN=1 & SBIT=1.
-| | If MODE=1 & RANGE>32 for the 33rd "bit" and all following.
 144 | "RERR1 bit sets to high when a read when empty error occurs."
-| | There is no explanation under which circumstances this may happen.
+| | There is no explanation under which actual circumstances the RERR1 bit is set.
 145 | For EMPT1,FULL1: they are marked as RW (read-write)
 | | Since a write-operation has no effect, it should be RO (read-only).
