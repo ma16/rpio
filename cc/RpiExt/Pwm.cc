@@ -8,18 +8,8 @@ using Status = Rpi::Pwm::Status ;
 
 size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
 {
-    // keep track of number of words written to FIFO
     decltype(nwords) nwritten = 0 ;
-
-    auto full = this->fillUp(0x20,pad) ;
-    // ...0x20 is rather arbitrary, should be anything above FIFO-size
-    if (!full)
-	return nwritten ; // serializer too fast (underrun)
-
-    // prevent infinite loops
-    if (!this->writable(1000000))
-	return nwritten ; 
-
+    
     // top-up FIFO in blocks of FIFO-size
     while (nwords - nwritten >= 16)
     {
@@ -54,44 +44,17 @@ bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
     return werr ;
 }
 
-size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
+size_t RpiExt::Pwm::headstart(uint32_t const buffer[],size_t nwords)
 {
-    for (decltype(nwords) i=0 ; i<nwords ; ++i)
-    {
-	if (this->pwm.status().read().test(Status::Full))
-	    return i ;
-	this->pwm.fifo().write(buffer[i]) ;
-    }
-    return nwords ;
+    auto enable = this->pwm.control().read() ;
+    auto disable = enable ;
+    disable.at(Rpi::Pwm::Control::Pwen1) = 0 ;
+    disable.at(Rpi::Pwm::Control::Pwen2) = 0 ;
+    this->setControl(disable) ;
+    auto n = this->topUp(buffer,nwords) ;
+    this->setControl(enable) ;
+    return n ;
 }
-
-bool RpiExt::Pwm::writable(uint32_t timeout)
-{
-    if (!this->pwm.status().read().test(Status::Full))
-	return true ;
-    auto t0 = this->timer.cLo() ; 
-    while (this->pwm.status().read().test(Status::Full))
-    {
-	if (this->timer.cLo() - t0 >= timeout)
-	    return false ;
-	// possible reasons:
-	// * the given time span was too short
-	// * pwm wasn't enabled
-	// * CM::PWM is not enabled
-    }
-    return true ;
-}
-
-void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
-{
-    for (decltype(nwords) i=0 ; i<nwords ; ++i)
-    {
-	while (this->pwm.status().read().test(Status::Full))
-	    ;
-        // ...blocks indefinitely if serializer doesn't read
-	this->pwm.fifo().write(buffer[i]) ;
-    }
-}	
 
 std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
 {
@@ -168,4 +131,53 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
 
     // [todo] we might stop the timing whenever a gap is encountered
 }
+
+void RpiExt::Pwm::setControl(Rpi::Pwm::Control::Word w)
+{
+    this->pwm.control().write(w) ;
+    while (this->pwm.status().read().test(Status::Berr))
+    {
+	this->pwm.status().clear(Status::Berr.mask()) ;
+	this->pwm.control().write(w) ;
+    }
+}
+
+size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
+{
+    for (decltype(nwords) i=0 ; i<nwords ; ++i)
+    {
+	if (this->pwm.status().read().test(Status::Full))
+	    return i ;
+	this->pwm.fifo().write(buffer[i]) ;
+    }
+    return nwords ;
+}
+
+bool RpiExt::Pwm::writable(uint32_t timeout)
+{
+    if (!this->pwm.status().read().test(Status::Full))
+	return true ;
+    auto t0 = this->timer.cLo() ; 
+    while (this->pwm.status().read().test(Status::Full))
+    {
+	if (this->timer.cLo() - t0 >= timeout)
+	    return false ;
+	// possible reasons:
+	// * the given time span was too short
+	// * pwm wasn't enabled
+	// * CM::PWM is not enabled
+    }
+    return true ;
+}
+
+void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
+{
+    for (decltype(nwords) i=0 ; i<nwords ; ++i)
+    {
+	while (this->pwm.status().read().test(Status::Full))
+	    ;
+        // ...blocks indefinitely if serializer doesn't read
+	this->pwm.fifo().write(buffer[i]) ;
+    }
+}	
 

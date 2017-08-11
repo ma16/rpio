@@ -7,9 +7,9 @@
 #include <iomanip>
 #include <iostream>
 #include <thread> // this_thread::sleep_for
+#include <Neat/cast.h>
 #include <Neat/stream.h>
 #include <Rpi/Counter.h>
-#include <Rpi/Timer.h>
 #include <RpiExt/Dma/Control.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>
@@ -17,11 +17,23 @@
 #include <Rpi/Ui/Dma.h>
 #include <Ui/strto.h>
 
-static std::string statusStr(Rpi::Pwm::Status::Word status)
+static std::vector<uint32_t> readFile(std::string const &name)
+{
+    std::ifstream is ; Neat::open(&is,name) ;
+    auto nbytes = Neat::demote<size_t>(Neat::size(&is).as_unsigned()) ; 
+    auto nwords = nbytes / 4 ;
+    if (nwords * 4 != nbytes)
+	throw std::runtime_error("file-size must be a multiple of 4 bytes") ;
+    std::vector<uint32_t> v(nwords) ;
+    Neat::read(&is,&v[0],Neat::ustreamsize::make(nbytes)) ;
+    return v ;
+}
+
+static std::string statusString(Rpi::Pwm::Status::Word status)
 {
     using Status = Rpi::Pwm::Status ;
     std::ostringstream os ;
-    os << "berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr "
+    os << "berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: "
        << status.test(Status::Berr) << ' '
        << status.test(Status::Empt) << ' '
        << status.test(Status::Full) << ' '
@@ -34,6 +46,8 @@ static std::string statusStr(Rpi::Pwm::Status::Word status)
     return os.str() ;
 }
 
+// ----
+
 static void berr(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
@@ -44,7 +58,7 @@ static void berr(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    << "This call is used  to force the peripheral to raise the BERR\n"
 	    << "flag. The function reads the Control register N times before\n"
 	    << "writing it back. This is done in a loop with 100 repetitions.\n"
-	    << "With N<5 the BERR flag is almost often set, with N>20 none.\n"
+	    << "With N<5 the BERR flag is almost often raised, with N>20 not.\n"
 	    ;
 	return ;
     }
@@ -171,119 +185,6 @@ static void data(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Rpi::Pwm(rpi).data(index).write(word) ;
 }
 
-static std::vector<uint32_t> read_file(std::string const &name)
-{
-    std::ifstream is ; Neat::open(&is,name) ;
-    auto nbytes = Neat::demote<size_t>(Neat::size(&is).as_unsigned()) ; 
-    auto nwords = nbytes / 4 ;
-    if (nwords * 4 != nbytes)
-	throw std::runtime_error("file-size must be a multiple of 4 bytes") ;
-    std::vector<uint32_t> v(nwords) ;
-    Neat::read(&is,&v[0],Neat::ustreamsize::make(nbytes)) ;
-    return v ;
-}
-
-// should also be enqueue
-static void dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    if (argL->empty() || argL->peek() == "help")
-    {
-	std::cout
-	    << "arguments: CHANNEL [CS] [TI] [ALLOC] FILE\n"
-	    << '\n'
-	    << "CHANNEL = DMA channel (0..15)\n"
-	    << '\n'
-	    << "CS = DMA control and status:\n"
-	    << Rpi::Ui::Dma::csSynopsis()
-	    << '\n'
-	    << "TI = DMA transfer information:\n"
-	    << Rpi::Ui::Dma::tiSynopsis()
-	    << '\n'
-	    << "ALLOC = allocator for DMA memory:\n"
-	    << Rpi::Ui::Bus::Memory::allocatorSynopsis()
-	    << '\n'
-	    << "FILE = name of file with data to be sent\n"
-	    ;
-	return ;
-    }
-
-    // dma channel index
-    auto index = Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index()) ;
-
-    // dma channel
-    auto channel = Rpi::Dma::Ctrl(rpi).channel(index) ;
-
-    // dma control and status register
-    auto cs = Rpi::Ui::Dma::getCs(argL,Rpi::Dma::Cs()) ;
-
-    // dma transfer information 
-    auto ti = Rpi::Ui::Dma::getTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
-
-    // bus memory (video core memory) allocator
-    auto allocator = Rpi::Ui::Bus::Memory::
-	getAllocator(rpi,argL,RpiExt::VcMem::defaultAllocator()) ;
-
-    // data to transmit
-    auto data = read_file(argL->pop()) ;
-    
-    argL->finalize() ;
-
-    // stop (all) transmissions in order to top-up FIFO
-    auto control = Rpi::Pwm(rpi).control().read() ;
-    {
-	auto stop = control ;
-	stop.at(Rpi::Pwm::Control::Pwen1) = 0 ;
-	stop.at(Rpi::Pwm::Control::Pwen2) = 0 ;
-	Rpi::Pwm(rpi).control().write(stop) ;
-    }
-    
-    // (user) data head block to fit FIFO buffer
-    auto head = RpiExt::Pwm(rpi).topUp(&data[0],data.size()) ;
-    
-    // manage dma control block list
-    RpiExt::Dma::Control cb(allocator) ;
-
-    // DMA: enable PWM again
-    auto enable = allocator->allocate(sizeof(uint32_t)) ;
-    (*enable->as<uint32_t*>()) = control.value() ;
-    cb.add(Rpi::Dma::Ti::Word(),enable.get(),Rpi::Pwm::Control::Address) ;
-    
-    // DMA: take time t0 (FIFO=full)
-    auto t0 = allocator->allocate(sizeof(uint32_t)) ;
-    cb.add(Rpi::Dma::Ti::Word(),Rpi::Counter::Address,t0.get()) ;
-
-    // DMA: (user) data tail block that did not fit into the FIFO buffer
-    auto rest = (data.size() - head) * 4 ;
-    if (rest > 0)
-    {
-	auto tail = allocator->allocate(rest) ;
-	memcpy(tail->as<void*>(),&data[head],rest) ;
-	cb.add(ti,tail.get(),Rpi::Pwm::Fifo::Address) ;
-    }
-
-    // DMA: read Status
-    auto status = allocator->allocate(sizeof(uint32_t)) ;
-    cb.add(Rpi::Dma::Ti::Word(),Rpi::Pwm::Status::Address,status.get()) ;
-
-    // DMA: take time when DMA transfer was completed
-    auto t1 = allocator->allocate(sizeof(uint32_t)) ;
-    cb.add(Rpi::Dma::Ti::Word(),Rpi::Counter::Address,t1.get()) ;
-    
-    // execute actual DMA transfer
-    channel.setup(cb.address(),cs) ;
-    channel.start() ;
-    while (0 != (channel.getCs().active().bits()))
-	std::this_thread::sleep_for(std::chrono::milliseconds(1)) ;
-    
-    // [note] If there is any exception, then the DMA must stop first
-    // and thereafter the memory can be released. On process abortion,
-    // the (VC) memory stays allocated and the DMA continues running.
-    
-    std::cout
-	<< statusStr(Rpi::Pwm::Status::Word::coset(*status->as<uint32_t*>())) << ' '
-	<< "duration " << (*t1->as<uint32_t*>()) - (*t0->as<uint32_t*>()) << '\n' ;
-}
-
 static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
@@ -310,18 +211,18 @@ static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     pwm.dmaC().write(w) ;
 }
 	       
-static void enqueue(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void fifo_cpu(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     {
-	std::cout << "arguments: [ -c U32 | -u ] DATA\n"
+	std::cout << "arguments: [ -c U32 | -u ] FILE\n"
 		  << '\n'
 		  << "-c  # detect underruns, this requires padding\n"
-		  << "-u  # unpaced (ignore FIFO status)\n"
+		  << "-u  # unpaced write (ignores FIFO status)\n"
 		  << "default: fill FIFO whenver there is space\n"
 		  << '\n'
-		  << "DATA : file FILE  # file with binary data to transfer\n" 
-		  << "     | U32+       # list of words\n" ;
+		  << "FILE = file with binary data to transfer\n"
+	    ;
 	return ;
     }
     enum Mode { Checked,Topup,Unpaced } mode = Topup ;
@@ -333,35 +234,21 @@ static void enqueue(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
     else if (argL->pop_if("-u"))
 	mode = Unpaced ;
-    std::vector<uint32_t> data ;
-    if (argL->pop_if("file"))
-    {
-	std::ifstream is ; Neat::open(&is,argL->pop()) ;
-	auto nbytes = Neat::demote<size_t>(Neat::size(&is).as_unsigned()) ; 
-	auto nwords = nbytes / 4 ;
-	if (nwords * 4 != nbytes)
-	    throw std::runtime_error("file-size must be a multiple of 4 bytes") ;
-	data.resize(nwords) ;
-	Neat::read(&is,&data[0],Neat::ustreamsize::make(nbytes)) ; 
-    }
-    else
-    {
-	std::deque<uint32_t> q ;
-	while (!argL->empty())
-	    q.push_back(Ui::strto<uint32_t>(argL->pop())) ;
-	data = std::vector<uint32_t>(q.begin(),q.end()) ;
-    }
+    auto data = readFile(argL->pop()) ;
     argL->finalize() ;
     
-    Rpi::Pwm pwm(rpi) ;
+    Rpi::Pwm pwm(rpi) ; RpiExt::Pwm ext(rpi) ;
+
     Rpi::Pwm::Status::Word status ;
     if (mode == Checked)
     {
-	auto nwords = RpiExt::Pwm(rpi).convey(&data[0],data.size(),padding) ;
+	auto head = ext.headstart(&data[0],data.size()) ;
+	auto tail = ext.convey(&data[head],data.size()-head,padding) ;
 	status = pwm.status().read() ;
-	if (nwords < data.size())
+	if (head + tail < data.size())
 	    std::cout << "underrun detected after "
-		      << nwords << " / " << data.size() << " words\n" ;
+		      << head + tail << " / "
+		      << data.size() << " words\n" ;
     }
     else if (mode == Unpaced)
     {
@@ -372,10 +259,112 @@ static void enqueue(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     else
     {
 	assert(mode == Topup) ;
-	RpiExt::Pwm(rpi).write(&data[0],data.size()) ;
+	auto head = ext.headstart(&data[0],data.size()) ;
+	ext.write(&data[head],data.size()-head) ;
 	status = pwm.status().read() ;
     }
-    std::cout << statusStr(status) << '\n' ;
+    std::cout << statusString(status) << '\n' ;
+}
+
+static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    if (argL->empty() || argL->peek() == "help")
+    {
+	std::cout
+	    << "arguments: CHANNEL [CS] [TI] [ALLOC] FILE\n"
+	    << '\n'
+	    << "CHANNEL = DMA channel (0..15)\n"
+	    << '\n'
+	    << "CS = DMA Control and Status:\n"
+	    << Rpi::Ui::Dma::csSynopsis()
+	    << '\n'
+	    << "TI = DMA Transfer Information:\n"
+	    << Rpi::Ui::Dma::tiSynopsis()
+	    << '\n'
+	    << "ALLOC = allocator for DMA bus memory:\n"
+	    << Rpi::Ui::Bus::Memory::allocatorSynopsis()
+	    << '\n'
+	    << "FILE = file with data to be written\n"
+	    ;
+	return ;
+    }
+
+    // dma channel index
+    auto index = Ui::strto(argL->pop(),Rpi::Dma::Ctrl::Index()) ;
+
+    // dma channel
+    auto channel = Rpi::Dma::Ctrl(rpi).channel(index) ;
+
+    // dma control and status register
+    auto cs = Rpi::Ui::Dma::getCs(argL,Rpi::Dma::Cs()) ;
+
+    // dma transfer information 
+    auto ti = Rpi::Ui::Dma::getTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
+
+    // bus memory (video core memory) allocator
+    auto allocator = Rpi::Ui::Bus::Memory::
+	getAllocator(rpi,argL,RpiExt::VcMem::defaultAllocator()) ;
+
+    // data to transmit
+    auto data = readFile(argL->pop()) ;
+    
+    argL->finalize() ;
+
+    // stop (all) transmissions in order to top-up FIFO
+    auto control = Rpi::Pwm(rpi).control().read() ;
+    {
+	auto stop = control ;
+	stop.at(Rpi::Pwm::Control::Pwen1) = 0 ;
+	stop.at(Rpi::Pwm::Control::Pwen2) = 0 ;
+	Rpi::Pwm(rpi).control().write(stop) ;
+    }
+    
+    // (user) data head-block that fits into FIFO buffer
+    auto head = RpiExt::Pwm(rpi).topUp(&data[0],data.size()) ;
+    
+    // manage DMA control block list
+    RpiExt::Dma::Control cb(allocator) ;
+
+    // DMA: restore PWM control register
+    auto enable = allocator->allocate(sizeof(uint32_t)) ;
+    (*enable->as<uint32_t*>()) = control.value() ;
+    cb.add(Rpi::Dma::Ti::Word(),enable.get(),Rpi::Pwm::Control::Address) ;
+    
+    // DMA: take time t0 (DMA transfer just started)
+    auto t0 = allocator->allocate(sizeof(uint32_t)) ;
+    cb.add(Rpi::Dma::Ti::Word(),Rpi::Counter::Address,t0.get()) ;
+
+    // DMA: (user) data tail-block (did not fit into FIFO buffer)
+    auto rest = (data.size() - head) * 4 ;
+    if (rest > 0)
+    {
+	auto tail = allocator->allocate(rest) ;
+	memcpy(tail->as<void*>(),&data[head],rest) ;
+	cb.add(ti,tail.get(),Rpi::Pwm::Fifo::Address) ;
+    }
+
+    // DMA: read PWM Status flags
+    auto status = allocator->allocate(sizeof(uint32_t)) ;
+    cb.add(Rpi::Dma::Ti::Word(),Rpi::Pwm::Status::Address,status.get()) ;
+
+    // DMA: take time t1 (when DMA transfer was completed)
+    auto t1 = allocator->allocate(sizeof(uint32_t)) ;
+    cb.add(Rpi::Dma::Ti::Word(),Rpi::Counter::Address,t1.get()) ;
+    
+    // execute actual DMA transfer
+    channel.setup(cb.address(),cs) ;
+    channel.start() ;
+    while (0 != (channel.getCs().active().bits()))
+	std::this_thread::sleep_for(std::chrono::milliseconds(1)) ;
+    
+    // [note] If there is any exception, then the DMA must stop first
+    // and thereafter the memory can be released. On process abortion,
+    // the (VC) memory stays allocated and the DMA continues running.
+
+
+    auto w = Rpi::Pwm::Status::Word::coset(*status->as<uint32_t*>()) ;
+    auto d = (*t1->as<uint32_t*>()) - (*t0->as<uint32_t*>()) ;
+    std::cout << statusString(w) << " duration: " << d << '\n' ;
 }
 
 static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -497,10 +486,10 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "     | clear      # clear Status register\n"
 		  << "     | control    # set Control registers\n"
 		  << "     | data       # set Data register\n"
-		  << "     | dma        # put word(s) into FIFO register (DMA)\n"
 		  << "     | dmac       # set DMA-Control register\n"
-		  << "     | enqueue    # put word(s) into FIFO register (CPU)\n"
-		  << "     | frequency  # estimate current output rate\n"
+		  << "     | fifo-cpu   # write FIFO by CPU\n"
+		  << "     | fifo-dma   # write FIFO by DMA\n"
+		  << "     | frequency  # estimate active transfer rate\n"
 		  << "     | range      # set Range register\n"
 		  << "     | status     # display register values\n" ;
 	return ;
@@ -511,9 +500,9 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	{ "clear"    ,    clear },
 	{ "control"  ,  control },
 	{ "data"     ,     data },
-	{ "dma"      ,      dma },
 	{ "dmac"     ,     dmaC },
-	{ "enqueue"  ,  enqueue },
+	{ "fifo-cpu" , fifo_cpu },
+	{ "fifo-dma" , fifo_dma },
 	{ "frequency",frequency },
 	{ "range"    ,    range },
 	{ "status"   ,   status },
@@ -525,24 +514,11 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // observed behavior [open issues]
 //
-// --if a gap occurs right here, before wrting to the queue, we
-//   won't detect it. there is actually no indication by any status
-//   flag (BERR,GAPO,RERR) whether a gap occured -- even the spec
-//   says so.
-// --even though the last word of the queue has been read by the
-//   serializer, the transfer of the previous (!) word is still in
-//   progress. PWEN=0 at this point will interrupt the transfer in
-//   middle of the previous word.
-// --there is no indication by any status flag (BERR,GAPO,RERR) when
-//   the transfer is completed (even so the spec says so).
-// --it appears, that gaps are detected on channel #2 but not on
-//   channel #1
 // --STA may remain set even if PWEN is cleared. This can be observed
 //   sometimes for operations that cause BERR=1. In order to clear
 //   STA, BERR needs to be cleared first, thereafter PWEN.
-// --EMPT1: the serializer may still be busy with the transfer even
-//   after the FIFO gets empty. So the flag is no indicator to disable
-//   PWEN after the end of a transmission.
+// --how long does it take when the FIFO gets empty that the serializer
+//   finishes; or, when does the serializer read the next word from FIFO?
 // --if both channels are used (even at the same frequency) and e.g.
 //   one of them is still transmitting (i.e. RPTL) new FIFO words
 //   will be probably be not in sync transmitted
@@ -553,16 +529,3 @@ void Console::Pwm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 // if there are the odds of process suspensions anyway. Still, if there
 // is a sequence (full=1,time-stamp,full=1) the point of time is
 // guaranteed to be in the period that takes a word to serialize.
-//
-// There seems to be no way to figure out when the PWM peripheral
-// actually finishes processing of all the FIFO entries. Even if
-// the status flag indicates an empty FIFO, the serializer may
-// still be busy. Sometimes it appears as if the serializer reads two
-// FIFO entries ahead. [provide test-case]
-//
-// So, what the client needs to do, is to put two additional words
-// into the FIFO. These words may be transmitted, or not. The
-// client should keep that in mind and set the levels
-// appropriately. Also, the last word is always transmitted again
-// and again [regardless of the RPT flag] if the FIFO runs empty (and
-// if the serializer gets to this point at all).
