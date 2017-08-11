@@ -242,7 +242,7 @@ $ od -Ad -txC ws.on
 0000520
 ```
 
-Setup PWM at 2.5 M/s for channel #1:
+Set up PWM at 2.5 M/s (400 ns) for channel #1:
 ```
 $ rpio cm set pwm -f 0 -i 200 -s 6 ;\
   rpio cm switch pwm on ;\
@@ -277,10 +277,5 @@ for i in `seq 1 1 125` ; do echo -n "00 " ; done \
 ) | \
 awk '{for (i=1;i<=NF;i+=4) print $(i+3),$(i+2),$(i+1),$(i)}' |\
 while read a b c d ; do printf "\x$a\x$b\x$c\x$d" ; done > ws.off
-```
-
-The stripe should turn off with:
-```
-$ rpio pwm send 0 ws.off
 ```
 
