@@ -19,6 +19,8 @@ struct Address
 
   constexpr explicit Address(uint32_t u32) : u32(u32) {}
   // ...prevents implicit conversion so that caller must notice!
+
+  static constexpr uint32_t Base = 0x7e000000 ;
  
 private:
   
