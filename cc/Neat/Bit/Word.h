@@ -16,6 +16,8 @@ template<typename U,U M> struct Word
 {
     using Unsigned = U ;
 
+    static constexpr auto Digits = std::numeric_limits<Unsigned>::digits ;
+    
     static_assert(std::is_integral<Unsigned>::value,"integral type required") ;
     static_assert(std::is_unsigned<Unsigned>::value,"unsigned type required") ;
 
@@ -30,49 +32,60 @@ template<typename U,U M> struct Word
 
     struct Digit
     {
-	static constexpr auto Count = std::numeric_limits<Unsigned>::digits ;
-	
 	template<unsigned Offset> static constexpr Digit make()
 	{
-	    static_assert(Offset < Count,"out of range") ; return Offset ;
+	    static_assert(Offset < Word::Digits,"too large") ; return Offset ;
 	}
 
 	unsigned value() const { return i ; }
 
-	Word mask() const { return Word(1u << i) ; }
+	Word word() const { return Word(1u << i) ; }
 	
     private:
 
 	unsigned i ; constexpr Digit(unsigned i) : i(i) {}
-
     } ;
 
     bool test(Digit d) const
     {
-	return 0 != (d.mask().i & i) ;
+	return 0 != (d.word().i & i) ;
     }
 
-    struct Bit
+    template<unsigned O> struct Bit
     {
-	Bit operator=(bool b)
+	static constexpr auto Offset = O ;
+	
+	static_assert(Offset < Digits,"too large") ;
+	
+	static constexpr auto Mask = (1u << Offset) ;
+
+	static_assert(Mask == (Mask & Word::Mask),"doesn't match") ;
+	
+	static constexpr auto Digit = Word::Digit::make<Offset>() ;
+
+	static constexpr Bit make(bool b)
 	{
-	    if (b) (w->i) |=         d.mask().i ;
-	    else   (w->i) &= Mask & ~d.mask().i ;
-	    return (*this) ;
+	    return (static_cast<Unsigned>(b) << Offset) ;
 	}
 	
-    private:
+	bool value() const { return 0 != (i >> Offset) ; }
 
-	friend Word ;
+	constexpr Word word() const { return Word(i) ; }
 	
-	Word *w ; Digit d ; Bit(Word *w,Digit d) : w(w),d(d) {}
+	constexpr Bit(Word w) : i(w.i & Mask) {}
+
+    private:
+	
+	Unsigned i ; constexpr Bit(Unsigned i) : i(i) {}
     } ;
-    
-    Bit at(Digit d)
+
+    template<unsigned Offset> Word& operator=(Bit<Offset> bit)
     {
-	return Bit(this,d) ;
+	this->i &= ~bit.Mask ;
+	this->i |=  bit.word().i ;
+	return (*this) ;
     }
-    
+
     template<unsigned O,unsigned L> struct Set
     {
 	static constexpr auto Offset = O ;

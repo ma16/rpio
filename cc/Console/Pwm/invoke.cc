@@ -34,15 +34,15 @@ static std::string statusString(Rpi::Pwm::Status::Word status)
     using Status = Rpi::Pwm::Status ;
     std::ostringstream os ;
     os << "berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: "
-       << status.test(Status::Berr) << ' '
-       << status.test(Status::Empt) << ' '
-       << status.test(Status::Full) << ' '
-       << status.test(Status::Gap1) << ' '
-       << status.test(Status::Gap2) << ' '
-       << status.test(Status::Rerr) << ' '
-       << status.test(Status::Sta1) << ' '
-       << status.test(Status::Sta2) << ' '
-       << status.test(Status::Werr) ;
+       << Status::Berr(status).value() << ' '
+       << Status::Empt(status).value() << ' '
+       << Status::Full(status).value() << ' '
+       << Status::Gap1(status).value() << ' '
+       << Status::Gap2(status).value() << ' '
+       << Status::Rerr(status).value() << ' '
+       << Status::Sta1(status).value() << ' '
+       << Status::Sta2(status).value() << ' '
+       << Status::Werr(status).value() ;
     return os.str() ;
 }
 
@@ -90,17 +90,17 @@ static void clear(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	
 	if (arg == "all")
 	{
-	    w.at(Status::Berr) = 1 ;
-	    w.at(Status::Gap1) = 1 ;
-	    w.at(Status::Gap2) = 1 ;
-	    w.at(Status::Rerr) = 1 ;
-	    w.at(Status::Werr) = 1 ;
+	    w = Status::Berr::make(1) ;
+	    w = Status::Gap1::make(1) ;
+	    w = Status::Gap2::make(1) ;
+	    w = Status::Rerr::make(1) ;
+	    w = Status::Werr::make(1) ;
 	}
-	else if (arg == "berr") w.at(Status::Berr) = 1 ;
-	else if (arg == "gap1") w.at(Status::Gap1) = 1 ;
-	else if (arg == "gap2") w.at(Status::Gap2) = 1 ;
-	else if (arg == "rerr") w.at(Status::Rerr) = 1 ;
-	else if (arg == "werr") w.at(Status::Werr) = 1 ;
+	else if (arg == "berr") w = Status::Berr::make(1) ;
+	else if (arg == "gap1") w = Status::Gap1::make(1) ;
+	else if (arg == "gap2") w = Status::Gap2::make(1) ;
+	else if (arg == "rerr") w = Status::Rerr::make(1) ;
+	else if (arg == "werr") w = Status::Werr::make(1) ;
 	
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
@@ -137,37 +137,37 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	auto arg = argL->pop() ;
 	if (false) ;
 
-	else if (arg == "clear")  w.at(Control::Clrf) = 1 ;
+	else if (arg == "clear")  w = Control::Clrf::make(1) ;
 	
-    	else if (arg == "-mode1") w.at(Control::Mode1) = 0 ;
-    	else if (arg == "-mode2") w.at(Control::Mode2) = 0 ;
-    	else if (arg == "-msen1") w.at(Control::Msen1) = 0 ;
-    	else if (arg == "-msen2") w.at(Control::Msen2) = 0 ;
-    	else if (arg == "-pola1") w.at(Control::Pola1) = 0 ;
-    	else if (arg == "-pola2") w.at(Control::Pola2) = 0 ;
-    	else if (arg == "-pwen1") w.at(Control::Pwen1) = 0 ;
-    	else if (arg == "-pwen2") w.at(Control::Pwen2) = 0 ;
-    	else if (arg == "-rptl1") w.at(Control::Rptl1) = 0 ;
-    	else if (arg == "-rptl2") w.at(Control::Rptl2) = 0 ;
-    	else if (arg == "-sbit1") w.at(Control::Sbit1) = 0 ;
-    	else if (arg == "-sbit2") w.at(Control::Sbit2) = 0 ;
-    	else if (arg == "-usef1") w.at(Control::Usef1) = 0 ;
-    	else if (arg == "-usef2") w.at(Control::Usef2) = 0 ;
+    	else if (arg == "-mode1") w = Control::Mode1::make(0) ;
+    	else if (arg == "-mode2") w = Control::Mode2::make(0) ;
+    	else if (arg == "-msen1") w = Control::Msen1::make(0) ;
+    	else if (arg == "-msen2") w = Control::Msen2::make(0) ;
+    	else if (arg == "-pola1") w = Control::Pola1::make(0) ;
+    	else if (arg == "-pola2") w = Control::Pola2::make(0) ;
+    	else if (arg == "-pwen1") w = Control::Pwen1::make(0) ;
+    	else if (arg == "-pwen2") w = Control::Pwen2::make(0) ;
+    	else if (arg == "-rptl1") w = Control::Rptl1::make(0) ;
+    	else if (arg == "-rptl2") w = Control::Rptl2::make(0) ;
+    	else if (arg == "-sbit1") w = Control::Sbit1::make(0) ;
+    	else if (arg == "-sbit2") w = Control::Sbit2::make(0) ;
+    	else if (arg == "-usef1") w = Control::Usef1::make(0) ;
+    	else if (arg == "-usef2") w = Control::Usef2::make(0) ;
 
-    	else if (arg == "+mode1") w.at(Control::Mode1) = 1 ;
-    	else if (arg == "+mode2") w.at(Control::Mode2) = 1 ;
-    	else if (arg == "+msen1") w.at(Control::Msen1) = 1 ;
-    	else if (arg == "+msen2") w.at(Control::Msen2) = 1 ;
-    	else if (arg == "+pola1") w.at(Control::Pola1) = 1 ;
-    	else if (arg == "+pola2") w.at(Control::Pola2) = 1 ;
-    	else if (arg == "+pwen1") w.at(Control::Pwen1) = 1 ;
-    	else if (arg == "+pwen2") w.at(Control::Pwen2) = 1 ;
-    	else if (arg == "+rptl1") w.at(Control::Rptl1) = 1 ;
-    	else if (arg == "+rptl2") w.at(Control::Rptl2) = 1 ;
-    	else if (arg == "+sbit1") w.at(Control::Sbit1) = 1 ;
-    	else if (arg == "+sbit2") w.at(Control::Sbit2) = 1 ;
-    	else if (arg == "+usef1") w.at(Control::Usef1) = 1 ;
-    	else if (arg == "+usef2") w.at(Control::Usef2) = 1 ;
+    	else if (arg == "+mode1") w = Control::Mode1::make(1) ;
+    	else if (arg == "+mode2") w = Control::Mode2::make(1) ;
+    	else if (arg == "+msen1") w = Control::Msen1::make(1) ;
+    	else if (arg == "+msen2") w = Control::Msen2::make(1) ;
+    	else if (arg == "+pola1") w = Control::Pola1::make(1) ;
+    	else if (arg == "+pola2") w = Control::Pola2::make(1) ;
+    	else if (arg == "+pwen1") w = Control::Pwen1::make(1) ;
+    	else if (arg == "+pwen2") w = Control::Pwen2::make(1) ;
+    	else if (arg == "+rptl1") w = Control::Rptl1::make(1) ;
+    	else if (arg == "+rptl2") w = Control::Rptl2::make(1) ;
+    	else if (arg == "+sbit1") w = Control::Sbit1::make(1) ;
+    	else if (arg == "+sbit2") w = Control::Sbit2::make(1) ;
+    	else if (arg == "+usef1") w = Control::Usef1::make(1) ;
+    	else if (arg == "+usef2") w = Control::Usef2::make(1) ;
 
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
@@ -319,8 +319,8 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto control = Rpi::Pwm(rpi).control().read() ;
     {
 	auto stop = control ;
-	stop.at(Rpi::Pwm::Control::Pwen1) = 0 ;
-	stop.at(Rpi::Pwm::Control::Pwen2) = 0 ;
+	stop = Rpi::Pwm::Control::Pwen1::make(0) ;
+	stop = Rpi::Pwm::Control::Pwen2::make(0) ;
 	Rpi::Pwm(rpi).control().write(stop) ;
     }
     
@@ -388,16 +388,16 @@ static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto control = pwm.control().read() ;
     double width ;
     unsigned nchannels = 0 ;
-    if (control.test(Rpi::Pwm::Control::Pwen1))
+    if (control.test(Rpi::Pwm::Control::Pwen1::Digit))
     {
-	if (!control.test(Rpi::Pwm::Control::Usef1))
+	if (!control.test(Rpi::Pwm::Control::Usef1::Digit))
 	    throw std::runtime_error("channel #1 enabled w/o USEF=1") ;
 	width = pwm.range(Rpi::Pwm::Channel1).read() ;
 	++nchannels ;
     }
-    if (control.test(Rpi::Pwm::Control::Pwen2))
+    if (control.test(Rpi::Pwm::Control::Pwen2::Digit))
     {
-	if (!control.test(Rpi::Pwm::Control::Usef2))
+	if (!control.test(Rpi::Pwm::Control::Usef2::Digit))
 	    throw std::runtime_error("channel #2 enabled w/o USEF=1") ;
 	width = pwm.range(Rpi::Pwm::Channel2).read() ;
 	++nchannels ;
@@ -442,11 +442,11 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto d = pwm.dmaC().read() ;
     auto s = pwm.status().read() ;
     std::cout << '\n'
-	      << "berr=" << s.test(Status::Berr) << ' '
-	      << "empt=" << s.test(Status::Empt) << ' '
-	      << "full=" << s.test(Status::Full) << ' ' 
-	      << "rerr=" << s.test(Status::Rerr) << ' '
-	      << "werr=" << s.test(Status::Werr) << ' ' 
+	      << "berr=" << s.test(Status::Berr::Digit) << ' '
+	      << "empt=" << s.test(Status::Empt::Digit) << ' '
+	      << "full=" << s.test(Status::Full::Digit) << ' ' 
+	      << "rerr=" << s.test(Status::Rerr::Digit) << ' '
+	      << "werr=" << s.test(Status::Werr::Digit) << ' ' 
 	      << "DMA: "
 	      << "enable=" << DmaC::Enable(d).value() << ' '
 	      << "panic="  << DmaC:: Panic(d).value() << ' '

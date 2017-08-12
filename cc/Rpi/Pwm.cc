@@ -7,37 +7,23 @@
 using Control = Rpi::Pwm::Control ;
 using Status  = Rpi::Pwm:: Status ;
 
-constexpr Control::Word::Digit Control:: Clrf ;
-constexpr Control::Word::Digit Control::Mode1 ;
-constexpr Control::Word::Digit Control::Mode2 ;
-constexpr Control::Word::Digit Control::Msen1 ;
-constexpr Control::Word::Digit Control::Msen2 ;
-constexpr Control::Word::Digit Control::Pola1 ;
-constexpr Control::Word::Digit Control::Pola2 ;
-constexpr Control::Word::Digit Control::Pwen1 ;
-constexpr Control::Word::Digit Control::Pwen2 ;
-constexpr Control::Word::Digit Control::Rptl1 ;
-constexpr Control::Word::Digit Control::Rptl2 ;
-constexpr Control::Word::Digit Control::Sbit1 ;
-constexpr Control::Word::Digit Control::Sbit2 ;
-constexpr Control::Word::Digit Control::Usef1 ;
-constexpr Control::Word::Digit Control::Usef2 ;
-
-constexpr Status::Word::Digit Status::Berr ;
-constexpr Status::Word::Digit Status::Empt ;
-constexpr Status::Word::Digit Status::Full ;
-constexpr Status::Word::Digit Status::Gap1 ;
-constexpr Status::Word::Digit Status::Gap2 ;
-constexpr Status::Word::Digit Status::Rerr ;
-constexpr Status::Word::Digit Status::Sta1 ;
-constexpr Status::Word::Digit Status::Sta2 ;
-constexpr Status::Word::Digit Status::Werr ;
-
 Rpi::Pwm::Control::Bank const& Rpi::Pwm::Control::Bank::select(Index i)
 {
     static Bank array[2] = {
-	{ Mode1,Msen1,Pola1,Pwen1,Rptl1,Sbit1,Usef1 },
-	{ Mode2,Msen2,Pola2,Pwen2,Rptl2,Sbit2,Usef2 },
+      { Mode1::Digit,
+	Msen1::Digit,
+	Pola1::Digit,
+	Pwen1::Digit,
+	Rptl1::Digit,
+	Sbit1::Digit,
+	Usef1::Digit },
+      { Mode2::Digit,
+	Msen2::Digit,
+	Pola2::Digit,
+	Pwen2::Digit,
+	Rptl2::Digit,
+	Sbit2::Digit,
+	Usef2::Digit },
     } ;
     return array[i.value()] ;
 }
@@ -45,8 +31,8 @@ Rpi::Pwm::Control::Bank const& Rpi::Pwm::Control::Bank::select(Index i)
 Rpi::Pwm::Status::Bank const& Rpi::Pwm::Status::Bank::select(Index i)
 {
     static Bank array[2] = {
-	{ Gap1,Sta1 },
-	{ Gap2,Sta2 },
+	{ Gap1::Digit,Sta1::Digit },
+	{ Gap2::Digit,Sta2::Digit },
     } ;
     return array[i.value()] ;
 }

@@ -25,22 +25,22 @@ struct Pwm
 	static constexpr uint32_t Mask = 0xbfffu ;
 
 	using Word = Neat::Bit::Word<uint32_t,Mask> ; 
-	
-	static constexpr auto Pwen1 = Word::Digit::make< 0>() ; 
-	static constexpr auto Mode1 = Word::Digit::make< 1>() ; 
-	static constexpr auto Rptl1 = Word::Digit::make< 2>() ; 
-	static constexpr auto Sbit1 = Word::Digit::make< 3>() ; 
-	static constexpr auto Pola1 = Word::Digit::make< 4>() ; 
-	static constexpr auto Usef1 = Word::Digit::make< 5>() ; 
-	static constexpr auto Clrf  = Word::Digit::make< 6>() ; 
-	static constexpr auto Msen1 = Word::Digit::make< 7>() ; 
-	static constexpr auto Pwen2 = Word::Digit::make< 8>() ; 
-	static constexpr auto Mode2 = Word::Digit::make< 9>() ; 
-	static constexpr auto Rptl2 = Word::Digit::make<10>() ; 
-	static constexpr auto Sbit2 = Word::Digit::make<11>() ; 	
-	static constexpr auto Pola2 = Word::Digit::make<12>() ; 
-	static constexpr auto Usef2 = Word::Digit::make<13>() ; 
-	static constexpr auto Msen2 = Word::Digit::make<15>() ;
+
+	using Pwen1 = Word::Bit< 0> ;
+	using Mode1 = Word::Bit< 1> ; 
+	using Rptl1 = Word::Bit< 2> ; 
+	using Sbit1 = Word::Bit< 3> ; 
+	using Pola1 = Word::Bit< 4> ; 
+	using Usef1 = Word::Bit< 5> ; 
+	using Clrf  = Word::Bit< 6> ; 
+	using Msen1 = Word::Bit< 7> ; 
+	using Pwen2 = Word::Bit< 8> ; 
+	using Mode2 = Word::Bit< 9> ; 
+	using Rptl2 = Word::Bit<10> ; 
+	using Sbit2 = Word::Bit<11> ; 	
+	using Pola2 = Word::Bit<12> ; 
+	using Usef2 = Word::Bit<13> ; 
+	using Msen2 = Word::Bit<15> ;
 	
 	struct Bank
 	{
@@ -75,15 +75,15 @@ struct Pwm
 	
 	using Word = Neat::Bit::Word<uint32_t,Mask> ;
 
-	static constexpr auto Full = Word::Digit::make< 0>() ; 
-	static constexpr auto Empt = Word::Digit::make< 1>() ; 
-	static constexpr auto Werr = Word::Digit::make< 2>() ; 
-	static constexpr auto Rerr = Word::Digit::make< 3>() ; 
-	static constexpr auto Gap1 = Word::Digit::make< 4>() ; 
-	static constexpr auto Gap2 = Word::Digit::make< 5>() ; 
-	static constexpr auto Berr = Word::Digit::make< 8>() ; 
-	static constexpr auto Sta1 = Word::Digit::make< 9>() ; 
-	static constexpr auto Sta2 = Word::Digit::make<10>() ; 
+	using Full = Word::Bit< 0> ; 
+	using Empt = Word::Bit< 1> ; 
+	using Werr = Word::Bit< 2> ; 
+	using Rerr = Word::Bit< 3> ; 
+	using Gap1 = Word::Bit< 4> ; 
+	using Gap2 = Word::Bit< 5> ; 
+	using Berr = Word::Bit< 8> ; 
+	using Sta1 = Word::Bit< 9> ; 
+	using Sta2 = Word::Bit<10> ; 
 
 	struct Bank
 	{
@@ -164,24 +164,6 @@ struct Pwm
   
     struct DmaC
     {
-#if 0      
-	struct Word
-	{
-	    bool  enable  ; 
-	    uint8_t panic ; 
-	    uint8_t dreq  ; 
-
-	    static Word make(uint32_t r) ; uint32_t value() const ;
-	    
-	private:
-	    Word(bool enable,uint8_t panic,uint8_t dreq)
-		: enable(enable),panic(panic),dreq(dreq) {}
-	} ;
-	
-	Word read() const { return Word::make(*p) ; }
-
-	void write(Word w) { (*p) = w.value() ; }
-#endif
 	static constexpr uint32_t Mask = 0x8000ffff ;
 	
 	using Word = Neat::Bit::Word<uint32_t,Mask> ; 
