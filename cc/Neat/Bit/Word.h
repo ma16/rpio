@@ -84,20 +84,21 @@ template<typename U,U M> struct Word
 	
 	template<Unsigned I>static constexpr Set make()
 	{
-	    static_assert((I << Offset) == ((I << Offset) & Mask),"out of range") ;
+	    static_assert(I == (I & (Mask>>Offset)),"out of range") ;
 	    return (I << Offset) ;
 	}
 
 	static Set make(Unsigned i)
 	{
-	    auto j = i << Offset ;
-	    if (j != (j & Mask))
+	    if (i != (i & (Mask>>Offset)))
 		throw Neat::Error("Neat::Word::Set:out of range") ;
-	    return j ;
+	    return (i << Offset) ;
 	}
 
 	Unsigned value() const { return i ; }
 
+	constexpr Set(Word w) : i((w.i & Mask) >> Offset) {}
+    
     private:
 
 	Unsigned i ; constexpr Set(unsigned i) : i(i) {}

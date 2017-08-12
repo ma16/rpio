@@ -164,6 +164,7 @@ struct Pwm
   
     struct DmaC
     {
+#if 0      
 	struct Word
 	{
 	    bool  enable  ; 
@@ -178,6 +179,18 @@ struct Pwm
 	} ;
 	
 	Word read() const { return Word::make(*p) ; }
+
+	void write(Word w) { (*p) = w.value() ; }
+#endif
+	static constexpr uint32_t Mask = 0x8000ffff ;
+	
+	using Word = Neat::Bit::Word<uint32_t,Mask> ; 
+
+	using Dreq   = Word::Set<0,8> ;
+	using Panic  = Word::Set<8,8> ;
+	using Enable = Word::Set<31,1> ;
+	
+	Word read() const { return Word::coset(*p) ; }
 
 	void write(Word w) { (*p) = w.value() ; }
 

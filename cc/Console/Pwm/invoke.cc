@@ -202,12 +202,15 @@ static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto w = pwm.dmaC().read() ;
     while (!argL->empty())
     {
-	auto arg = argL->pop() ;
-	if (false) ;
-	else if (arg == "enable") w.enable = Ui::strto   <bool>(argL->pop()) ;
-	else if (arg ==   "dreq") w.  dreq = Ui::strto<uint8_t>(argL->pop()) ;
-	else if (arg ==  "panic") w. panic = Ui::strto<uint8_t>(argL->pop()) ;
-	else throw std::runtime_error("not supported option:<"+arg+'>') ;
+	auto i = argL->pop({"enable","dreq","panic"}) ;
+	auto j = Ui::strto<uint32_t>(argL->pop()) ;
+	using DmaC = Rpi::Pwm::DmaC ;
+	switch (i)
+	{
+	case 0: w = DmaC::Enable::make(j) ; break ;
+	case 1: w = DmaC::Dreq  ::make(j) ; break ;
+	case 2: w = DmaC::Panic ::make(j) ; break ;
+	}
     }
     argL->finalize() ;
     pwm.dmaC().write(w) ;
@@ -433,8 +436,10 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     Rpi::Pwm pwm(rpi) ;
     
-    auto d = pwm.dmaC().read() ;
+    using   DmaC = Rpi::Pwm::  DmaC ;
     using Status = Rpi::Pwm::Status ;
+    
+    auto d = pwm.dmaC().read() ;
     auto s = pwm.status().read() ;
     std::cout << '\n'
 	      << "berr=" << s.test(Status::Berr) << ' '
@@ -443,9 +448,9 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << "rerr=" << s.test(Status::Rerr) << ' '
 	      << "werr=" << s.test(Status::Werr) << ' ' 
 	      << "DMA: "
-	      << "enable=" << d.enable << ' '
-	      << "panic="  << d.panic + 0 << ' '
-	      << "dreq="   << d.dreq  + 0 << "\n\n" ;
+	      << "enable=" << DmaC::Enable(d).value() << ' '
+	      << "panic="  << DmaC:: Panic(d).value() << ' '
+	      << "dreq="   << DmaC::  Dreq(d).value() << "\n\n" ;
 
     std::cout
 	<< std::hex

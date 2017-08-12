@@ -56,20 +56,3 @@ constexpr Rpi::Bus::Address Rpi::Pwm::Control::Address ;
 constexpr Rpi::Bus::Address Rpi::Pwm::Status::Address ;
 
 constexpr Rpi::Bus::Address Rpi::Pwm::Fifo::Address ;
-
-Rpi::Pwm::DmaC::Word Rpi::Pwm::DmaC::Word::make(uint32_t r)
-{
-    bool enable = 0 != (r & (1u<<31)) ;
-    auto panic = static_cast<uint8_t>(r >> 8) ;
-    auto dreq  = static_cast<uint8_t>(r     ) ;
-    return Word(enable,panic,dreq) ;
-}
-
-uint32_t Rpi::Pwm::DmaC::Word::value() const
-{
-    uint32_t r = 0 ;
-    r |= static_cast<uint32_t>(this->enable) << 31 ;
-    r |= static_cast<uint32_t>(this->panic)  <<  8 ;
-    r |= static_cast<uint32_t>(this-> dreq)        ;
-    return r ;
-}
