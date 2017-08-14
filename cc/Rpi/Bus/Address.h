@@ -13,7 +13,7 @@ struct Address
   // an Address simply by constructing it. However, there is at least
   // some kind of reminder that we deal here with bus addresses.
   
-  uint32_t value() const { return u32 ; }
+  constexpr uint32_t value() { return u32 ; }
 
   void set(Coherency co) { u32 &= ~(0x3<<30) ; u32 |= co.prefix() ; }
 

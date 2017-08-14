@@ -95,6 +95,7 @@ LSRC=\
 	Rpi/Page.cc \
 	Rpi/Peripheral.cc \
 	Rpi/Pwm.cc \
+	Rpi/Register.cc \
 	Rpi/Spi0.cc \
 	Rpi/Spi1.cc \
 	Rpi/Timer.cc \

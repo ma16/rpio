@@ -5,27 +5,24 @@
 #ifndef INCLUDE_Rpi_Pwm_h
 #define INCLUDE_Rpi_Pwm_h
 
-#include "Bus/Address.h"
-#include "Dma/Ti.h" // Permap for DMA pacing
 #include "Peripheral.h"
-#include <Neat/Bit/Word.h>
+#include "Register.h"
 #include <Neat/Enum.h>
 
 namespace Rpi {
 
 struct Pwm 
 {
-    using Index = Neat::Enum<unsigned,1> ; 
-
-    static constexpr auto Channel1 = Index::make<0>() ;
-    static constexpr auto Channel2 = Index::make<1>() ;
+    static constexpr auto PNo = Peripheral::PNo::make<0x20c>() ;
     
-    struct Control
+    Pwm(Peripheral *p) : page(p->page(PNo)) {}
+
+    static constexpr auto Address = Bus::Address::Base + PNo.value() * Page::nbytes ;
+
+    struct Control : Register::Masked<Address+0x000,0xbfffu>
     {
-	static constexpr uint32_t Mask = 0xbfffu ;
-
-	using Word = Neat::Bit::Word<uint32_t,Mask> ; 
-
+	using Base = Register::Masked<Address.value(),Mask> ;
+	Control(Base base) : Base(base) {}
 	using Pwen1 = Word::Bit< 0> ;
 	using Mode1 = Word::Bit< 1> ; 
 	using Rptl1 = Word::Bit< 2> ; 
@@ -41,40 +38,12 @@ struct Pwm
 	using Pola2 = Word::Bit<12> ; 
 	using Usef2 = Word::Bit<13> ; 
 	using Msen2 = Word::Bit<15> ;
-	
-	struct Bank
-	{
-	    Word::Digit mode ;
-	    Word::Digit msen ;
-	    Word::Digit pola ;
-	    Word::Digit pwen ;
-	    Word::Digit rptl ;
-	    Word::Digit sbit ;
-	    Word::Digit usef ;
-	    static Bank const& select(Index) ;
-	} ;
-	
-	Word read() const { return Word::coset(*p) ; }
-	
-	void write(Word w) { (*p) = w.value() ; }
-
-	static constexpr auto Address = Bus::Address(0x7e20c000) ;
-	
-    private:
-	
-	friend Pwm ; uint32_t volatile *p ;
-	
-	Control(uint32_t volatile *p) : p(p) {}
     } ;
-	    
-    Control control() { return & page->at<0x0/4>() ; }
-    
-    struct Status 
-    {
-	static constexpr auto Mask = 0x73f ;
-	
-	using Word = Neat::Bit::Word<uint32_t,Mask> ;
 
+    struct Status : Register::Masked<Address+0x004,0x73f>
+    {
+	using Base = Register::Masked<Address.value(),Mask> ;
+	Status(Base base) : Base(base) {}
 	using Full = Word::Bit< 0> ; 
 	using Empt = Word::Bit< 1> ; 
 	using Werr = Word::Bit< 2> ; 
@@ -84,113 +53,80 @@ struct Pwm
 	using Berr = Word::Bit< 8> ; 
 	using Sta1 = Word::Bit< 9> ; 
 	using Sta2 = Word::Bit<10> ; 
-
-	struct Bank
-	{
-	    Word::Digit gap ;
-	    Word::Digit sta ;
-	    static Bank const& select(Index) ;
-	} ;
-	
-	Word read() const { return Word::coset(*p) ; }
-
-	void clear(Word w) { (*p) = w.value() ; }
-
-	static constexpr auto Address = Bus::Address(0x7e20c004) ;
-	
-    private:
-	
-	friend Pwm ; uint32_t volatile *p ;
-
-	Status(uint32_t volatile *p) : p(p) {}
     } ;
 
-    Status status() { return & page->at<0x4/4>() ; }
-
-    struct Fifo
+    struct DmaC : Register::Masked<Address+0x008,0x8000ffff>
     {
-	void write(uint32_t w) { (*p) = w ; }
-
-	static constexpr auto Address = Bus::Address(0x7e20c018) ;
-	
-    private:
-	
-	friend Pwm ; uint32_t volatile *p ;
-
-	Fifo(uint32_t volatile *p) : p(p) {}
-    } ;
-
-    Fifo fifo() { return & page->at<0x18/4>() ; }
-
-    struct Range
-    {
-	uint32_t read() const { return (*p) ; }
-
-	void write(uint32_t w) { (*p) = w ; }
-
-    private:
-	
-	friend Pwm ; uint32_t volatile *p ;
-
-	Range(uint32_t volatile *p) : p(p) {}
-    } ;
-
-    Range range(Index i)
-    {
-	return (i.value() == 0)
-	    ? & this->page->at<0x10/4>() 
-	    : & this->page->at<0x20/4>() ;
-    }
-  
-    struct Data
-    {
-	uint32_t read() const { return (*p) ; }
-
-	void write(uint32_t w) { (*p) = w ; }
-
-    private:
-	
-	friend Pwm ; uint32_t volatile *p ;
-
-	Data(uint32_t volatile *p) : p(p) {}
-    } ;
-
-    Data data(Index i)
-    {
-	return (i.value() == 0)
-	    ? & this->page->at<0x14/4>() 
-	    : & this->page->at<0x24/4>() ;
-    }
-  
-    struct DmaC
-    {
-	static constexpr uint32_t Mask = 0x8000ffff ;
-	
-	using Word = Neat::Bit::Word<uint32_t,Mask> ; 
-
+	using Base = Register::Masked<Address.value(),Mask> ;
+	DmaC(Base base) : Base(base) {}
 	using Dreq   = Word::Set<0,8> ;
 	using Panic  = Word::Set<8,8> ;
 	using Enable = Word::Set<31,1> ;
-	
-	Word read() const { return Word::coset(*p) ; }
-
-	void write(Word w) { (*p) = w.value() ; }
-
-	static constexpr auto Permap = Dma::Ti::Permap::make<5>() ;
-	
-    private:
-	
-	friend Pwm ; uint32_t volatile *p ;
-
-	DmaC(uint32_t volatile *p) : p(p) {}
     } ;
 
-    DmaC dmaC() { return & page->at<0x8/4>() ; }
+    using Range1 = Register::Word<Address+0x010> ;
+    using  Data1 = Register::Word<Address+0x014> ;
+    using   Fifo = Register::Word<Address+0x018> ;
+    using Range2 = Register::Word<Address+0x020> ;
+    using  Data2 = Register::Word<Address+0x024> ;
+
+    Control control() { return Control(&page->at<Control::Offset/4>()) ; }
+    Data1     data1() { return   Data1(&page->at<  Data1::Offset/4>()) ; }
+    Data2     data2() { return   Data2(&page->at<  Data2::Offset/4>()) ; }
+    DmaC       dmaC() { return    DmaC(&page->at<   DmaC::Offset/4>()) ; }
+    Fifo       fifo() { return    Fifo(&page->at<   Fifo::Offset/4>()) ; }
+    Range1   range1() { return  Range1(&page->at< Range1::Offset/4>()) ; }
+    Range2   range2() { return  Range2(&page->at< Range2::Offset/4>()) ; }
+    Status   status() { return  Status(&page->at< Status::Offset/4>()) ; }
     
-    Pwm(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x20c>())) {}
-  
+    struct Bank
+    {
+	Control::Word::Digit mode ;
+	Control::Word::Digit msen ;
+	Control::Word::Digit pola ;
+	Control::Word::Digit pwen ;
+	Control::Word::Digit rptl ;
+	Control::Word::Digit sbit ;
+	Control::Word::Digit usef ;
+	Status::Word::Digit gap ;
+	Status::Word::Digit sta ;
+    } ;
+
+    using Index = Neat::Enum<unsigned,1> ; 
+
+    static constexpr auto Channel1 = Index::make<0>() ;
+    static constexpr auto Channel2 = Index::make<1>() ;
+
+    static constexpr Bank bank[2] =
+    {
+	{
+	    Control::Mode1::Digit,
+	    Control::Msen1::Digit,
+	    Control::Pola1::Digit,
+	    Control::Pwen1::Digit,
+	    Control::Rptl1::Digit,
+	    Control::Sbit1::Digit,
+	    Control::Usef1::Digit,
+	    Status::Gap1::Digit,
+	    Status::Sta1::Digit,
+	},
+	{
+	    Control::Mode2::Digit,
+	    Control::Msen2::Digit,
+	    Control::Pola2::Digit,
+	    Control::Pwen2::Digit,
+	    Control::Rptl2::Digit,
+	    Control::Sbit2::Digit,
+	    Control::Usef2::Digit,
+	    Status::Gap2::Digit,
+	    Status::Sta2::Digit,
+	}
+    } ;
+
+    static constexpr Bank select(Index i) { return bank[i.value()] ; }
+
 private:
-  
+    
     std::shared_ptr<Page> page ; 
 
 } ; }

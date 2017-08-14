@@ -104,7 +104,7 @@ static void clear(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
-    Rpi::Pwm(rpi).status().clear(w) ;
+    Rpi::Pwm(rpi).status().write(w) ;
 }
 
 static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -184,7 +184,10 @@ static void data(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto index = Rpi::Pwm::Index::make(argL->pop({"1","2"})) ;
     auto word = Ui::strto<uint32_t>(argL->pop()) ;
     argL->finalize() ;
-    Rpi::Pwm(rpi).data(index).write(word) ;
+    if (index == Rpi::Pwm::Channel1)
+	Rpi::Pwm(rpi).data1().write(word) ;
+    else
+	Rpi::Pwm(rpi).data2().write(word) ;
 }
 
 static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -304,7 +307,7 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto cs = Rpi::Ui::Dma::getCs(argL,Rpi::Dma::Cs()) ;
 
     // dma transfer information 
-    auto ti = Rpi::Ui::Dma::getTi(argL,Rpi::Dma::Ti::make(Rpi::Pwm::DmaC::Permap)) ;
+    auto ti = Rpi::Ui::Dma::getTi(argL,Rpi::Dma::Ti::make(Rpi::Dma::Ti::Pwm)) ;
 
     // bus memory (video core memory) allocator
     auto allocator = Rpi::Ui::Bus::Memory::
@@ -392,14 +395,14 @@ static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     {
 	if (!control.test(Rpi::Pwm::Control::Usef1::Digit))
 	    throw std::runtime_error("channel #1 enabled w/o USEF=1") ;
-	width = pwm.range(Rpi::Pwm::Channel1).read() ;
+	width = pwm.range1().read() ;
 	++nchannels ;
     }
     if (control.test(Rpi::Pwm::Control::Pwen2::Digit))
     {
 	if (!control.test(Rpi::Pwm::Control::Usef2::Digit))
 	    throw std::runtime_error("channel #2 enabled w/o USEF=1") ;
-	width = pwm.range(Rpi::Pwm::Channel2).read() ;
+	width = pwm.range2().read() ;
 	++nchannels ;
     }
     if (nchannels == 0)
@@ -423,7 +426,10 @@ static void range(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto index = Rpi::Pwm::Index::make(argL->pop({"1","2"})) ;
     auto word = Ui::strto<uint32_t>(argL->pop()) ;
     argL->finalize() ;
-    Rpi::Pwm(rpi).range(index).write(word) ;
+    if (index == Rpi::Pwm::Channel1)
+	Rpi::Pwm(rpi).range1().write(word) ;
+    else
+	Rpi::Pwm(rpi).range2().write(word) ;
 }
 
 static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -460,25 +466,30 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto i = Rpi::Pwm::Channel1 ;
     do
     {
-	auto cbank = Rpi::Pwm::Control::Bank::select(i) ;
-	auto sbank = Rpi::Pwm:: Status::Bank::select(i) ;
+	auto bank = pwm.select(i) ;
+	auto data = (i == Rpi::Pwm::Channel1)
+	    ? pwm.data1().read()
+	    : pwm.data2().read() ;
+	auto range = (i == Rpi::Pwm::Channel1)
+	    ? pwm.range1().read()
+	    : pwm.range2().read() ;
 	
 	std::cout << std::setw(1) << i.value() + 1
 		  << " |"
-		  << std::setw(4) << s.test(sbank.gap)
-		  << std::setw(4) << s.test(sbank.sta)
+		  << std::setw(4) << s.test(bank.gap)
+		  << std::setw(4) << s.test(bank.sta)
 		  << " |"
-		  << std::setw(5) << c.test(cbank.mode)
-		  << std::setw(5) << c.test(cbank.msen)
-		  << std::setw(5) << c.test(cbank.pola)
-		  << std::setw(5) << c.test(cbank.pwen)
-		  << std::setw(5) << c.test(cbank.rptl)
-		  << std::setw(5) << c.test(cbank.sbit)
-		  << std::setw(5) << c.test(cbank.usef)
+		  << std::setw(5) << c.test(bank.mode)
+		  << std::setw(5) << c.test(bank.msen)
+		  << std::setw(5) << c.test(bank.pola)
+		  << std::setw(5) << c.test(bank.pwen)
+		  << std::setw(5) << c.test(bank.rptl)
+		  << std::setw(5) << c.test(bank.sbit)
+		  << std::setw(5) << c.test(bank.usef)
 		  << " |"
-		  << std::setw(9) << pwm. data(i).read() 
+		  << std::setw(9) << data
 		  << " |"
-		  << std::setw(9) << pwm.range(i).read()
+		  << std::setw(9) << range
 		  << '\n' ;
     }
     while (i.next()) ;

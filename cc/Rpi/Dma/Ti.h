@@ -31,6 +31,8 @@ namespace Ti
     using Waits        = Word::Set<21,5> ;
     using NoWideBursts = Word::Set<26,1> ;
 
+    static constexpr auto Pwm = Permap::make<5>() ; 
+    
     static inline Word make(Permap permap)
     {
 	Word w ;
