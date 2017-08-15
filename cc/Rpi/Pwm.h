@@ -19,7 +19,7 @@ struct Pwm
 
     static constexpr auto Address = Bus::Address::Base + PNo.value() * Page::nbytes ;
 
-    struct Control : Register::Masked<Address+0x000,0xbfffu>
+    struct Control : Register::Masked<Address+0x000,0xbfff>
     {
 	using Base = Register::Masked<Address.value(),Mask> ;
 	Control(Base base) : Base(base) {}

@@ -8,7 +8,9 @@
 #include <limits>
 #include <type_traits>
 #include <stdexcept>
+#include "../Enum.h"
 #include "../Error.h"
+#include "../uint.h"
 
 namespace Neat { namespace Bit {
 
@@ -90,28 +92,26 @@ template<typename U,U M> struct Word
     {
 	static constexpr auto Offset = O ;
 	static constexpr auto Len    = L ;
+
+	using Uint = Neat::uint<Unsigned,Len> ;
 	
 	static constexpr auto Mask =
 	    (~Unsigned(0) << Offset) ^ (~Unsigned(0) << (Offset+Len)) ;
-	//static_assert(Mask == (Mask & Word::Mask),"out of range") ;
 	
-	template<Unsigned I>static constexpr Set make()
+	static_assert(Mask == (Mask & Word::Mask),"out of range") ;
+
+	constexpr Set(Uint uint) : i(uint.value() << Offset) {}
+
+	constexpr Set(Word w) : i(w.i & Mask) {}
+
+	template<Unsigned I> static constexpr Set make()
 	{
-	    static_assert(I == (I & (Mask>>Offset)),"out of range") ;
-	    return (I << Offset) ;
+	    static_assert(I == (I & (Mask >> Offset)),"out of range") ;
+	    return I << Offset ;
 	}
+	
+	constexpr Unsigned value() const { return i ; }
 
-	static Set make(Unsigned i)
-	{
-	    if (i != (i & (Mask>>Offset)))
-		throw Neat::Error("Neat::Word::Set:out of range") ;
-	    return (i << Offset) ;
-	}
-
-	Unsigned value() const { return i ; }
-
-	constexpr Set(Word w) : i((w.i & Mask) >> Offset) {}
-    
     private:
 
 	Unsigned i ; constexpr Set(unsigned i) : i(i) {}

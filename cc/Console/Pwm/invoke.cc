@@ -205,15 +205,25 @@ static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto w = pwm.dmaC().read() ;
     while (!argL->empty())
     {
-	auto i = argL->pop({"enable","dreq","panic"}) ;
-	auto j = Ui::strto<uint32_t>(argL->pop()) ;
 	using DmaC = Rpi::Pwm::DmaC ;
-	switch (i)
+	auto arg = argL->pop({"dreq","enable","panic"}) ;
+	if (false) ;
+	
+	else if (arg == 0)
 	{
-	case 0: w = DmaC::Enable::make(j) ; break ;
-	case 1: w = DmaC::Dreq  ::make(j) ; break ;
-	case 2: w = DmaC::Panic ::make(j) ; break ;
+	    auto arg = Ui::strto(argL->pop(),DmaC::Dreq::Uint()) ;
+	    w = DmaC::Dreq(arg) ;
 	}
+	else if (arg == 1)
+	{
+	    auto arg = Ui::strto(argL->pop(),DmaC::Enable::Uint()) ;
+	    w = DmaC::Enable(arg) ;
+	}
+	else if (arg == 2)
+	{
+	    auto arg = Ui::strto(argL->pop(),DmaC::Panic::Uint()) ;
+	    w = DmaC::Panic(arg) ;
+	} 
     }
     argL->finalize() ;
     pwm.dmaC().write(w) ;

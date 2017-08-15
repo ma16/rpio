@@ -2,52 +2,63 @@
 
 #include "Cm.h"
 
-void Rpi::Cm::enable(Alias i) 
+constexpr Rpi::Peripheral::PNo Rpi::Cm::PNo ;
+
+void Rpi::Cm::enable(Alias alias) 
 {
-    auto c = getControl(i) ;
-    c.enable = true ;
-    c.kill = false ;
-    set(i,c) ;
+    auto c = ctl(alias).read() ;
+    c = Ctl::Enab::make(1).word() ;
+    c = Ctl::Kill::make(0) ;
+    ctl(alias).write(c) ;
 }
 
-void Rpi::Cm::disable(Alias i) 
+void Rpi::Cm::disable(Alias alias) 
 {
-    auto c = getControl(i) ;
-    c.enable = false ;
-    set(i,c) ;
+    auto c = ctl(alias).read() ;
+    c = Ctl::Enab::make(0).word() ;
+    ctl(alias).write(c) ;
     // the generator might still be busy (for a while)
 }
 
-void Rpi::Cm::kill(Alias i) 
+void Rpi::Cm::kill(Alias alias) 
 { 
-    auto c = getControl(i) ;
-    c.kill = true ; set(i,c) ;
-    while(busy(i)) ;
-    c.kill = false ; set(i,c) ;
+    auto c = ctl(alias).read() ;
+    c = Ctl::Kill::make(1) ;
+    ctl(alias).write(c) ;
+    while (busy(alias))
+	;
+    c = Ctl::Kill::make(0) ;
+    ctl(alias).write(c) ;
 } 
 
-void Rpi::Cm::set(Alias                i,
-		  Control::Source source,
-		  Divider::Intgr   intgr,
-		  Divider::Fract   fract,
-		  Control::Mash     mash)
+void Rpi::Cm::set(Alias      alias,
+		  Ctl::Src     src,
+		  Div::Intgr intgr,
+		  Div::Fract fract,
+		  Ctl::Mash   mash)
 {
-    auto c = getControl(i) ;
+    auto c = ctl(alias).read() ;
     // disable the generator if currently enabled
-    auto e = c.enable ;
+    auto e = c.test(Ctl::Enab::Digit) ;
     if (e)
     {
-	c.enable = false ; set(i,c) ;
-	while (busy(i))
+	c = Ctl::Enab::make(0).word() ;
+	ctl(alias).write(c) ;
+	while (busy(alias))
 	    ;
     }
     // set new value w/o enabling
-    c.source = source ; c.mash = mash ; set(i,c) ;
-    auto d = getDivider(i) ;
-    d.intgr = intgr ; d.fract = fract ; set(i,d) ;
+    c = src ;
+    c = mash ;
+    ctl(alias).write(c) ;
+    auto d = div(alias).read() ;
+    d = intgr ;
+    d = fract ;
+    div(alias).write(d) ;
     // enable the generator if it was enabled in the first place
     if (e)
     {
-	c.enable = e ; set(i,c) ;
+	c = Ctl::Enab::make(1).word() ;
+	ctl(alias).write(c) ;
     }
 }

@@ -82,17 +82,17 @@ Rpi::Dma::Ti::Word Rpi::Ui::Dma::getTi(::Ui::ArgL *argL,Rpi::Dma::Ti::Word ti)
 	else if (arg == "--ti=waits")
 	{
 	    argL->pop() ;
-	    ti = Ti::Waits::make(::Ui::strto<Ti::Word::Unsigned>(argL->peek())) ;
+	    ti = Ti::Waits(::Ui::strto(argL->peek(),Ti::Waits::Uint())) ;
 	}
 	else if (arg == "--ti=permap")
 	{
 	    argL->pop() ;
-	    ti = Ti::Permap::make(::Ui::strto<Ti::Word::Unsigned>(argL->peek())) ;
+	    ti = Ti::Permap(::Ui::strto(argL->peek(),Ti::Permap::Uint())) ;
 	}							 
 	else if (arg == "--ti=burst-length")
 	{
 	    argL->pop() ;
-	    ti = Ti::BurstLength::make(::Ui::strto<Ti::Word::Unsigned>(argL->peek())) ;
+	    ti = Ti::BurstLength(::Ui::strto(argL->peek(),Ti::BurstLength::Uint())) ;
 	}
 	else break ;
 	argL->pop() ;

@@ -46,19 +46,19 @@ static void setInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     auto fract = cm.fract(alias) ;
     if (argL->pop_if("-f"))
-	fract = Ui::strto(argL->pop(),Rpi::Cm::Divider::Fract()) ;
+	fract = Ui::strto(argL->pop(),Rpi::Cm::Div::Fract::Uint()) ;
 
     auto intgr = cm.intgr(alias) ;
     if (argL->pop_if("-i"))
-	intgr = Ui::strto(argL->pop(),Rpi::Cm::Divider::Intgr()) ;
+	intgr = Ui::strto(argL->pop(),Rpi::Cm::Div::Intgr::Uint()) ;
   
     auto mash = cm.mash(alias) ;
     if (argL->pop_if("-m"))
-	mash = Ui::strto(argL->pop(),Rpi::Cm::Control::Mash()) ;
+	mash = Ui::strto(argL->pop(),Rpi::Cm::Ctl::Mash::Uint()) ;
   
     auto source = cm.source(alias) ;
     if (argL->pop_if("-s"))
-	source = Ui::strto(argL->pop(),Rpi::Cm::Control::Source()) ;
+	source = Ui::strto(argL->pop(),Rpi::Cm::Ctl::Src::Uint()) ;
   
     argL->finalize() ;
     cm.set(alias,source,intgr,fract,mash) ;

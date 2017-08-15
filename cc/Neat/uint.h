@@ -12,7 +12,9 @@
 #include <limits>
 #include <type_traits>
 
-namespace Neat { template<typename U,unsigned D> struct uint 
+namespace Neat {
+
+template<typename U,unsigned D> struct uint 
 {
   using Unsigned = U ;
 
@@ -31,13 +33,20 @@ namespace Neat { template<typename U,unsigned D> struct uint
 
   static bool isValid(Unsigned u) { return u <= max ; }
 
-  template<Unsigned u> constexpr static uint make() { static_assert(u<=max,"out of range") ; return u ; }
-    
-  static uint make(Unsigned u) { if (u<=max) return u ;  throw Neat::Error("uint:out of range") ; }
+  template<Unsigned u> constexpr static uint make()
+  {
+    static_assert(u<=max,"out of range") ; return u ;
+  }
+
+  static uint make(Unsigned u)
+  {
+    if (u<=max) return u ;
+    throw Neat::Error("uint:out of range") ;
+  }
 
   static uint coset(Unsigned u) { return mask() & u ; }
 
-  Unsigned value() const { return u ; }
+  constexpr Unsigned value() const { return u ; }
 
   constexpr uint() : u(0) {}
 
