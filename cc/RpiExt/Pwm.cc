@@ -49,8 +49,8 @@ size_t RpiExt::Pwm::headstart(uint32_t const buffer[],size_t nwords)
 {
     auto enable = this->pwm.control().read() ;
     auto disable = enable ;
-    disable = Rpi::Pwm::Control::Pwen1::make(0) ;
-    disable = Rpi::Pwm::Control::Pwen2::make(0) ;
+    disable %= Rpi::Pwm::Control::Pwen1::make(0) ;
+    disable %= Rpi::Pwm::Control::Pwen2::make(0) ;
     this->setControl(disable) ;
     auto n = this->topUp(buffer,nwords) ;
     this->setControl(enable) ;

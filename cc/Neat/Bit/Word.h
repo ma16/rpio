@@ -65,23 +65,23 @@ template<typename U,U M> struct Word
 	
 	static constexpr auto Digit = Word::Digit::make<Offset>() ;
 
+	constexpr Bit(Word w) : i(w.i & Mask) {}
+
 	static constexpr Bit make(bool b)
 	{
 	    return (static_cast<Unsigned>(b) << Offset) ;
 	}
 	
-	bool value() const { return 0 != (i >> Offset) ; }
+	bool raised() const { return 0 != i ; }
 
 	constexpr Word word() const { return Word(i) ; }
 	
-	constexpr Bit(Word w) : i(w.i & Mask) {}
-
     private:
 	
 	Unsigned i ; constexpr Bit(Unsigned i) : i(i) {}
     } ;
 
-    template<unsigned Offset> Word& operator=(Bit<Offset> bit)
+    template<unsigned Offset> Word& operator%=(Bit<Offset> bit)
     {
 	this->i &= ~bit.Mask ;
 	this->i |=  bit.word().i ;
@@ -109,8 +109,12 @@ template<typename U,U M> struct Word
 	    static_assert(I == (I & (Mask >> Offset)),"out of range") ;
 	    return I << Offset ;
 	}
+
+	constexpr Unsigned count() const { return i >> Offset ; }
+
+	constexpr Word word() const { return Word(i) ; }
 	
-	constexpr Unsigned value() const { return i ; }
+	//constexpr Unsigned value() const { return i ; }
 
     private:
 
@@ -118,10 +122,10 @@ template<typename U,U M> struct Word
 
     } ;
 
-    template<unsigned Offset,unsigned Len> Word& operator=(Set<Offset,Len> set)
+    template<unsigned Offset,unsigned Len> Word& operator%=(Set<Offset,Len> set)
     {
 	this->i &= ~set.Mask ;
-	this->i |=  set.value() ;
+	this->i |=  set.word().i ;
 	return (*this) ;
     }
 

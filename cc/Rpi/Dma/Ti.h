@@ -36,21 +36,21 @@ namespace Ti
     static inline Word make(Permap permap)
     {
 	Word w ;
-	w = Inten       ::make<0>() ; // we can't use interrupts in userland
-	w = Tdmode      ::make<0>() ; // no 2d transfer
-	w = WaitResp    ::make<0>() ; // +++ can be overwritten by client +++
-	w = DestInc     ::make<0>() ; // destination is peripheral address
-	w = DestWidth   ::make<0>() ; // destination is peripheral address
-	w = DestDreq    ::make<1>() ; // paced by destination peripheral
-	w = DestIgnore  ::make<0>() ; // destination is peripheral address
-	w = SrcInc      ::make<1>() ; // source is memory block
-	w = SrcWidth    ::make<0>() ; // +++ can be overwritten by client +++
-	w = SrcDreq     ::make<0>() ; // source is memory block
-	w = SrcIgnore   ::make<0>() ; // source is memory block
-	w = BurstLength ::make<0>() ; // +++ can be overwritten by client +++
-	w = permap ; // e.g. 5 for PWM
-	w = Waits       ::make<0>() ; // +++ can be overwritten by client +++
-	w = NoWideBursts::make<0>() ; // +++ can be overwritten by client +++
+	w %= Inten       ::make<0>() ; // we can't use interrupts in userland
+	w %= Tdmode      ::make<0>() ; // no 2d transfer
+	w %= WaitResp    ::make<0>() ; // +++ can be overwritten by client +++
+	w %= DestInc     ::make<0>() ; // destination is peripheral address
+	w %= DestWidth   ::make<0>() ; // destination is peripheral address
+	w %= DestDreq    ::make<1>() ; // paced by destination peripheral
+	w %= DestIgnore  ::make<0>() ; // destination is peripheral address
+	w %= SrcInc      ::make<1>() ; // source is memory block
+	w %= SrcWidth    ::make<0>() ; // +++ can be overwritten by client +++
+	w %= SrcDreq     ::make<0>() ; // source is memory block
+	w %= SrcIgnore   ::make<0>() ; // source is memory block
+	w %= BurstLength ::make<0>() ; // +++ can be overwritten by client +++
+	w %= permap ; // e.g. 5 for PWM
+	w %= Waits       ::make<0>() ; // +++ can be overwritten by client +++
+	w %= NoWideBursts::make<0>() ; // +++ can be overwritten by client +++
 	return w ;
     }
 } } }

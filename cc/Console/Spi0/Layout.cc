@@ -70,24 +70,24 @@ static Rpi::Dma::Ti::Word make_1x1()
     using namespace Rpi::Dma::Ti ;
     
     Word w ;
-    w = Inten       ::make<0>() ; 
-    w = Tdmode      ::make<0>() ; 
-    w = WaitResp    ::make<1>() ; // play it safe
+    w %= Inten       ::make<0>() ; 
+    w %= Tdmode      ::make<0>() ; 
+    w %= WaitResp    ::make<1>() ; // play it safe
     
-    w = SrcInc      ::make<0>() ; 
-    w = SrcWidth    ::make<0>() ; // play it safe 
-    w = SrcDreq     ::make<0>() ; 
-    w = SrcIgnore   ::make<0>() ;
+    w %= SrcInc      ::make<0>() ; 
+    w %= SrcWidth    ::make<0>() ; // play it safe 
+    w %= SrcDreq     ::make<0>() ; 
+    w %= SrcIgnore   ::make<0>() ;
     
-    w = DestInc     ::make<0>() ; 
-    w = DestWidth   ::make<0>() ; // play it safe
-    w = DestDreq    ::make<0>() ; 
-    w = DestIgnore  ::make<0>() ;
+    w %= DestInc     ::make<0>() ; 
+    w %= DestWidth   ::make<0>() ; // play it safe
+    w %= DestDreq    ::make<0>() ; 
+    w %= DestIgnore  ::make<0>() ;
     
-    w = BurstLength ::make<0>() ; 
-    w = Permap      ::make<0>() ;
-    w = Waits       ::make<0>() ; 
-    w = NoWideBursts::make<1>() ; // play it safe
+    w %= BurstLength ::make<0>() ; 
+    w %= Permap      ::make<0>() ;
+    w %= Waits       ::make<0>() ; 
+    w %= NoWideBursts::make<1>() ; // play it safe
 
     return w ;
 }
@@ -98,24 +98,24 @@ static Rpi::Dma::Ti::Word make_Nx1()
     using namespace Rpi::Dma::Ti ;
     
     Word w ;
-    w = Inten       ::make<0>() ; 
-    w = Tdmode      ::make<0>() ; 
-    w = WaitResp    ::make<1>() ; // play it safe
+    w %= Inten       ::make<0>() ; 
+    w %= Tdmode      ::make<0>() ; 
+    w %= WaitResp    ::make<1>() ; // play it safe
     
-    w = SrcInc      ::make<1>() ; // buffer gets incremented
-    w = SrcWidth    ::make<0>() ; // play it safe 
-    w = SrcDreq     ::make<0>() ; 
-    w = SrcIgnore   ::make<0>() ;
+    w %= SrcInc      ::make<1>() ; // buffer gets incremented
+    w %= SrcWidth    ::make<0>() ; // play it safe 
+    w %= SrcDreq     ::make<0>() ; 
+    w %= SrcIgnore   ::make<0>() ;
     
-    w = DestInc     ::make<0>() ; 
-    w = DestWidth   ::make<0>() ; // play it safe
-    w = DestDreq    ::make<0>() ; 
-    w = DestIgnore  ::make<0>() ;
+    w %= DestInc     ::make<0>() ; 
+    w %= DestWidth   ::make<0>() ; // play it safe
+    w %= DestDreq    ::make<0>() ; 
+    w %= DestIgnore  ::make<0>() ;
     
-    w = BurstLength ::make<0>() ; 
-    w = Permap      ::make<0>() ;
-    w = Waits       ::make<0>() ; 
-    w = NoWideBursts::make<1>() ; // play it safe
+    w %= BurstLength ::make<0>() ; 
+    w %= Permap      ::make<0>() ;
+    w %= Waits       ::make<0>() ; 
+    w %= NoWideBursts::make<1>() ; // play it safe
 
     return w ;
 }
@@ -126,24 +126,24 @@ static Rpi::Dma::Ti::Word make_1xN(Rpi::Dma::Ti::Permap permap)
     using namespace Rpi::Dma::Ti ;
     
     Word w ;
-    w = Inten       ::make<0>() ; 
-    w = Tdmode      ::make<0>() ; 
-    w = WaitResp    ::make<1>() ; // play it safe
+    w %= Inten       ::make<0>() ; 
+    w %= Tdmode      ::make<0>() ; 
+    w %= WaitResp    ::make<1>() ; // play it safe
     
-    w = SrcInc      ::make<0>() ; 
-    w = SrcWidth    ::make<0>() ; // only 32-bit words
-    w = SrcDreq     ::make<1>() ; // paced by peripheral
-    w = SrcIgnore   ::make<0>() ;
+    w %= SrcInc      ::make<0>() ; 
+    w %= SrcWidth    ::make<0>() ; // only 32-bit words
+    w %= SrcDreq     ::make<1>() ; // paced by peripheral
+    w %= SrcIgnore   ::make<0>() ;
     
-    w = DestInc     ::make<1>() ; // buffer gets incremented
-    w = DestWidth   ::make<0>() ; // play it safe
-    w = DestDreq    ::make<0>() ; 
-    w = DestIgnore  ::make<0>() ;
+    w %= DestInc     ::make<1>() ; // buffer gets incremented
+    w %= DestWidth   ::make<0>() ; // play it safe
+    w %= DestDreq    ::make<0>() ; 
+    w %= DestIgnore  ::make<0>() ;
     
-    w = BurstLength ::make<0>() ; 
-    w =                  permap ;
-    w = Waits       ::make<0>() ; 
-    w = NoWideBursts::make<1>() ; // play it safe
+    w %= BurstLength ::make<0>() ; 
+    w %=                  permap ;
+    w %= Waits       ::make<0>() ; 
+    w %= NoWideBursts::make<1>() ; // play it safe
 
     return w ;
 }

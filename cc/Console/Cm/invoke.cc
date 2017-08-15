@@ -86,10 +86,10 @@ static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout << name[i.n()] << "  "
 		  << std::setw(3) << cm.enabled(i.e()) 
 		  << std::setw(4) << cm.   busy(i.e()) 
-		  << std::setw(4) << cm. source(i.e()).value()
-		  << std::setw(6) << cm.  intgr(i.e()).value()
-		  << std::setw(6) << cm.  fract(i.e()).value()
-		  << std::setw(5) << cm.   mash(i.e()).value() 
+		  << std::setw(4) << cm. source(i.e()).count()
+		  << std::setw(6) << cm.  intgr(i.e()).count()
+		  << std::setw(6) << cm.  fract(i.e()).count()
+		  << std::setw(5) << cm.   mash(i.e()).count() 
 		  << '\n' ;
     }
     while (i.next()) ;
