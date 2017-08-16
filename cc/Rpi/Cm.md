@@ -77,9 +77,11 @@ This is intended for use in test/debug only. Switching this flag will generate a
 
 ### Audio-Band Noise-Shaping (CTL.MASH)
 
-The fractional divider operates by periodically dropping clock pulses. Therefore the output frequency will switch between SRC/INTGR and SRC/(INTGR+1). The resulting jitter may affect the audio band. The MASH noise-shaping is incorporated to push the jitter out of the audio band by spreading the actual frequency around the requested frequency. The noise shaping shall not be exposed to frequencies higher than 25 MHz.
+The fractional divider operates by periodically dropping clock pulses. Therefore the output frequency will switch between SRC/INTGR and SRC/(INTGR+1). The resulting jitter may affect the audio band.
 
-# | Description
+A MASH noise-shaping can be applied to push the jitter out of the audio band by spreading the actual frequency around the requested frequency. This noise shaping shall not be exposed to frequencies higher than 25 MHz.
+
+| # | Description
 ---: | :---
 0 | The fractional part of the divider is not used at all.
 1 | The fractional part of the divider is used, but no noise-shaping.
@@ -90,7 +92,7 @@ According to [eLinux](http://elinux.org/BCM2835_registers#CM), GP2 and UART do n
 
 The frequency divider fluctuates as follows:
 
-# | min | average | max
+| # | min | average | max
 ---: | :--- | :--- | :---
 0 | INTGR   | INTGR                | INTGR
 1 | INTGR   | INTGR + FRACT / 4096 | INTGR+1
@@ -99,7 +101,7 @@ The frequency divider fluctuates as follows:
 
 Each of the MASH filters imposes a minimum INTGR value:
 
-# | INTGR
+| # | INTGR
 ---: | :---
 0 | >= 1
 1 | >= 2
@@ -111,10 +113,10 @@ To avoid lock-ups and glitches do not change the MASH control while BUSY=1 and d
 ## Divider Register (DIV)
 
 Offset | Bits | Access | Name | Alias | Description
----: | ---: | :--- | :--- | :---
+---: | ---: | :--- | :--- | :--- | :---
 0 | 12 | RW | DIVF | FRACT | Fractional part of divisor
 12 | 12 | RW | DIVI | INTGR | Integer part of divisor
-24 | 8 | WO | PASSWD | Writing the register succeeds only if set to 5A
+24 | 8 | WO | PASSWD | | Writing the register succeeds only if set to 5A
 
 According to [eLinux](http://elinux.org/BCM2835_registers#CM), UART supports only 22 instead of 24 INTGR+FRACT bits. Bit:0-7 appear to be FRACT and Bit:8-21 appear to be INTGR.
 
