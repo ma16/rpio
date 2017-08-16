@@ -32,9 +32,9 @@ struct Cm
     // Aliases (there are more; though not tested yet)
     // ----------------------------------------------------------------
 
-    enum class Alias : unsigned { Gp0=0,Gp1=1,Gp2=2,Pwm=3 } ;
+    enum class Alias : unsigned { Gp0=0,Gp1=1,Gp2=2,Pcm=3,Pwm=4,Slim=5,Uart=6 } ;
 
-    using AliasN = Neat::Numerator<Alias,Alias::Pwm> ;
+    using AliasN = Neat::Numerator<Alias,Alias::Uart> ;
 
     // ----------------------------------------------------------------
     // Wrapper for Peripheral Registers
@@ -81,10 +81,13 @@ struct Cm
 	uint32_t i ;
 	switch (alias)
 	{
-	case Alias::Gp0: i = 0x070 ; break ;
-	case Alias::Gp1: i = 0x078 ; break ;
-	case Alias::Gp2: i = 0x080 ; break ;
-	case Alias::Pwm: i = 0x0a0 ; break ;
+	case Alias::Gp0:  i = 0x070 ; break ;
+	case Alias::Gp1:  i = 0x078 ; break ;
+	case Alias::Gp2:  i = 0x080 ; break ;
+	case Alias::Pcm:  i = 0x098 ; break ;
+	case Alias::Pwm:  i = 0x0a0 ; break ;
+	case Alias::Slim: i = 0x0a8 ; break ;
+	case Alias::Uart: i = 0x0f0 ; break ;
 	default: assert(false) ; abort() ;
 	}
 	auto index = Page::Index::make(i/sizeof(uint32_t)) ;
@@ -104,10 +107,13 @@ struct Cm
 	uint32_t i ;
 	switch (alias)
 	{
-	case Alias::Gp0: i = 0x074 ; break ;
-	case Alias::Gp1: i = 0x07c ; break ;
-	case Alias::Gp2: i = 0x084 ; break ;
-	case Alias::Pwm: i = 0x0a4 ; break ;
+	case Alias::Gp0:  i = 0x074 ; break ;
+	case Alias::Gp1:  i = 0x07c ; break ;
+	case Alias::Gp2:  i = 0x084 ; break ;
+	case Alias::Pcm:  i = 0x09c ; break ;
+	case Alias::Pwm:  i = 0x0a4 ; break ;
+	case Alias::Slim: i = 0x0ac ; break ;
+	case Alias::Uart: i = 0x0f4 ; break ;
 	default: assert(false) ; abort() ;
 	}
 	auto index = Page::Index::make(i/sizeof(uint32_t)) ;

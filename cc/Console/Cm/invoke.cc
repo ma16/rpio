@@ -7,15 +7,34 @@
 #include <iomanip>
 #include <iostream>
 
-Rpi::Cm::Alias getAlias(Ui::ArgL *argL)
+static Rpi::Cm::Alias getAlias(Ui::ArgL *argL)
 {
-    auto index = argL->pop({"gp0","gp1","gp2","pwm"}) ;
+    auto index = argL->pop({"gp0","gp1","gp2","pcm","pwm","slim","uart"}) ;
     switch (index)
     {
     case 0: return Rpi::Cm::Alias::Gp0 ;
     case 1: return Rpi::Cm::Alias::Gp1 ;
     case 2: return Rpi::Cm::Alias::Gp2 ;
-    case 3: return Rpi::Cm::Alias::Pwm ;
+    case 3: return Rpi::Cm::Alias::Pcm ;
+    case 4: return Rpi::Cm::Alias::Pwm ;
+    case 5: return Rpi::Cm::Alias::Slim ;
+    case 6: return Rpi::Cm::Alias::Uart ;
+    default: assert(false) ;
+    }
+    abort() ;
+}
+
+static std::string getName(Rpi::Cm::Alias alias)
+{
+    switch (alias)
+    {
+    case Rpi::Cm::Alias::Gp0:  return  "gp0" ;
+    case Rpi::Cm::Alias::Gp1:  return  "gp1" ;
+    case Rpi::Cm::Alias::Gp2:  return  "gp2" ;
+    case Rpi::Cm::Alias::Pcm:  return  "pcm" ;
+    case Rpi::Cm::Alias::Pwm:  return  "pwm" ;
+    case Rpi::Cm::Alias::Slim: return "slim" ;
+    case Rpi::Cm::Alias::Uart: return "uart" ;
     default: assert(false) ;
     }
     abort() ;
@@ -23,7 +42,7 @@ Rpi::Cm::Alias getAlias(Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void setInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void config(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     { 
@@ -66,7 +85,7 @@ static void setInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (!argL->empty() && argL->peek() == "help")
     { 
@@ -82,8 +101,9 @@ static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto i = Rpi::Cm::AliasN::first() ;
     do
     {
-	static char const *name[] = { "gp0","gp1","gp2","pwm" } ;
-	std::cout << name[i.n()] << "  "
+	std::cout << std::left
+		  << std::setw(5) << getName(i.e())
+		  << std::right
 		  << std::setw(3) << cm.enabled(i.e()) 
 		  << std::setw(4) << cm.   busy(i.e()) 
 		  << std::setw(4) << cm. source(i.e()).count()
@@ -97,26 +117,25 @@ static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-static void switchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void switch_(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help") { 
 	std::cout << "arguments: ALIAS MODE\n"
-		  << '\n'
-		  << "MODE: off | on | toggle | kill\n"
+		  << "MODE: kill | off | on | toggle\n"
 		  << std::flush ;
 	return ;
     }
     auto alias = getAlias(argL) ;
-    auto mode = argL->pop({"off","on","toggle","kill"}) ;
+    auto mode = argL->pop({"kill","off","on","toggle"}) ;
     argL->finalize() ;
     Rpi::Cm cm(rpi) ;
-    if (mode == 2) 
-	mode = !cm.enabled(alias) ;
+    if (mode == 3) 
+	mode = cm.enabled(alias) ? 1 : 2 ;
     switch (mode) {
-    case 0: cm.disable(alias) ; break ;
-    case 1: cm. enable(alias) ; break ;
-    case 3: cm.   kill(alias) ; break ;
-    default: assert(false) ;
+    case 0: cm.   kill(alias) ; break ;
+    case 1: cm.disable(alias) ; break ;
+    case 2: cm. enable(alias) ; break ;
+    default: assert(false) ; abort() ;
     }
 }
 
@@ -127,21 +146,20 @@ void Console::Cm::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (argL->empty() || argL->peek() == "help") { 
 	std::cout << "arguments: MODE [help]\n"
 		  << '\n'
-		  << "MODE : set     # set up clock parameters\n"
+		  << "MODE : config  # configure clock generator\n"
 		  << "     | status  # display the status of all clock generators\n"
 		  << "     | switch  # switch clock generator on/off\n"
 		  << '\n'
-		  << "There are four clock generators specified by ALIAS:\n"
-		  << "ALIAS: gp0 | gp1 | gp2 | pwm\n"
+		  << "There are seven clock generators specified by ALIAS:\n"
+		  << "ALIAS: gp0 | gp1 | gp2 | pcm | pwm | slim | uart\n"
 		  << std::flush ;
 	return ;
     }
-    std::string arg = argL->pop() ;
-    if (false) ;
-  
-    else if (arg == "set"   )    setInvoke(rpi,argL) ; 
-    else if (arg == "status") statusInvoke(rpi,argL) ; 
-    else if (arg == "switch") switchInvoke(rpi,argL) ; 
-
-    else throw std::runtime_error("not supported option:<"+arg+'>') ;
+    
+    std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map = {
+	{ "config", config  },
+	{ "status", status  },
+	{ "switch", switch_ },
+    } ;
+    argL->pop(map)(rpi,argL) ;
 }
