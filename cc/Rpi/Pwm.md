@@ -9,6 +9,15 @@ Highlights:
 * DMA pacing.
 * Clock-manager.
 
+## Raspbian
+
+You may want to disable audio in /boot/config.txt:
+```
+dtparam=audio=off
+```
+
+The kernel appears to make use of PWM for audio output.
+
 ## Clock Rate
 
 Clock source and pre-scaler are configured by the [clock-manager](../Console/Cm) peripheral (CM):
@@ -661,7 +670,7 @@ Page | Description
 140 | "PWM DMA is mapped to DMA channel 5."
 | | In order to pace DMA-writes to the PWM-FIFO, the DMA controller needs to be set-up acordingly: The DMA transfer information (TI) holds a PERMAP field (peripheral mapping) that has to be set to 5.
 141 | "PWM clock source and frequency is controlled in CPRMAN."
-| | The document does not say what CPRMAN is or how to set it. Luckily there are people who dug into the topic a bit deeper. It is assumed that CPRMAN is the abbrevation for Clock Power Reset MANager; which isn't much help either. However, the people contributing to eLinux provided a description for the [clock-manager](http://elinux.org/BCM2835_registers#CM) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
+| | The document does not say what CPRMAN is or how to set it up. The [Linux Kernel](https://github.com/raspberrypi/linux/blob/rpi-4.9.y/drivers/clk/bcm/clk-bcm2835.c) calls it *clock manager for the "audio" domain*. it may be also the abbrevation for Clock Power Reset MANager; which isn't much help either. Luckily there are people who dug into the topic a bit deeper. The people contributing to eLinux provided a description for the [clock-manager](http://elinux.org/BCM2835_registers#CM) peripheral (CM) which holds, besides others, also two registers for the PWM clock. 
 141 | The base-address for the register-block is missing.
 | | The base-address is 0x7e20:c000.
 143 | CLRF1 is marked as RO (read-only).

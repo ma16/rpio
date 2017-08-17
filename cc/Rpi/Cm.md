@@ -33,7 +33,7 @@ Offset | Bits | Access | Name | Description
 5 | 1 | WO | KILL | Kill the clock generator
 7 | 1 | RO | BUSY | Reflects whether the clock is running (or not)
 8 | 1 | RW | FLIP | Invert output
-9 | 2 | RW | MASH | A filter to put fractional-divider-jitter out of the audio band
+9 | 2 | RW | MASH | Audio-Band Noise-Shaping
 24 | 8 |WO | PASSWD | Writing the register succeeds only if set to 5A
 
 ### Clock Source (CTL.SRC)
@@ -57,7 +57,7 @@ Only source *1* and *6* appear to have the same frequency on all Raspberry Pi mo
 
 ### Start and Stop (CTL.ENAB)
 
-This requests the clock to start or stop without glitches. The output clock will not stop immediately because the cycle must be allowed to complete to avoid glitches. The BUSY flag will go low when the final cycle is completed. 
+This requests the clock to start or to stop. In order to avoid glitches, the clock will not stop immediately but finish the current cycle. The BUSY flag is cleared when the final cycle (of the current Low/High pulse) is completed. 
 
 ### Stop Immediately (CTL.KILL)
 
@@ -65,7 +65,9 @@ KILL=0 has no effect.
 
 KILL=1: Stop and reset the clock generator. This is intended for test/debug only. Using this control may cause a glitch on the clock generator output.
 
-Note, this is no single-shot operation. The application has to set the flag, and then to clear it again. This may become necessary when a clock-generator gets stuck.
+Note, this is no single-shot operation. The application has to set the flag, and then to clear it again.
+
+Sometimes the clock generator may get stuck. This was noticed on a Pi-2 with (SRC=1,MASH=0) when changing the divider. The clock pulse dropped to minimum rate (as if a divider of 4096 was used) and no new setting did change the rate. The only solution was to kill the clock generator. So use this flag to revive the clock generator.
 
 ### Status (CTL.BUSY)
 
@@ -73,13 +75,19 @@ The flag indicates whether the clock generator is running. To avoid glitches and
 
 ### Invert Output (CTL.FLIP)
 
-This is intended for use in test/debug only. Switching this flag will generate an edge on the clock generator output. To avoid output glitches do not switch this control while BUSY=1
+The datasheet says: "This is intended for use in test/debug only. Switching this flag will generate an edge on the clock generator output. To avoid output glitches do not switch this control while BUSY=1."
+
+So it says: asserting the flag generates an edge on the output signal but this must not be done when busy. Which makes not much sense. 
+
+The flag is neither static to inverse output polarity. If the bit is set, it doesn't stick. It reads always back as zero.
+
+So it seems that the flag has no effect at all. The eLinux project names the bit *BUSYD* instead of *FLIP*.
 
 ### Audio-Band Noise-Shaping (CTL.MASH)
 
-The fractional divider operates by periodically dropping clock pulses. Therefore the output frequency will switch between SRC/INTGR and SRC/(INTGR+1). The resulting jitter may affect the audio band.
+The value controls whether the fractional part of the divider shall be used (DIV.FRACT), and if so, whether audio-band noise-shaping shall be applied.
 
-A MASH noise-shaping can be applied to push the jitter out of the audio band by spreading the actual frequency around the requested frequency. This noise shaping shall not be exposed to frequencies higher than 25 MHz.
+If the fractional part of the divider is used, there will be a jitter in the output signal. The MASH noise-shaping can be applied to push the jitter out of the audio band by spreading the actual frequency around the requested frequency.
 
 | # | Description
 ---: | :---
@@ -88,9 +96,11 @@ A MASH noise-shaping can be applied to push the jitter out of the audio band by 
 2 | The fractional part of the divider is used, and noise-shaping.
 3 | The fractional part of the divider is used, and more noise-shaping.
 
-According to [eLinux](http://elinux.org/BCM2835_registers#CM), GP2 and UART do not support noise shaping; i.e. only values #0 and #1 are supported.
+Notes: 
+* According to the datasheet, the noise shaping shall not be exposed to frequencies higher than 25 MHz.
+* According to [eLinux](http://elinux.org/BCM2835_registers#CM), GP2 and UART do not support noise shaping; i.e. only values #0 and #1 are supported.
 
-The frequency divider fluctuates as follows:
+The frequency divider (DIV) fluctuates for MASH values above zero as follows:
 
 | # | min | average | max
 ---: | :--- | :--- | :---
@@ -99,7 +109,7 @@ The frequency divider fluctuates as follows:
 2 | INTGR-1 | INTGR + FRACT / 4096 | INTGR+2
 3 | INTGR-3 | INTGR + FRACT / 4096 | INTGR+4
 
-Each of the MASH filters imposes a minimum INTGR value:
+Each of the MASH values imposes a minimum FRACT.INTGR value:
 
 | # | INTGR
 ---: | :---
@@ -108,7 +118,7 @@ Each of the MASH filters imposes a minimum INTGR value:
 2 | >= 3
 3 | >= 5
 
-To avoid lock-ups and glitches do not change the MASH control while BUSY=1 and do not change this control at the same time as asserting ENAB. 
+To avoid lock-ups and glitches do not change the MASH value while BUSY=1 and not at the same time as asserting CTL.ENAB. 
 
 ## Divider Register (DIV)
 
@@ -118,34 +128,40 @@ Offset | Bits | Access | Name | Alias | Description
 12 | 12 | RW | DIVI | INTGR | Integer part of divisor
 24 | 8 | WO | PASSWD | | Writing the register succeeds only if set to 5A
 
+The INTGR divider [should](http://raspberrypi.stackexchange.com/questions/1153/what-are-the-different-clock-sources-for-the-general-purpose-clocks) be in the range 2..4095. The value 0 appears to disable the output signal. The value 1 appears to behave as a divider of 4096.
+
+The fractional divider (FRACT) operates by periodically dropping clock pulses. Therefore the output frequency will switch between SRC/INTGR and SRC/(INTGR+1). The resulting jitter may affect the audio band (see CTL.MASH).
+
 According to [eLinux](http://elinux.org/BCM2835_registers#CM), UART supports only 22 instead of 24 INTGR+FRACT bits. Bit:0-7 appear to be FRACT and Bit:8-21 appear to be INTGR.
 
-## Test Cases
+## Use Cases
 
-### Test-Case: 1
+### Use-Case-1
 
 In order to determine an oscillator frequency, the oscillator source is tapped to the PWM clock-generator; the PWM peripheral is switched into FIFO mode; and the time to clock-out a bit-stream is taken. The values above were measured on Pi-0/2/3 with different configurations. Treat them with caution. Anyway, the results correlate with those of other users at [stackexchange.com](https://raspberrypi.stackexchange.com/questions/1153/what-are-the-different-clock-sources-for-the-general-purpose-clocks#23277).
 
 ```
-$ rpio cm config pwm -i 10 -m 0 -s 1 ;\
-  rpio cm switch pwm on ;\
+$ rpio cm ctl pwm -enab ;\
+  rpio cm div pwm intgr 10 ;\
+  rpio cm ctl pwm mash 0 src 1 +enab ;\
   rpio pwm range 1 1000 ;\
   rpio pwm control -pwen2 +usef1 +mode1 +pwen1 ;\
   rpio pwm frequency
 1.92e+06 (1.92e+03,0)
 ```
 
-This reports for clock-source 1 (-s) a a rate of 1.92e+3 words per second, with a word-size (range) of 1,000 bits and a divider (-i) of 10. That makes 19.2 MHz.
+This reports for clock (src=1) a rate of 1.92e+3 words per second. That makes 19.2 MHz with (range=1,000) bits per word and an (intgr=10) divider. 
 
 ```
-$ rpio cm config pwm -i 10 -m 0 -s 6 ;\
-  rpio cm switch pwm on ;\
+$ rpio cm ctl pwm -enab ;\
+  rpio cm div pwm intgr 10 ;\
+  rpio cm ctl pwm mash 0 src 6 +enab ;\
   rpio pwm range 1 1000 ;\
   rpio pwm control -pwen2 +usef1 +mode1 +pwen1 ;\
   rpio pwm frequency
 5.00e+07 (5.00e+04,0)
 ```
-For clock-source 6 (-s) it is 500 MHz.
+For clock (src=6) the rate is 500 MHz.
 
 ## Errata
 
@@ -157,5 +173,9 @@ Page | Description
 | | Many more have been disclosed by [eLinux](http://elinux.org/BCM2835_registers#CM). Some of them are vital since they drive other peripherals.
 105 | DIVF / 1024
 | | DIVF / 4096
-107 | The frequency of the clock-sources was not defined.
-| | See Use-Case-1 above.
+107 | FLIP
+| | The flag reads always as zero and has no apparent effect.
+107 | SRC
+| | The frequency of the clock-sources is not defined. See Use-Case-1 above.
+
+You may also want to have a look at the Linux kernel [sources](https://github.com/raspberrypi/linux/blob/rpi-4.9.y/drivers/clk/bcm/clk-bcm2835.c).

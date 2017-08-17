@@ -1,12 +1,6 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-// --------------------------------------------------------------------
-// Clock-Manager
-//
-// see BCM2835 ARM Peripherals: chapter 6.3: General Purpose GPIO Clocks
-// see elinux.org/BCM2835_registers#CM
-// see www.raspberrypi.org/forums/viewtopic.php?p=1187723#p1187723
-// --------------------------------------------------------------------
+// Clock-Manager; see Cm.md
 
 #ifndef INCLUDE_Rpi_Cm_h
 #define INCLDUE_Rpi_Cm_h
@@ -28,17 +22,11 @@ struct Cm
     static constexpr auto Address = Bus::Address::Base
 	+ PNo.value() * Page::nbytes ;
     
-    // ----------------------------------------------------------------
-    // Aliases (there are more; though not tested yet)
-    // ----------------------------------------------------------------
-
     enum class Alias : unsigned { Gp0=0,Gp1=1,Gp2=2,Pcm=3,Pwm=4,Slim=5,Uart=6 } ;
 
     using AliasN = Neat::Numerator<Alias,Alias::Uart> ;
 
-    // ----------------------------------------------------------------
     // Wrapper for Peripheral Registers
-    // ----------------------------------------------------------------
 
     template<uint32_t M> struct Register
     {
@@ -60,9 +48,7 @@ struct Cm
 	Bus::Address address_ ; uint32_t volatile *p ; 
     } ;
 
-    // ----------------------------------------------------------------
-    // Control (CTL) and Prescaler/Divider (DIV) Registers
-    // ----------------------------------------------------------------
+    // Control (CTL) Register
 
     struct Ctl : Register<0x7bf>
     {
@@ -94,6 +80,8 @@ struct Cm
 	return Ctl::Base(Bus::Address(Address+i),&page->at(index)) ;
     }
 
+    // Divider/Prescaler (DIV) Register
+
     struct Div : Register<0xffffff>
     {
 	using Base = Register<Mask> ;
@@ -120,6 +108,8 @@ struct Cm
 	return Div::Base(Bus::Address(Address+i),&page->at(index)) ;
     }
     
+    // For convenience...
+    
     struct Clock
     {
 	Ctl ctl ; Div div ;
@@ -130,10 +120,6 @@ struct Cm
     {
 	return Clock(ctl(alias),div(alias)) ;
     }
-    
-    // ----------------------------------------------------------------
-    // Convenience
-    // ----------------------------------------------------------------
     
     bool enabled(Alias i) { return ctl(i).read().test(Ctl::Enab::Digit) ; }
     bool    busy(Alias i) { return ctl(i).read().test(Ctl::Busy::Digit) ; }

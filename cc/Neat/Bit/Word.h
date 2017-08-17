@@ -53,6 +53,18 @@ template<typename U,U M> struct Word
 	return 0 != (d.word().i & i) ;
     }
 
+    Word& operator-=(Digit d)
+    {
+	this->i &= ~d.word().i ;
+	return (*this) ;
+    }
+
+    Word& operator+=(Digit d)
+    {
+	this->i |= d.word().i ;
+	return (*this) ;
+    }
+
     template<unsigned O> struct Bit
     {
 	static constexpr auto Offset = O ;
@@ -110,17 +122,22 @@ template<typename U,U M> struct Word
 	    return I << Offset ;
 	}
 
+	constexpr Set() : i(0) {}
+	
 	constexpr Unsigned count() const { return i >> Offset ; }
 
 	constexpr Word word() const { return Word(i) ; }
 	
-	//constexpr Unsigned value() const { return i ; }
-
     private:
 
 	Unsigned i ; constexpr Set(unsigned i) : i(i) {}
 
     } ;
+
+    template<unsigned O,unsigned L> Set<O,L> test(Set<O,L>) const
+    {
+	return Set<O,L>(*this) ;
+    }
 
     template<unsigned Offset,unsigned Len> Word& operator%=(Set<Offset,Len> set)
     {

@@ -77,7 +77,7 @@ void Console::Poke::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << "-p   = ADDR is relative to peripheral base address\n"
 	      << "WORD = 32-bit integer number\n"
 	      << '\n'
-	      << "for example: <-p get 0x200034> displays GPIO levels\n"
+	      << "for example: <-p 0x200034 get> displays GPIO levels\n"
 	      << std::flush ;
     return ;
   }
