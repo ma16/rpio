@@ -1,12 +1,14 @@
 # 1-Wire Bus-System
 
-The description here is based on the DS18S20's [datasheet](http://datasheets.maximintegrated.com/en/ds/DS18S20.pdf). Please refer to specification that comes with your [1-Wire®](https://www.maximintegrated.com/en/products/digital/one-wire.html) device.
+This description is based on the DS18S20's [datasheet](http://datasheets.maximintegrated.com/en/ds/DS18S20.pdf).
+
+Please refer to the specification that comes with your [1-Wire®](https://www.maximintegrated.com/en/products/digital/one-wire.html) device.
 
 ## Abstract
 
-The 1-Wire bus-system uses a single data wire for communication between a Master and one or more Slave devices. Each device interfaces to the data-line via an open drain or 3-state port. The bus requires an external pullup resistor of approximately 5kΩ; thus, the idle state for the bus is high.
+The 1-Wire bus-system uses a single wire (i.e. the “bus”) for communication between a Master and one or more Slave devices. Each device connects to the bus via an open-drain or 3-state port. The bus requires an external pull-up resistor of approximately 5kΩ; thus, the idle state for the bus is High.
 
-A Slave is identified by its unique 64-bit ROM Code:
+There may be multiple Slaves on the bus. These Slaves are identified by their unique 64-bit ROM code:
 
 Offset | Bits | Description
 -----: | ---: | :----------
@@ -14,156 +16,156 @@ Offset | Bits | Description
  8 | 48 | Unique Serial Number
  56 | 8 | Cyclic Redundancy Check (CRC) 
 
-The lower-layer protocol is based on four Signals:
+The protocol on the bus is based on four signals:
 
-Signal | Source | Description
-:----- | :------| :----------
-Reset Pulse | Master | All components on the bus are reset.
-Presence Pulse | Slave | All Slaves indicate their presence (simultaneously) after a Reset.
-Write Time-Slot | Master | Transmit a single bit from Master to Slave.
-Read Time-Slot |  Slave | Transmit a single bit from Slave to Master.
+Signal | Description
+:----- | :----------
+Reset Pulse | The Master initiates communication.
+Presence Pulse | The Slaves indicate their presence (simultaneously).
+Write Time-Slot | Transmit a single bit from Master to Slave.
+Read Time-Slot | Transmit a single bit from Slave to Master.
 
-The communication is initiated by the Master with a Reset Pulse, followed by the Slave(s)' Presence Pulse(s). Then, the Master issues a (ROM) Command to address one or several Slaves, followed by an optional Function call.
+The communication is initiated by the Master with a Reset Pulse, followed by the Slave's Presence Pulse. Then, the Master issues a command to address one or several Slaves, followed by an optional function call.
 
 Command | Description
 :------ | :----------
-Search ROM | Identify the ROM Codes of all Slaves
-Read ROM | If there is only one Slave: read the Slave’s 64-bit ROM Code 
-Match ROM | Address a specific Slave by its ROM Code
-Skip ROM | Address all Slaves simultaneously
-Alarm ROM Search | Identify the ROM Codes of all Slaves that hold a pending Alarm
+Search ROM | Identify the ROM codes of all Slaves. This may take several calls.
+Read ROM | Read the Slave’s ROM code if there is only one Slave.
+Match ROM | Address a specific Slave by its ROM code and issue a function.
+Skip ROM | Address all Slaves simultaneously and issue a function.
+Alarm (ROM) Search | Identify the ROM codes of all Slaves that hold a pending Alarm. This may take several calls.
 
-The Function that can be issued after addressing a Slave is defined by the Slave's implementation. For example, a temperature sensor may provide two Functions: start sampling and read temperature.
+A function that can be issued after addressing a Slave. The actual Function type is defined by the Slave's implementation. For example, a temperature sensor may provide two Functions: start sampling and read temperature.
 
 ## Hardware Configuration
 
-There can be one or multiple Slaves:
-* the system is referred to as a “single-drop” system if there is only one Slave;
-* the system is referred to as a “multidrop” system if there are multiple slaves.
-
-The Slave can be powered by an external supply on the VDD pin, or it can operate in “parasite power” mode, which allows the Slave to be connected on only two pins (instead of three). In parasite power mode external switching is required for the data line and not all Slave's operations may be supported. For the remainder of document, it is assumed, the device is connected to an external power supply.
-
 All data are transmitted least significant bit first.
 
-## Signalling
+There can be one or multiple Slaves:
+* the system is referred to as a “single-drop” system if there is only one Slave;
+* the system is referred to as a “multidrop” system if there are multiple Slaves.
 
-All Signals are initiated by the Master. That is, the Slave needs to wait for a condition provided by the Master before the Slave can pull the data-line.
-
-If for any reason a transaction needs to be suspended, the bus MUST be left in the idle state if the
-transaction is to resume. Infinite recovery time can occur between bits so long as the 1-Wire bus is in the inactive (high) state during the recovery period.
-
-### Initialization Sequence
-
-All communication begins with an initialization sequence that consists of a Reset Pulse from the Master followed by simultaneous Presence Pulses from all Slaves.
-
-* The Master transmits (Tx) the Reset Pulse by pulling the bus low for a minimum of 480μs.
-* The Master then releases the bus and goes into receive mode (Rx).
-* When the bus is released, the 5kΩ pullup resistor pulls the 1-Wire bus high.
-* When the Slave detects this rising edge, it waits 15μs to 60μs and then transmits a Presence Pulse by pulling the bus low for 60μs to 240μs.
-
-When the Slave sends the Presence Pulse in response to the Reset Pulse, it is indicating to the Master that it is on the bus and ready to operate. All the Master learns is whether there is either no Slave or at least one.
-
-### Read/Write Time Slots
-
-The Master writes data to the DS18S20 during write time slots and reads data from the DS18S20 during read-time slots. One bit of data is transmitted over the 1-Wire bus per time slot.
-
-### Write Tome Slot
-
-There are two types of write time slots: “Write 1” time slots and “Write 0” time slots. The Master uses a Write 1 time slot to write a logic 1 to the DS18S20 and a Write 0 time slot to write a logic 0 to the DS18S20.
-
-All write time slots must be a minimum of 60μs in duration with a minimum of a 1μs recovery time between individual write slots. Both types of write time slots are initiated by the Master pulling the 1-Wire bus low.
-
-To generate a Write 1 time slot, after pulling the 1-Wire bus low, the Master must release the 1-Wire bus within 15μs. When the bus is released, the 5kΩ pullup resistor will pull the bus high.
-
-To generate a Write 0 time slot, after pulling the 1-Wire bus low, the Master must continue to hold the bus low for the duration of the time slot (at least 60μs).
-
-The slave samples the 1-Wire bus during a window that lasts from 15μs to 60μs after the Master initiates the write time slot. If the bus is high during the sampling window, a 1 is written to the slave. If the line is low, a 0 is written to the slave.
-
-### Read-Time Slot
-
-The slave can only transmit data to the Master when the Master issues read-time slots. Therefore, the Master must generate read-time slots immediately after issuing any Read command, so that the slave can provide the requested data.
-
-All read-time slots must be a minimum of 60μs in duration with a minimum of a 1μs recovery time between slots. A read-time slot is initiated by the Master device pulling the 1-Wire bus low for a minimum of 1μs and then releasing the bus).
-
-After the Master initiates the read-time slot, the slave will begin transmitting a 1 or 0 on bus. The DS18S20 transmits a 1 by leaving the bus high and transmits a 0 by pulling the bus low.
-
-When transmitting a 0, the DS18S20 will release the bus by the end of the time slot, and the bus will be pulled back to its high idle state by the pullup resister.
-
-Output data from the slave is valid for 15μs after the falling edge that initiated the read-time slot. Therefore, the Master must release the bus and then sample the bus state within 15μs from the start of the slot.
-
-T-INIT (>= 1us) : Master holds V-PU = Low
-T-RC            : Duration after Master releases V-PU=Low and until V-PU reaches V-IH
-T-SAMPLE        : Master scans V-PU
-
-The sum of T-INIT, T-RC, and T-SAMPLE must be less than 15μs for a read-time slot. The system timing margin is maximized by keeping T-INIT and T-RC as short as possible and by locating the Master sample time during read-time slots towards the end of the 15μs period.
+The Slave can be powered by an external supply on the VDD pin, or it can operate in “parasite power” mode, which allows the Slave to be connected on only two pins (instead of three). In parasite power mode external switching is required for the bus and not all Slave's operations may be supported. For the remainder of the document it is assumed, the Slave is connected to an external power supply.
 
 ## Transaction Sequence
 
-Each dialogue between Master and Slave(s) is started by a Reset Signal.
+The transaction sequence for a Master-Slave dialog is as follows:
 
-The transaction sequence for accessing a slave device is as follows:
+* Initialization Sequence
+* ROM Command and optional response
+* Optional Function Command and response
 
-* Initialization
-* ROM Command (followed by any required data exchange)
-* Function Command (followed by any required data exchange)
+There are Exceptions to this sequence (see ROM Commands).
 
-Exceptions to this sequence are the Search ROM [F0h] and Alarm Search [ECh] commands.
+If for any reason a transaction needs to be suspended, the bus must be left in the idle state if the
+transaction is to resume. Infinite recovery time can occur between bits so long as the bus is idle during the recovery period.
 
-### Initialization
+## Signalling
 
-All transactions on the 1-Wire bus begin with an initialization sequence. The initialization sequence consists of a reset pulse transmitted by the Master followed by presence pulse(s) transmitted by the slave(s). The presence pulse lets the Master know that slave devices are on the bus and are ready to operate.
+All the four bus signals are initiated by the Master. That is, the Slave needs to wait for a condition provided by the Master before the Slave can pull the bus Low.
 
-### ROM Commands
+### Initialization Sequence
 
-After the Master has detected a presence pulse, it can issue a ROM command. These commands operate on the unique 64-bit ROM codes of each slave device and allow the Master to single out a specific device if many are present on the 1-Wire bus. These commands also allow the Master to determine how many and what types of devices are present on the bus or if any device has experienced an alarm condition. There are five ROM commands, and each command is 8 bits long. The Master device must issue an appropriate ROM command before issuing a DS18S20 function command.
+All transactions on the bus begin with an initialization sequence. The initialization sequence consists of a Reset Pulse issued by the Master followed by simultaneous Presence Pulses issued by the Slaves.
+
+* The Master issues the Reset Pulse by pulling the bus Low.
+* The Master releases the bus after a minimum of 480μs. The 5kΩ pull-up resistor pulls the bus High again.
+* When a Slave detects the rising edge, it waits 15μs to 60μs and then issues a Presence Pulse by pulling the bus Low.
+* The Slave releases the bus after a period of 60μs to 240μs. The 5kΩ pull-up resistor pulls the bus High again.
+
+All the Master learns in the initialization sequence is whether there is either no Slave on the bus or at least one. In order to find out how many Slaves there actually are, the Master needs to issue Search ROM commands (see below).
+
+### Time-Slots
+
+One bit of data is transmitted per Time-Slot.
+
+Each Time-Slot is initiated by the Master by pulling the bus Low.
+
+Each Time-Slot period lasts at least 60μs. The minimum recovery time between Time-Slots is 1μs.
+
+Type | Description
+:--- | :---
+Write Time-Slot | The Master sends data to the Slave.
+Read Time-Slot | The Master receives data from the Slave.
+
+#### Write
+
+Type | Description
+:--- | :---
+Write-1 Time-Slot | The Master pulls the bus Low for up to 15μs.
+Write-0 Time-Slot | The Master pulls the bus Low for at least 60μs.
+
+The Slave samples the bus any time during a window that lasts from 15μs to 60μs after the falling edge.
+
+#### Read
+
+A Read Time-Slot is initiated by the Master by pulling the bus Low for a minimum of 1μs.
+
+Type | Description
+:--- | :---
+Read-1 Time-Slot | The Slave leaves the bus High.
+Read-0 Time-Slot | The Slave pulls the bus Low until the end of the Time-Slot.
+
+Output data from the Slave is valid only for the 15μs after the falling edge that initiated the Read Time-Slot. Therefore, the Master must release the bus fast and then sample the bus level within 15μs from the start of the Time-Slot.
+
+Timing | Description
+:--- | :---
+T-INIT | Period the Master pulls the bus Low (at least 1μs).
+T-RC | Period the bus would reach High level again (thru pull-up resistor).
+T-SAMPLE | Period the Master can scan the bus for the Slave's output.
+
+The sum of T-INIT, T-RC, and T-SAMPLE must be less than 15μs. T-INIT and T-RC should be kept as short as possible. The actual sample should be taken near the end of the 15μs window.
+
+Note: After the initialization sequence the Master issues Write Time-Slots that form a ROM command (see below) followed by optional Function commands. Depending on the command, the Slave knows when to expect one or multiple Read Time-Slot signals.
+
+## ROM Commands
+
+After the Master has detected a Presence Pulse, it can issue a ROM command. These commands operate on the unique 64-bit ROM codes of each Slave and allow the Master to single out a Slave if more than one is present. The ROM commands also allow the Master to determine how many and what types of Slaves are present or if any Slave has experienced an Alarm condition.
+
+There are five ROM commands, and each command is 8 bits long:
 
 | # | Type
----: | :---
+:--- | :---
 33 | Read ROM
 55 | Match ROM
 CC | Skip ROM
 EC | Alarm Search
 F0 | Search ROM
 
-#### Read ROM
+### Read ROM
 
-This command can be used when there is only one slave on the bus. It allows the Master to read the slave’s 64-bit ROM code without using the Search ROM procedure. If this command is used when there is more than one slave present on the bus, a data collision will occur when all the slaves attempt to respond at the same time.
+This command can be used when there is only one Slave on the bus. It allows the Master to read the Slave’s 64-bit ROM code without using the Search ROM procedure. If this command is used when there is more than one Slave, a data collision will occur since all Slaves attempt to respond at the same time.
 
-#### Search Rom
+### Search ROM
 
-When a system is initially powered up, the Master must identify the ROM codes of all slave devices on the bus, which allows the Master to determine the number of slaves and their device types. The Master learns the ROM codes through a process of elimination that requires the Master to perform a Search ROM cycle (i.e., Search ROM command followed by data exchange) as many times as necessary to identify all of the slave devices. After every Search ROM cycle, the Master must return to the Initialization in the transaction sequence.
+After a system is powered up, the Master may want to identify all the Slaves attached to the bus. A series of Search ROM commands allows the Master to determine the number of Slaves and their ROM codes. The [1-Wire Search Algorithm](https://www.maximintegrated.com/en/app-notes/index.mvp/id/187) is described on Maxim Integrated's Application Note 187.
 
-#### Alarm Search
+### Alarm Search
 
-The operation of this command is identical to the operation of the Search ROM command except that only slaves with a set alarm flag will respond. This command allows the Master device to determine if any DS18S20s experienced an alarm condition during the most recent temperature conversion. After every Alarm Search cycle (i.e., Alarm Search command followed by data exchange), the Master must return to the Initialization in the transaction sequence.
+This command is similar to the Search ROM command. However, not all Slaves will respond but only those with a pending Alarm condition. 
 
-#### Match ROM
+### Match ROM
 
-The match ROM command followed by a 64-bit ROM code sequence allows the Master to address a specific slave device on a multidrop or single-drop bus. Only the slave that exactly matches the 64-bit ROM code sequence will respond to the function command issued by the Master: all other slaves on the bus will wait for a reset pulse.
+This command is used to address exactly one Slave by its 64-bit ROM code. The ROM command is followed by an individual Function (which depends on the type of the Slave device). Only the Slave that exactly matches the ROM code may respond to the Function. All other Slaves must ignore the bus until the next Reset Pulse.
 
-#### Skip ROM
+### Skip ROM
 
-The Master can use this command to address all devices on the bus simultaneously without sending out any ROM code information. For example, the Master can make all DS18S20s on the bus perform simultaneous temperature conversions by issuing a Skip ROM command followed by a Convert command.
+This command is used to address all Slaves on the bus simultaneously. For example, the Master can make all Slaves perform a temperature conversions by issuing a Skip ROM command followed by a Start Conversion Function. The list of actually available Functions depends on the type of the Slave device.
 
-If this ROM command is used when there is more than one slave present on the bus, and if the subsequent Function command requests any kind of a data from the Slave, a data collision will occur since the slaves attempt to respond at the same time.
+If there is only one Slave attached to the bus, the Skip ROM command can be used instead of the Match ROM command in order to simplify the implementation or to save bandwidth.
 
-## CRC Generation
+If there is more than one Slave and if the subsequent Function requests any kind of a data from the Slaves, a data collision will occur since the Slaves respond simultaneously at the same time.
 
-CRC bytes are provided as part of the DS18S20’s 64-bit ROM code and in the 9th byte of the scratchpad memory. The scratchpad CRC is calculated from the data stored in the scratchpad, and therefore it changes when the data in the scratchpad changes. To verify that data has been read correctly, the Master must re-calculate the CRC from the received data.
+## CRC
 
-The equivalent polynomial function of the CRC is:
+A [CRC](https://en.wikipedia.org/wiki/Cyclic_redundancy_check)-8 is provided as part of the Slave's 64-bit ROM code. The polynomial function is: x^8 + x^5 + x^4 + 1 (0x31).
 
-CRC = X8 + X5 + X4 + 1
+The mathematics of a cyclic redundancy check are closely related to those of an [LFSR](https://en.wikipedia.org/wiki/Linear_feedback_shift_register):
 
-### Calculation by Shift Register
-
-This circuit consists of a shift register and XOR gates. The shift register bits are initialized to 0.
-
-(see illustration)
-
-Starting with the least significant data bit, one bit at a time should be shifted into the shift register. After shifting in the 56th bit from the ROM or the most significant bit of byte 7 from the scratchpadall data bits, the polynomial generator will contain the calculated CRC.
-
-Next, the received 8-bit CRC must be shifted into the circuit. At this point, if the re-calculated CRC was correct, the shift register will contain all 0s.
-
-
-
+* The circuit consists of a shift-register and XOR gates. The XOR gates tap the Bits 0, 4 and 5.
+* All shift-register bits are initialized to 0.
+* Data start LSB first. Data is shiftet into the MSB of the shift-register.
+* All data bits are shifted one after another into the shift-register.
+* After shifting is completed, the shift-register contains the CRC.
+* The CRC is shifted into the circuit (as any data before).
+* After shifting, the shift-register will contain all 0s if the CRC did match the data.
