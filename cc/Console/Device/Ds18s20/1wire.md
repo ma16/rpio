@@ -1,8 +1,8 @@
 # 1-Wire Bus-System
 
-This description is based on the DS18S20's [datasheet](http://datasheets.maximintegrated.com/en/ds/DS18S20.pdf).
+This description is based on the DS18S20 [datasheet](http://datasheets.maximintegrated.com/en/ds/DS18S20.pdf).
 
-Please refer to the specification that comes with your [1-Wire®](https://www.maximintegrated.com/en/products/digital/one-wire.html) device.
+Please refer also to the specification that comes with your [1-Wire®](https://www.maximintegrated.com/en/products/digital/one-wire.html) device.
 
 ## Abstract
 
@@ -25,17 +25,17 @@ Presence Pulse | The Slaves indicate their presence (simultaneously).
 Write Time-Slot | Transmit a single bit from Master to Slave.
 Read Time-Slot | Transmit a single bit from Slave to Master.
 
-The communication is initiated by the Master with a Reset Pulse, followed by the Slave's Presence Pulse. Then, the Master issues a command to address one or several Slaves, followed by an optional function call.
+The communication is initiated by the Master with a Reset Pulse, followed by the Slave's Presence Pulse. Then, the Master issues a ROM command to address one or several Slaves, followed by an optional Function command.
 
-Command | Description
+ROM Command | Description
 :------ | :----------
 Search ROM | Identify the ROM codes of all Slaves. This may take several calls.
 Read ROM | Read the Slave’s ROM code if there is only one Slave.
-Match ROM | Address a specific Slave by its ROM code and issue a function.
-Skip ROM | Address all Slaves simultaneously and issue a function.
+Match ROM | Address a specific Slave by its ROM code and issue a Function.
+Skip ROM | Address all Slaves simultaneously and issue a Function.
 Alarm (ROM) Search | Identify the ROM codes of all Slaves that hold a pending Alarm. This may take several calls.
 
-A function that can be issued after addressing a Slave. The actual Function type is defined by the Slave's implementation. For example, a temperature sensor may provide two Functions: start sampling and read temperature.
+A Function can be issued after addressing a Slave. The actual Function type is defined by the Slave's implementation. For example, a temperature sensor may provide two Functions: start sampling and read temperature.
 
 ## Hardware Configuration
 
@@ -45,24 +45,24 @@ There can be one or multiple Slaves:
 * the system is referred to as a “single-drop” system if there is only one Slave;
 * the system is referred to as a “multidrop” system if there are multiple Slaves.
 
-The Slave can be powered by an external supply on the VDD pin, or it can operate in “parasite power” mode, which allows the Slave to be connected on only two pins (instead of three). In parasite power mode external switching is required for the bus and not all Slave's operations may be supported. For the remainder of the document it is assumed, the Slave is connected to an external power supply.
+The Slave can be powered by an external supply, or it can operate in “parasite power” mode, which allows the Slave to be connected on only two pins (bus & ground). In parasite power mode external switching is required for the bus and not all Slave operations may be supported. For the remainder of the document it is assumed, the Slave is connected to an external power supply (VDD, bus & ground).
 
 ## Transaction Sequence
 
 The transaction sequence for a Master-Slave dialog is as follows:
 
 * Initialization Sequence
-* ROM Command and optional response
-* Optional Function Command and response
+* ROM command and optional response
+* Optional Function command and response
 
-There are Exceptions to this sequence (see ROM Commands).
+There are exceptions to this sequence (see ROM commands).
 
 If for any reason a transaction needs to be suspended, the bus must be left in the idle state if the
 transaction is to resume. Infinite recovery time can occur between bits so long as the bus is idle during the recovery period.
 
 ## Signalling
 
-All the four bus signals are initiated by the Master. That is, the Slave needs to wait for a condition provided by the Master before the Slave can pull the bus Low.
+All four bus signals are initiated by the Master. That is, the Slave needs to wait for a condition provided by the Master before the Slave can pull the bus to Low.
 
 ### Initialization Sequence
 
@@ -95,7 +95,7 @@ Type | Description
 Write-1 Time-Slot | The Master pulls the bus Low for up to 15μs.
 Write-0 Time-Slot | The Master pulls the bus Low for at least 60μs.
 
-The Slave samples the bus any time during a window that lasts from 15μs to 60μs after the falling edge.
+The Slave may sample the bus at any time during a window that lasts from 15μs to 60μs after the falling edge.
 
 #### Read
 
@@ -112,7 +112,7 @@ Timing | Description
 :--- | :---
 T-INIT | Period the Master pulls the bus Low (at least 1μs).
 T-RC | Period the bus would reach High level again (thru pull-up resistor).
-T-SAMPLE | Period the Master can scan the bus for the Slave's output.
+T-SAMPLE | Period the Master may scan the bus for the Slave's output.
 
 The sum of T-INIT, T-RC, and T-SAMPLE must be less than 15μs. T-INIT and T-RC should be kept as short as possible. The actual sample should be taken near the end of the 15μs window.
 
@@ -120,7 +120,7 @@ Note: After the initialization sequence the Master issues Write Time-Slots that 
 
 ## ROM Commands
 
-After the Master has detected a Presence Pulse, it can issue a ROM command. These commands operate on the unique 64-bit ROM codes of each Slave and allow the Master to single out a Slave if more than one is present. The ROM commands also allow the Master to determine how many and what types of Slaves are present or if any Slave has experienced an Alarm condition.
+After the Master has detected a Presence Pulse, it can issue a ROM command. These commands can operate on the unique 64-bit ROM code of the Slaves and allow the Master to single out a Slave. The ROM commands also allow the Master to determine how many and what types of Slaves are present or if any Slave has experienced an Alarm condition.
 
 There are five ROM commands, and each command is 8 bits long:
 
@@ -142,7 +142,7 @@ After a system is powered up, the Master may want to identify all the Slaves att
 
 ### Alarm Search
 
-This command is similar to the Search ROM command. However, not all Slaves will respond but only those with a pending Alarm condition. 
+This command is similar to the Search ROM command. However, not all Slaves will respond; only those with a pending Alarm condition. 
 
 ### Match ROM
 
@@ -152,20 +152,10 @@ This command is used to address exactly one Slave by its 64-bit ROM code. The RO
 
 This command is used to address all Slaves on the bus simultaneously. For example, the Master can make all Slaves perform a temperature conversions by issuing a Skip ROM command followed by a Start Conversion Function. The list of actually available Functions depends on the type of the Slave device.
 
-If there is only one Slave attached to the bus, the Skip ROM command can be used instead of the Match ROM command in order to simplify the implementation or to save bandwidth.
+If only one Slave is attached to the bus, the Skip ROM command can be used instead of the Match ROM command in order to simplify the implementation or to save bandwidth.
 
-If there is more than one Slave and if the subsequent Function requests any kind of a data from the Slaves, a data collision will occur since the Slaves respond simultaneously at the same time.
+If more than one Slave is attached and if the subsequent Function requests any kind of a data from the Slaves, a data collision will occur since all Slaves respond simultaneously at the same time.
 
 ## CRC
 
 A [CRC](https://en.wikipedia.org/wiki/Cyclic_redundancy_check)-8 is provided as part of the Slave's 64-bit ROM code. The polynomial function is: x^8 + x^5 + x^4 + 1 (0x31).
-
-The mathematics of a cyclic redundancy check are closely related to those of an [LFSR](https://en.wikipedia.org/wiki/Linear_feedback_shift_register):
-
-* The circuit consists of a shift-register and XOR gates. The XOR gates tap the Bits 0, 4 and 5.
-* All shift-register bits are initialized to 0.
-* Data start LSB first. Data is shiftet into the MSB of the shift-register.
-* All data bits are shifted one after another into the shift-register.
-* After shifting is completed, the shift-register contains the CRC.
-* The CRC is shifted into the circuit (as any data before).
-* After shifting, the shift-register will contain all 0s if the CRC did match the data.
