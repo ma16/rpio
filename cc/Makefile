@@ -32,6 +32,7 @@ LSRC=\
 	Console/Cm/invoke.cc \
 	Console/Device/invoke.cc \
 	Console/Device/Ads1115/invoke.cc \
+	Console/Device/Ds18s20/invoke.cc \
 	Console/Device/Mcp3008/invoke.cc \
 	Console/Device/Max7219/invoke.cc \
 	Console/Device/Ws2812b/invoke.cc \

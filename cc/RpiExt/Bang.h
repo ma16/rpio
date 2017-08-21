@@ -34,7 +34,7 @@ struct Bang
 {
     struct Command
     {
-	enum class Choice { Levels,Mode,Recent,Reset,Set,Sleep,Time,Wait } ;
+      enum class Choice { Levels,Mode,Recent,Reset,Set,Sleep,Time,Wait,WaitLevel } ;
 	
 	Choice choice ;
 	
@@ -104,6 +104,25 @@ struct Bang
 	    Wait(uint32_t const *t0,uint32_t span) : t0(t0),span(span) {}
 	} ;
 	    
+	class WaitLevel
+	{
+	    friend Command ;
+	    friend Bang ;
+	    uint32_t const *t0 ;
+	    uint32_t span ;
+	    uint32_t *t1 ;
+	    uint32_t mask ;
+	    uint32_t cond ;
+	    uint32_t *pins ;
+	    WaitLevel(uint32_t const *t0,
+		      uint32_t      span,
+		      uint32_t       *t1,
+		      uint32_t      mask,
+		      uint32_t      cond,
+		      uint32_t     *pins)
+		: t0(t0),span(span),t1(t1),mask(mask),cond(cond),pins(pins) {}
+	} ;
+	    
 	union Value
 	{
 	private:
@@ -118,6 +137,7 @@ struct Bang
 	    Sleep   sleep ;
 	    Time     time ;
 	    Wait     wait ;
+	    WaitLevel waitLevel ;
 	    
 	    Value(Levels const& levels) : levels(levels) {}
 	    Value(Mode   const&   mode) :   mode  (mode) {}
@@ -127,6 +147,7 @@ struct Bang
 	    Value(Sleep  const&  sleep) : sleep  (sleep) {}
 	    Value(Time   const&   time) : time    (time) {}
 	    Value(Wait   const&   wait) : wait    (wait) {}
+	    Value(WaitLevel const& waitLevel) : waitLevel(waitLevel) {}
 	} ;
 	
 	Value value ;
@@ -173,6 +194,16 @@ struct Bang
 	{
 	    return Command(Choice::Wait,Wait(t0,span)) ;
 	}
+
+	static Command waitLevel(uint32_t const *t0,
+				 uint32_t      span,
+				 uint32_t       *t1,
+				 uint32_t      mask,
+				 uint32_t      cond,
+				 uint32_t     *pins)
+	{
+	    return Command(Choice::WaitLevel,WaitLevel(t0,span,t1,mask,cond,pins)) ;
+	}
     } ;
 
     Bang(Rpi::Peripheral *rpi) :
@@ -193,6 +224,7 @@ struct Bang
 	case Command::Choice::Sleep  :  sleep(c.value. sleep) ; break ;
 	case Command::Choice::Time   :   time(c.value.  time) ; break ;
 	case Command::Choice::Wait   :   wait(c.value.  wait) ; break ;
+	case Command::Choice::WaitLevel : waitLevel(c.value.waitLevel) ; break ;
 	default: assert(false) ; abort() ;
 	}
     }
@@ -262,6 +294,16 @@ struct Bang
 	{
 	    q.push_back(Command::wait(t0,span)) ;
 	}
+
+	void waitLevel(uint32_t const *t0,
+		       uint32_t      span,
+		       uint32_t       *t1,
+		       uint32_t      mask,
+		       uint32_t      cond,
+		       uint32_t     *pins)
+	{
+	    q.push_back(Command::waitLevel(t0,span,t1,mask,cond,pins)) ;
+	}
     } ;
   
 private:
@@ -302,6 +344,20 @@ private:
     {
 	while (this->t - (*c.t0) < c.span) 
 	    this->t = this->counter.clock() ;
+    }
+    
+    void waitLevel(Command::WaitLevel const &c)
+    {
+	goto Start ;
+	while (this->t - (*c.t0) < c.span)
+	{
+	    this->t = this->counter.clock() ;
+	  Start:
+	    (*c.pins) = this->gpio.getLevels() ;
+	    if (c.cond == (*c.pins & c.mask))
+		break ;
+	}
+	(*c.t1) = this->t ;
     }
     
     void sleep(Command::Sleep const &c)

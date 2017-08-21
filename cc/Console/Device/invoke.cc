@@ -10,6 +10,7 @@ void Console::Device::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout << "arguments: DEVICE [help]\n" 
 		  << '\n'
 		  << "DEVICE : ads1115  # analog-to-digital converter\n"
+		  << "       | ds18s20  # temperature sensor\n"
 		  << "       | max7219  # LED-dot-matrix controller\n"
 		  << "       | mcp3008  # analog-to-digital converter\n"
 		  << "       | ws2812b  # LED-integrated controller\n" ;
@@ -20,6 +21,7 @@ void Console::Device::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (false) ;
       
     else if (arg == "ads1115") Device::Ads1115::invoke(rpi,argL) ;
+    else if (arg == "ds18s20") Device::Ds18s20::invoke(rpi,argL) ;
     else if (arg == "mcp3008") Device::Mcp3008::invoke(rpi,argL) ;
     else if (arg == "max7219") Device::Max7219::invoke(rpi,argL) ;
     else if (arg == "ws2812b") Device::Ws2812b::invoke(rpi,argL) ;
