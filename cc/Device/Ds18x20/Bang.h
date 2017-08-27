@@ -9,12 +9,6 @@ namespace Device { namespace Ds18x20 {
 
 struct Bang
 {
-    Bang(
-	Rpi::Peripheral *rpi,
-	Rpi::Pin      busPin)
-	
-	: rpi(rpi),busPin(busPin) {}
-
     using Script = std::vector<RpiExt::Bang::Command> ;
 
     template<typename T> struct Timing
@@ -58,6 +52,8 @@ struct Bang
 	{ 60e-6,240e-6 },
     } ;
 
+    static Timing<uint32_t> ticks(Timing<double> const &seconds,double tps) ;
+    
     struct Record
     {
 	uint32_t t[4] ;
@@ -68,11 +64,21 @@ struct Bang
 	uint32_t buffer[0x1000] ;
     } ;
     
+    // assumes
+    // * busPin.mode=Input (changed between input and output)
+    // * busPin.outputLevel = Low (not changed)
     Script readRom(Record *record) const ;
     Script readPad(Record *record) const ;
     
     static uint8_t crc(uint32_t const *buffer,uint32_t mask,size_t nwords) ;
     
+    Bang(
+	Rpi::Peripheral *rpi,
+	Rpi::Pin busPin,
+	Timing<uint32_t> const& timing = ticks(spec,250e+6))
+	
+	: rpi(rpi),busPin(busPin),timing(timing) {}
+
 private:
 
     void init(RpiExt::Bang::Enqueue *q,uint32_t(*t)[4],uint32_t *low,uint32_t *high) const ;
@@ -87,6 +93,8 @@ private:
     Rpi::Peripheral *rpi ;
 
     Rpi::Pin busPin ;
+
+    Timing<uint32_t> timing ;
 
 } ; } } 
 
