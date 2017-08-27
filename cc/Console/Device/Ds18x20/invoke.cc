@@ -4,32 +4,71 @@
 #include <Device/Ds18x20/Bang.h>
 #include <Ui/strto.h>
 
-static void display(std::vector<bool> const &v)
+static unsigned long long to_ull(std::vector<bool> const &v)
 {
-    for (auto i=0u ; i<v.size() ; i+=8)
+    unsigned long long ull = 0 ;
+    for (unsigned i=v.size() ; i>0 ; )
     {
-	unsigned code = 0 ;
-	for (auto j=0u ; j<8u ; ++j)
-	{
-	    code >>= 1 ;
-	    if (v[i+j])
-		code |= 0x80 ;
-	}
-	std::cout << std::hex << code << ' ' ;
+	ull <<= 1 ;
+	--i ;
+	ull |= v[i] ;
     }
-    std::cout << '\n' ;
-    {
-	for (auto i=0u ; i<v.size() ; ++i)
-	{
-	    std::cout << v[i] ;
-	    if ((i % 8) == 7) std::cout << ' ' ;
-	    else if ((i % 4) == 3) std::cout << ':' ;
-	}
-	std::cout << '\n' ;
-    }
+    return ull ;
 }
 
-static void doit(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static std::ostream& operator<< (std::ostream &os,std::vector<bool> const &v)
+{
+    for (auto i=0u ; i<v.size() ; ++i)
+    {
+	os << v[i] ;
+	if ((i % 8) == 7) os << ' ' ;
+	else if ((i % 4) == 3) os << ':' ;
+    }
+    return os ;
+}
+
+static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    argL->finalize() ;
+    using Bang = Device::Ds18x20::Bang ;
+    
+    Bang::Record record ;
+    RpiExt::Bang scheduler(rpi) ;
+
+    auto script = Bang(rpi,pin).convert(&record) ;
+    scheduler.execute(script) ;
+
+    // debugging
+    auto v = Bang::assemble(record.buffer,72,1u<<pin.value()) ; 
+    std::cout << v << '\n' ;
+    v = Bang::assemble(record.buffer,64,1u<<pin.value()) ; 
+    std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
+}
+
+static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    argL->finalize() ;
+    using Bang = Device::Ds18x20::Bang ;
+    
+    Bang::Record record ;
+    RpiExt::Bang scheduler(rpi) ;
+
+    auto script = Bang(rpi,pin).readPad(&record) ;
+    scheduler.execute(script) ;
+
+    // debugging
+    auto v = Bang::assemble(record.buffer,72,1u<<pin.value()) ; 
+    std::cout << v << '\n' ;
+    v = Bang::assemble(record.buffer,64,1u<<pin.value()) ; 
+    std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
+
+    auto pad = to_ull(v) ;
+    std::cout << pad << '\n' ;
+}
+
+static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     using Bang = Device::Ds18x20::Bang ;
   
@@ -42,18 +81,14 @@ static void doit(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto script = Bang(rpi,pin).readRom(&record) ;
     scheduler.execute(script) ;
 
-    display(Bang::assemble(record.buffer,64,1u<<pin.value())) ;
-    std::cout << std::hex
-	      << (unsigned)Bang::crc(Bang::assemble(record.buffer,56,1u<<pin.value()))
-	      << '\n' ;
+    // debugging
+    auto v = Bang::assemble(record.buffer,64,1u<<pin.value()) ; 
+    std::cout << v << '\n' ;
+    v = Bang::assemble(record.buffer,56,1u<<pin.value()) ; 
+    std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
 
-    auto script2 = Bang(rpi,pin).readPad(&record) ;
-    scheduler.execute(script2) ;
-
-    display(Bang::assemble(record.buffer,72,1u<<pin.value())) ;
-    std::cout << std::hex
-	      << (unsigned)Bang::crc(Bang::assemble(record.buffer,64,1u<<pin.value()))
-	      << '\n' ;
+    auto code = to_ull(v) ;
+    std::cout << code << '\n' ;
 }
 
 #include <Rpi/Timer.h>
@@ -112,14 +147,21 @@ void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     {
-	std::cout << "arguments: ... \n" ;
+	std::cout << "arguments: OPTION PIN\n"
+		  << '\n'
+		  << "rom = read 64-bit ROM code\n"
+		  << "pad = read 72-bit scratch pad\n"
+	    ;
 	return ;
     }
 
     std::string arg = argL->pop() ;
     if (false) ;
   
-    else if (arg == "doit") doit(rpi,argL) ;
+    else if (arg == "convert") convert(rpi,argL) ;
+    else if (arg == "rom") rom(rpi,argL) ;
+    else if (arg == "pad") pad(rpi,argL) ;
+    
     else if (arg == "test") test(rpi,argL) ;
   
     else throw std::runtime_error("not supported option:<"+arg+'>') ;

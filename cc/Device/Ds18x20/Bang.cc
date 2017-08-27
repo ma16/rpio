@@ -128,6 +128,20 @@ void Device::Ds18x20::Bang::init(RpiExt::Bang::Enqueue *q,uint32_t(*t)[4],uint32
     q->wait((*t)+1,this->timing.rsth) ;
 }
 
+Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::convert(Record *record) const
+{
+    RpiExt::Bang::Enqueue q ;
+    this->init(&q,&record->t,&record->low,&record->high) ;
+    // ROM-command: Skip-ROM-Code
+    this->write(&q,static_cast<uint8_t>(0xcc)) ;
+    // Function-command: Convert-T
+    this->write(&q,static_cast<uint8_t>(0x44)) ;
+    // [todo]
+    //   here we can issue Read-Time-Slot until 1;
+    //   we would need our script to loop
+    return q.vector() ;
+}
+
 Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::readRom(Record *record) const
 {
     RpiExt::Bang::Enqueue q ;

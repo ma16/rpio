@@ -72,8 +72,10 @@ struct Bang
     // assumes
     // * busPin.mode=Input (changed between input and output)
     // * busPin.outputLevel = Low (not changed)
-    Script readRom(Record *record) const ;
+    
+    Script convert(Record *record) const ;
     Script readPad(Record *record) const ;
+    Script readRom(Record *record) const ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
