@@ -3,6 +3,7 @@
 #ifndef INCLUDE_Device_Ds18x20_Bang_h
 #define INCLUDE_Device_Ds18x20_Bang_h
 
+#include <Neat/Bit/Crc.h>
 #include <RpiExt/Bang.h>
 
 namespace Device { namespace Ds18x20 {
@@ -74,7 +75,10 @@ struct Bang
     Script readRom(Record *record) const ;
     Script readPad(Record *record) const ;
     
-    static uint8_t crc(std::vector<bool> const &v) ;
+    static uint8_t crc(std::vector<bool> const &v)
+    {
+	return Neat::Bit::Crc::x31(v) ;
+    }
     
     Bang(
 	Rpi::Peripheral *rpi,

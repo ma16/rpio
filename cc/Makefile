@@ -68,6 +68,7 @@ LSRC=\
 	Linux/base.cc \
 	Linux/PhysMem.cc \
 	Linux/Shm.cc \
+	Neat/Bit/Crc.cc \
 	Neat/Bit/Word.cc \
 	Neat/NotSigned.cc \
 	Neat/safe_int.cc \

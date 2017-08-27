@@ -149,16 +149,3 @@ Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::readPad(Record *record) con
     Bang::read(&q,72,record->buffer) ;
     return q.vector() ;
 }
-
-uint8_t Device::Ds18x20::Bang::crc(std::vector<bool> const &v)
-{
-    uint8_t reg = 0 ;
-    for (auto i=0u ; i<v.size() ; ++i)
-    {
-	auto lsb = 0 != (reg & 0x01) ;
-	reg = static_cast<uint8_t>(reg >> 1) ;
-	if (v[i] ^ lsb)
-	    reg ^= 0x8c ;
-    }
-    return reg ;
-}
