@@ -20,7 +20,7 @@ CFLAGS=\
 # -DNDEBUG -flto
 # [note] use -Wno-maybe-uninitialized when placement-new causes warnings
 
-LDFLAGS=-pthread
+LDFLAGS=-pthread -lrt
 # + $(CFLAGS) if -flto is used
 
 CC=$(CXX) $(INCLUDE) $(CFLAGS)
@@ -58,6 +58,7 @@ LSRC=\
 	Device/Ads1115/Bang/Generator.cc \
 	Device/Ads1115/Bang/Host.cc \
 	Device/Ads1115/Bang/Record.cc \
+	Device/Ds18x20/Bang.cc \
 	Device/Max7219/Bang.cc \
 	Device/Max7219/Parser.cc \
 	Device/Mcp3008/Bang.cc \
