@@ -40,13 +40,13 @@ static void doit(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Bang::Record record ;
     RpiExt::Bang scheduler(rpi) ;
 
-    auto script = Bang(rpi,pin).makeScript(&record) ;
+    auto script = Bang(rpi,pin).readRom(&record) ;
     scheduler.execute(script) ;
 
     display(record.buffer,1u<<pin.value(),64) ;
     std::cout << std::hex << (unsigned)Bang::crc(record.buffer,1u<<pin.value(),56) << '\n' ;
 
-    auto script2 = Bang(rpi,pin).makeScript2(&record) ;
+    auto script2 = Bang(rpi,pin).readPad(&record) ;
     scheduler.execute(script2) ;
 
     display(record.buffer,1u<<pin.value(),72) ;

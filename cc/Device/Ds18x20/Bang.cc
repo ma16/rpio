@@ -2,6 +2,9 @@
 
 #include <Device/Ds18x20/Bang.h>
 
+constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
+
+
 static uint32_t ticks(double seconds)
 {
     return static_cast<uint32_t>(seconds * 250e+6 + .5) ;
@@ -9,12 +12,15 @@ static uint32_t ticks(double seconds)
 
 void Device::Ds18x20::Bang::write(RpiExt::Bang::Enqueue *q,bool bit) const
 {
-    // 60us + 1us per bit
+    // [todo] don't use sleep: we need the last absolute point in time
     q->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    auto t = bit ? 15e-6 : 60e-6 ;
-    q->sleep(ticks(t)) ;
+    auto low = bit ? this->spec.low1.min : this->spec.low0.min ;
+    q->sleep(ticks(low)) ;
+    // [todo] verify that max timings aren't exceeded
     q->mode(this->busPin,Rpi::Gpio::Mode::In) ;
-    q->sleep(ticks(61e-6 - t)) ;
+    auto high = this->spec.slot.min + this->spec.rec - low ;
+    q->sleep(ticks(high)) ;
+    // [todo] verify that max timings aren't exceeded
 }
 
 void Device::Ds18x20::Bang::write(RpiExt::Bang::Enqueue *q,uint8_t byte) const
@@ -28,13 +34,17 @@ void Device::Ds18x20::Bang::write(RpiExt::Bang::Enqueue *q,uint8_t byte) const
 
 void Device::Ds18x20::Bang::read(RpiExt::Bang::Enqueue *q,uint32_t *levels) const
 {
-    // 60us + 1us per bit
     q->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    q->sleep(ticks(1e-6)) ;
+    q->sleep(ticks(this->spec.rinit)) ;
+    // todo: set LH event register
     q->mode(this->busPin,Rpi::Gpio::Mode::In) ;
-    q->sleep(ticks(5e-6)) ;
+    // todo: wait for LH event with 15us timeout
+    q->sleep(ticks(this->spec.rrc)) ;
     q->levels(levels) ;
-    q->sleep(ticks(61e-6 - 6e-6)) ;
+    auto remainder =
+	this->spec.slot.min + this->spec.rec -
+	this->spec.rinit - this->spec.rrc ;
+    q->sleep(ticks(remainder)) ;
 }
 
 void Device::Ds18x20::Bang::read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t *levels) const
@@ -45,44 +55,47 @@ void Device::Ds18x20::Bang::read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t
     }
 }
 
-Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::makeScript(Record *record) const
+void Device::Ds18x20::Bang::init(RpiExt::Bang::Enqueue *q,uint32_t(*t)[4],uint32_t *low,uint32_t *high) const
+{
+    q->time((*t)+0) ;
+
+    // Reset-Pulse
+    
+    q->mode(this->busPin,Rpi::Gpio::Mode::Out) ; 
+    
+    q->sleep(ticks(this->spec.rstl)) ;
+    
+    q->mode(this->busPin,Rpi::Gpio::Mode::In) ;
+
+    // Present-Pulse
+
+    q->time((*t)+1) ;
+
+    q->waitLevel(
+	(*t)+1,
+	ticks(this->spec.pdhigh.max), // 15..60 (wait 60, todo: check 15)
+	(*t)+2,
+	1u << this->busPin.value(),
+	0,
+	low) ;
+
+    q->waitLevel(
+	(*t)+2,
+	ticks(this->spec.pdlow.max), // 60..240 (wait 240, todo: check 60)
+	(*t)+3,
+	1u << this->busPin.value(),
+	1u << this->busPin.value(),
+	high) ;
+
+    q->wait((*t)+1,ticks(this->spec.rsth)) ;
+}
+
+Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::readRom(Record *record) const
 {
     RpiExt::Bang::Enqueue q ;
     
     // assumes busPin.mode=Input
-
-    q.time(&record->t0) ;
-
-    // Reset-Pulse
-    
-    q.mode(this->busPin,Rpi::Gpio::Mode::Out) ; 
-    
-    q.sleep(ticks(480e-6)) ;
-    
-    q.mode(this->busPin,Rpi::Gpio::Mode::In) ;
-
-    // Present-Pulse
-
-    q.time(&record->t1) ;
-
-    q.waitLevel(
-	&record->t1,
-	ticks(60e-6), // 15..60
-	&record->t2,
-	1u << this->busPin.value(),
-	0,
-	&record->low) ;
-
-    q.waitLevel(
-	&record->t2,
-	ticks(240e-6), // 60..240
-	&record->t3,
-	1u << this->busPin.value(),
-	1u << this->busPin.value(),
-	&record->high) ;
-
-    // make sure 240 + 60 us have passed
-    q.wait(&record->t1,ticks(301e-6)) ;
+    Bang::init(&q,&record->t,&record->low,&record->high) ;
     
     // Read-ROM-Code command
     Bang::write(&q,static_cast<uint8_t>(0x33)) ;
@@ -92,44 +105,12 @@ Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::makeScript(Record *record) 
     return q.vector() ;
 }
 
-Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::makeScript2(Record *record) const
+Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::readPad(Record *record) const
 {
     RpiExt::Bang::Enqueue q ;
     
     // assumes busPin.mode=Input
-
-    q.time(&record->t0) ;
-
-    // Reset-Pulse
-    
-    q.mode(this->busPin,Rpi::Gpio::Mode::Out) ; 
-    
-    q.sleep(ticks(480e-6)) ;
-    
-    q.mode(this->busPin,Rpi::Gpio::Mode::In) ;
-
-    // Present-Pulse
-
-    q.time(&record->t1) ;
-
-    q.waitLevel(
-	&record->t1,
-	ticks(60e-6), // 15..60
-	&record->t2,
-	1u << this->busPin.value(),
-	0,
-	&record->low) ;
-
-    q.waitLevel(
-	&record->t2,
-	ticks(240e-6), // 60..240
-	&record->t3,
-	1u << this->busPin.value(),
-	1u << this->busPin.value(),
-	&record->high) ;
-
-    // make sure 240 + 60 us have passed
-    q.wait(&record->t1,ticks(301e-6)) ;
+    Bang::init(&q,&record->t,&record->low,&record->high) ;
     
     // Skip-ROM-Code command
     Bang::write(&q,static_cast<uint8_t>(0xcc)) ;
@@ -140,10 +121,6 @@ Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::makeScript2(Record *record)
     Bang::read(&q,128,record->buffer) ;
     
     return q.vector() ;
-
-    // rusage
-    // long   ru_nvcsw;         /* voluntary context switches */
-    // long   ru_nivcsw;        /* involuntary context switches */
 }
 
 uint8_t Device::Ds18x20::Bang::crc(uint32_t const *buffer,uint32_t mask,size_t nwords)

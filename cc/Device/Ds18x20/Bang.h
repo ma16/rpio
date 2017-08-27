@@ -17,12 +17,50 @@ struct Bang
 
     using Script = std::vector<RpiExt::Bang::Command> ;
 
+    template<typename T> struct Timing
+    {
+	struct Range
+	{
+	    T min ;
+	    T max ;
+	} ;
+
+	Range slot ; // Time Slot
+	T rec ; // Minimum Recovery Time
+	Range low0 ; // Write 0 Low Time
+	Range low1 ; // Write 1 Low Time
+	T rinit ; // minimum low time to initiate Read Time Slot
+	T rrc ; // maximum recovery time after read initiation
+	T rdv ; // Maximum Read Data Valid
+	T rsth ; // Reset Time High
+	T rstl ; // Reset Time Low
+	Range pdhigh ; // Presence-Detect High (period for HL edge)
+	Range pdlow ; // Presence-Detect Low (period for LH edge)
+    } ;
+    
+    // If for any reason a transaction needs to be suspended, the bus
+    // must be left in the idle state if the transaction is to resume.
+    // Infinite recovery time can occur between bits so long as the bus
+    // is idle during the recovery period.
+    
+    static constexpr Timing<double> spec =
+    {
+	{ 60e-6,120e-6 },
+	1e-6,
+	{ 60e-6,120e-6 },
+	{ 1e-6, 15e-6 },
+	1e-6,
+	5e-6, // a guess?!
+	15e-6,
+	480e-6,
+	480e-6,
+	{ 15e-6,60e-6 },
+	{ 60e-6,240e-6 },
+    } ;
+
     struct Record
     {
-	uint32_t t0 ;
-	uint32_t t1 ;
-	uint32_t t2 ;
-	uint32_t t3 ;
+	uint32_t t[4] ;
 
 	uint32_t low ;
 	uint32_t high ;
@@ -30,12 +68,16 @@ struct Bang
 	uint32_t buffer[0x1000] ;
     } ;
     
-    Script makeScript(Record *record) const ;
-    Script makeScript2(Record *record) const ;
+    Script readRom(Record *record) const ;
+    Script readPad(Record *record) const ;
     
     static uint8_t crc(uint32_t const *buffer,uint32_t mask,size_t nwords) ;
+    
 private:
-  
+
+    void init(RpiExt::Bang::Enqueue *q,uint32_t(*t)[4],uint32_t *low,uint32_t *high) const ;
+
+    
     void read(RpiExt::Bang::Enqueue *q,uint32_t *levels) const ;
     void read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t *levels) const ;
     
