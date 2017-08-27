@@ -63,6 +63,10 @@ struct Bang
 
 	uint32_t buffer[0x1000] ;
     } ;
+
+    static std::vector<bool> assemble(uint32_t const *buffer,
+				      size_t nwords,
+				      uint32_t mask) ;
     
     // assumes
     // * busPin.mode=Input (changed between input and output)
@@ -70,13 +74,12 @@ struct Bang
     Script readRom(Record *record) const ;
     Script readPad(Record *record) const ;
     
-    static uint8_t crc(uint32_t const *buffer,uint32_t mask,size_t nwords) ;
+    static uint8_t crc(std::vector<bool> const &v) ;
     
     Bang(
 	Rpi::Peripheral *rpi,
 	Rpi::Pin busPin,
 	Timing<uint32_t> const& timing = ticks(spec,250e+6))
-	
 	: rpi(rpi),busPin(busPin),timing(timing) {}
 
 private:

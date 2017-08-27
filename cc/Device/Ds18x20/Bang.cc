@@ -4,6 +4,18 @@
 
 constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 
+
+std::vector<bool> Device::Ds18x20::Bang::
+assemble(uint32_t const *buffer,size_t nwords,uint32_t mask)
+{
+    std::vector<bool> v(nwords) ;
+    for (decltype(nwords) i=0 ; i<nwords ; ++i)
+    {
+	v[i] = 0 != (buffer[i] & mask) ;
+    }
+    return v ;
+}
+
 Device::Ds18x20::Bang::Timing<uint32_t>
 Device::Ds18x20::Bang::ticks(Timing<double> const &seconds,double tps)
 {
@@ -138,15 +150,14 @@ Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::readPad(Record *record) con
     return q.vector() ;
 }
 
-uint8_t Device::Ds18x20::Bang::crc(uint32_t const *buffer,uint32_t mask,size_t nwords)
+uint8_t Device::Ds18x20::Bang::crc(std::vector<bool> const &v)
 {
     uint8_t reg = 0 ;
-    for (auto i=0u ; i<nwords ; ++i)
+    for (auto i=0u ; i<v.size() ; ++i)
     {
 	auto lsb = 0 != (reg & 0x01) ;
 	reg = static_cast<uint8_t>(reg >> 1) ;
-	auto nxt = 0 != (buffer[i] & mask) ;
-	if (nxt ^ lsb)
+	if (v[i] ^ lsb)
 	    reg ^= 0x8c ;
     }
     return reg ;

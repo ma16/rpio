@@ -4,25 +4,24 @@
 #include <Device/Ds18x20/Bang.h>
 #include <Ui/strto.h>
 
-static void display(uint32_t const *buffer,uint32_t mask,size_t nwords)
+static void display(std::vector<bool> const &v)
 {
-    for (auto i=0u ; i<nwords/8 ; ++i)
+    for (auto i=0u ; i<v.size() ; i+=8)
     {
 	unsigned code = 0 ;
 	for (auto j=0u ; j<8u ; ++j)
 	{
-	    code <<= 1 ;
-	    if (buffer[8*i+7-j] & mask)
-		code |= 1u ;
+	    code >>= 1 ;
+	    if (v[i+j])
+		code |= 0x80 ;
 	}
 	std::cout << std::hex << code << ' ' ;
     }
     std::cout << '\n' ;
     {
-	for (auto i=0u ; i<nwords ; ++i)
+	for (auto i=0u ; i<v.size() ; ++i)
 	{
-	    auto bit = 0 != (buffer[i] & mask) ;
-	    std::cout << bit ;
+	    std::cout << v[i] ;
 	    if ((i % 8) == 7) std::cout << ' ' ;
 	    else if ((i % 4) == 3) std::cout << ':' ;
 	}
@@ -43,14 +42,18 @@ static void doit(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto script = Bang(rpi,pin).readRom(&record) ;
     scheduler.execute(script) ;
 
-    display(record.buffer,1u<<pin.value(),64) ;
-    std::cout << std::hex << (unsigned)Bang::crc(record.buffer,1u<<pin.value(),56) << '\n' ;
+    display(Bang::assemble(record.buffer,64,1u<<pin.value())) ;
+    std::cout << std::hex
+	      << (unsigned)Bang::crc(Bang::assemble(record.buffer,56,1u<<pin.value()))
+	      << '\n' ;
 
     auto script2 = Bang(rpi,pin).readPad(&record) ;
     scheduler.execute(script2) ;
 
-    display(record.buffer,1u<<pin.value(),72) ;
-    std::cout << std::hex << (unsigned)Bang::crc(record.buffer,1u<<pin.value(),64) << '\n' ;
+    display(Bang::assemble(record.buffer,72,1u<<pin.value())) ;
+    std::cout << std::hex
+	      << (unsigned)Bang::crc(Bang::assemble(record.buffer,64,1u<<pin.value()))
+	      << '\n' ;
 }
 
 #include <Rpi/Timer.h>
