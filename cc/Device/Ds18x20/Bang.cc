@@ -48,48 +48,60 @@ Device::Ds18x20::Bang::ticks(Timing<double> const &seconds,double tps)
     return ticks ;
 }
 
-void Device::Ds18x20::Bang::write(RpiExt::Bang::Enqueue *q,bool bit) const
+void Device::Ds18x20::Bang::
+write(RpiExt::Bang::Enqueue *q,bool bit,uint32_t (*t)[2]) const
 {
-    // [todo] don't use sleep: we need the last absolute point in time
+    q->time((*t)+0) ; // auto t0 = q->timeAlloc() ;
     q->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    auto low = bit ? this->timing.low1.min : this->timing.low0.min ;
-    q->sleep(low) ;
-    // [todo] verify that max timings aren't exceeded
+    q->time((*t)+1) ; // auto t1 = q->timeAlloc() ;
+    auto range = bit ? this->timing.low1 : this->timing.low0 ;
+    q->wait((*t)+1,range.min) ; // q->wait(t1,range.min) ;
     q->mode(this->busPin,Rpi::Gpio::Mode::In) ;
-    auto high = this->timing.slot.min + this->timing.rec - low ;
-    q->sleep(high) ;
-    // [todo] verify that max timings aren't exceeded
+    q->assume((*t)+0,range.max) ; // q->assume(t0,range.max) ; 
+    q->wait((*t)+1,this->timing.slot.min + this->timing.rec) ;
+    //q->wait(t1,this->timing.slot.min + this->timing.rec) ;
+    // ...don't care if we exceed slot.max since the bus is idle anyway
+    //q->release(t1) ;
+    //q->release(t0) ;
 }
 
-void Device::Ds18x20::Bang::write(RpiExt::Bang::Enqueue *q,uint8_t byte) const
+void Device::Ds18x20::Bang::
+write(RpiExt::Bang::Enqueue *q,uint8_t byte,uint32_t (*t)[2]) const
 {
     for (auto i=0u ; i<8u ; ++i)
     {
 	auto bit = 0 != (byte & (1u<<i)) ;
-	write(q,bit) ;
+	write(q,bit,t) ;
     }
 }
 
-void Device::Ds18x20::Bang::read(RpiExt::Bang::Enqueue *q,uint32_t *levels) const
+void Device::Ds18x20::Bang::
+read(RpiExt::Bang::Enqueue *q,uint32_t *levels,uint32_t (*t)[2]) const
 {
+    q->time((*t)+0) ; // auto t0 = q->timeAlloc() ;
     q->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    q->sleep(this->timing.rinit) ;
-    // todo: set LH event register
+    q->time((*t)+1) ; // auto t1 = q->timeAlloc() ;
+    q->wait((*t)+1,this->timing.rinit) ; // q->wait(t1,this->timing.rinit) ;
     q->mode(this->busPin,Rpi::Gpio::Mode::In) ;
-    // todo: wait for LH event with 15us timeout
     q->sleep(this->timing.rrc) ;
-    q->levels(levels) ;
-    auto remainder =
-	this->timing.slot.min + this->timing.rec -
-	this->timing.rinit - this->timing.rrc ;
-    q->sleep(remainder) ;
+    q->levels(levels) ; // [todo] ALLOC and RETURN location
+    // ...there might be better ways to record the signal, especially
+    // since we want to record it as late as possible (but before RDV
+    // expires!).
+    q->assume((*t)+0,this->timing.rdv) ; // q->assume(t0,this->timing.rdv) ;
+    q->wait((*t)+1,this->timing.slot.min + this->timing.rec) ;
+    //q->wait(t1,this->timing.slot.min + this->timing.rec) ;
+    // ...don't care if we exceed slot.max since the bus is idle anyway
+    //q->release(t1) ;
+    //q->release(t0) ;
 }
 
-void Device::Ds18x20::Bang::read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t *levels) const
+void Device::Ds18x20::Bang::
+read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t *levels,uint32_t (*t)[2]) const
 {
     for (auto i=0u ; i<nwords ; ++i)
     {
-	read(q,levels+i) ;
+	read(q,levels+i,t) ;
     }
 }
 
@@ -133,9 +145,9 @@ Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::convert(Record *record) con
     RpiExt::Bang::Enqueue q ;
     this->init(&q,&record->t,&record->low,&record->high) ;
     // ROM-command: Skip-ROM-Code
-    this->write(&q,static_cast<uint8_t>(0xcc)) ;
+    this->write(&q,static_cast<uint8_t>(0xcc),&record->temp) ;
     // Function-command: Convert-T
-    this->write(&q,static_cast<uint8_t>(0x44)) ;
+    this->write(&q,static_cast<uint8_t>(0x44),&record->temp) ;
     // [todo]
     //   here we can issue Read-Time-Slot until 1;
     //   we would need our script to loop
@@ -147,8 +159,8 @@ Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::readRom(Record *record) con
     RpiExt::Bang::Enqueue q ;
     this->init(&q,&record->t,&record->low,&record->high) ;
     // ROM-command: Read-ROM-Code
-    this->write(&q,static_cast<uint8_t>(0x33)) ;
-    this->read(&q,64,record->buffer) ;
+    this->write(&q,static_cast<uint8_t>(0x33),&record->temp) ;
+    this->read(&q,64,record->buffer,&record->temp) ;
     return q.vector() ;
 }
 
@@ -157,9 +169,9 @@ Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::readPad(Record *record) con
     RpiExt::Bang::Enqueue q ;
     this->init(&q,&record->t,&record->low,&record->high) ;
     // ROM-command: Skip-ROM-Code
-    this->write(&q,static_cast<uint8_t>(0xcc)) ;
+    this->write(&q,static_cast<uint8_t>(0xcc),&record->temp) ;
     // Function-command: Read-Sratch-Pad
-    this->write(&q,static_cast<uint8_t>(0xbe)) ;
-    Bang::read(&q,72,record->buffer) ;
+    this->write(&q,static_cast<uint8_t>(0xbe),&record->temp) ;
+    Bang::read(&q,72,record->buffer,&record->temp) ;
     return q.vector() ;
 }

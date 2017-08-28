@@ -63,6 +63,8 @@ struct Bang
 	uint32_t high ;
 
 	uint32_t buffer[0x1000] ;
+
+	uint32_t temp[2] ; // local timing
     } ;
 
     static std::vector<bool> assemble(uint32_t const *buffer,
@@ -93,11 +95,11 @@ private:
     void init(RpiExt::Bang::Enqueue *q,uint32_t(*t)[4],uint32_t *low,uint32_t *high) const ;
 
     
-    void read(RpiExt::Bang::Enqueue *q,uint32_t *levels) const ;
-    void read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t *levels) const ;
+    void read(RpiExt::Bang::Enqueue *q,uint32_t *levels,uint32_t (*t)[2]) const ;
+    void read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t *levels,uint32_t (*t)[2]) const ;
     
-    void write(RpiExt::Bang::Enqueue *q,bool bit) const ;
-    void write(RpiExt::Bang::Enqueue *q,uint8_t byte) const ;
+    void write(RpiExt::Bang::Enqueue *q,bool bit,uint32_t (*t)[2]) const ;
+    void write(RpiExt::Bang::Enqueue *q,uint8_t byte,uint32_t (*t)[2]) const ;
 
     Rpi::Peripheral *rpi ;
 

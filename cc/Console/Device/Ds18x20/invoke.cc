@@ -37,7 +37,9 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     RpiExt::Bang scheduler(rpi) ;
 
     auto script = Bang(rpi,pin).convert(&record) ;
-    scheduler.execute(script) ;
+    auto success = scheduler.execute(script) ;
+    if (!success)
+	std::cerr << "timing failed\n" ;
 
     // debugging
     auto v = Bang::assemble(record.buffer,72,1u<<pin.value()) ; 
@@ -56,7 +58,9 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     RpiExt::Bang scheduler(rpi) ;
 
     auto script = Bang(rpi,pin).readPad(&record) ;
-    scheduler.execute(script) ;
+    auto success = scheduler.execute(script) ;
+    if (!success)
+	std::cerr << "timing failed\n" ;
 
     // debugging
     auto v = Bang::assemble(record.buffer,72,1u<<pin.value()) ; 
@@ -79,7 +83,9 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     RpiExt::Bang scheduler(rpi) ;
 
     auto script = Bang(rpi,pin).readRom(&record) ;
-    scheduler.execute(script) ;
+    auto success = scheduler.execute(script) ;
+    if (!success)
+	std::cerr << "timing failed\n" ;
 
     // debugging
     auto v = Bang::assemble(record.buffer,64,1u<<pin.value()) ; 

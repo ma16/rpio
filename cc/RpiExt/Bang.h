@@ -4,19 +4,10 @@
 // An interface for bit-banging (that is supposed to be generic and
 // hide as many details of the Raspberry Pi as possible).
 //
-// Levels: get pin level
-// Mode:   pin function mode
-// Recent: get last recorded timer tick
-// Reset:  set GPIO pin level to Low
-// Set:    set GPIO pin level to High
-// Sleep:  sleep for a number of ticks based on current time
-// Time:   query time
-// Wait:   sleep for a number of ticks based on given time
-//
 // The ARM counter is used as time-reference.
 //
 // The client is responsible for setup (i.e. ARM counter and
-// GPIO input/output mode).
+// possibly GPIO input/output mode).
 // --------------------------------------------------------------------
 
 #ifndef INCLUDE_RpiExt_Bang_h
@@ -34,10 +25,31 @@ struct Bang
 {
     struct Command
     {
-      enum class Choice { Levels,Mode,Recent,Reset,Set,Sleep,Time,Wait,WaitLevel } ;
+	enum class Choice
+	{
+	    Assume,    // stop if condition isn't true
+	    Levels,    // get pin level
+	    Mode,      // set pin function mode
+	    Recent,    // get last recorded timer tick
+	    Reset,     // set GPIO pin level to Low
+	    Set,       // set GPIO pin level to High
+	    Sleep,     // sleep for a number of ticks based on current time
+	    Time,      // query time
+	    Wait,      // sleep for a number of ticks based on given time
+	    WaitLevel, // wait for a signal level
+        } ;
 	
 	Choice choice ;
 	
+	class Assume
+	{
+	    friend Command ;
+	    friend Bang ;
+	    uint32_t *t0 ;
+	    uint32_t span ;
+	    Assume(uint32_t *t0,uint32_t span) : t0(t0),span(span) {}
+	} ;
+	    
 	class Levels
 	{
 	    friend Command ;
@@ -129,6 +141,7 @@ struct Bang
 	    
 	    friend Bang ;
 	    
+	    Assume assume ;
 	    Levels levels ;
 	    Mode     mode ;
 	    Recent recent ;
@@ -139,6 +152,7 @@ struct Bang
 	    Wait     wait ;
 	    WaitLevel waitLevel ;
 	    
+	    Value(Assume const& assume) : assume(assume) {}
 	    Value(Levels const& levels) : levels(levels) {}
 	    Value(Mode   const&   mode) :   mode  (mode) {}
 	    Value(Recent const& recent) : recent(recent) {}
@@ -154,6 +168,11 @@ struct Bang
 
 	Command(Choice choice,Value value)
 	    : choice(choice),value(value) {}
+
+	static Command assume(uint32_t *t0,uint32_t span)
+	{
+	    return Command(Choice::Assume,Assume(t0,span)) ;
+	}
 
 	static Command levels(uint32_t *pins)
 	{
@@ -216,6 +235,7 @@ struct Bang
     {
 	switch (c.choice)
 	{
+	case Command::Choice::Assume : assume(c.value.assume) ; break ;
 	case Command::Choice::Levels : levels(c.value.levels) ; break ;
 	case Command::Choice::Mode   :   mode(c.value.  mode) ; break ;
 	case Command::Choice::Recent : recent(c.value.recent) ; break ;
@@ -229,10 +249,15 @@ struct Bang
 	}
     }
     
-    void execute(std::vector<Command> const &v)
+    bool execute(std::vector<Command> const &v)
     {
 	for (auto &c : v)
+	{
+	    if (this->stop)
+		return false ;
 	    this->execute(c) ;
+	}
+	return true ;
     }
     
     struct Enqueue // helper for convenience
@@ -244,6 +269,11 @@ struct Bang
 	    return std::vector<Command>(q.begin(),q.end()) ;
 	}
 	
+	void assume(uint32_t *t0,uint32_t span)
+	{
+	    q.push_back(Command::assume(t0,span)) ;
+	}
+
 	void levels(uint32_t *pins)
 	{
 	    q.push_back(Command::levels(pins)) ;
@@ -308,7 +338,14 @@ struct Bang
   
 private:
 
-    Rpi::Counter counter ; Rpi::Gpio gpio ; uint32_t t ;
+    Rpi::Counter counter ; Rpi::Gpio gpio ; uint32_t t ; bool stop = false ;
+
+    void assume(Command::Assume const &c)
+    {
+	this->t = this->counter.clock() ;
+	if (this->t - (*c.t0) > c.span)
+	    this->stop = true ;
+    }
 
     void levels(Command::Levels const &c)
     {
