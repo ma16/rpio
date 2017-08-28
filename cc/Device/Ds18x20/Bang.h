@@ -75,9 +75,9 @@ struct Bang
     // * busPin.mode=Input (changed between input and output)
     // * busPin.outputLevel = Low (not changed)
     
-    Script convert(Record *record) const ;
-    Script readPad(Record *record) const ;
-    Script readRom(Record *record) const ;
+    Script convert(Record *record,RpiExt::Bang::Stack *stack) const ;
+    Script readPad(Record *record,RpiExt::Bang::Stack *stack) const ;
+    Script readRom(Record *record,RpiExt::Bang::Stack *stack) const ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
@@ -94,13 +94,19 @@ private:
 
     void init(RpiExt::Bang::Enqueue *q,uint32_t(*t)[4],uint32_t *low,uint32_t *high) const ;
 
-    
+#define NEW
+
     void read(RpiExt::Bang::Enqueue *q,uint32_t *levels,uint32_t (*t)[2]) const ;
     void read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t *levels,uint32_t (*t)[2]) const ;
-    
+
+#ifdef NEW
+    void write(RpiExt::Bang::Enqueue *q,RpiExt::Bang::Stack *stack,bool bit) const ;
+    void write(RpiExt::Bang::Enqueue *q,RpiExt::Bang::Stack *stack,uint8_t byte) const ;
+#else
     void write(RpiExt::Bang::Enqueue *q,bool bit,uint32_t (*t)[2]) const ;
     void write(RpiExt::Bang::Enqueue *q,uint8_t byte,uint32_t (*t)[2]) const ;
-
+#endif
+    
     Rpi::Peripheral *rpi ;
 
     Rpi::Pin busPin ;

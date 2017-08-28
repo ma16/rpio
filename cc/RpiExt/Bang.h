@@ -259,6 +259,25 @@ struct Bang
 	}
 	return true ;
     }
+
+    struct Stack
+    {
+	Stack(size_t n) : ss(n),sp(0),stack(new uint32_t[n]) {} 
+	
+	size_t ss,sp ; std::unique_ptr<uint32_t[]> stack ; 
+
+	uint32_t* push()
+	{
+	    assert(sp < ss) ;
+	    return stack.get() + sp++ ;
+	} 
+
+	void pop(size_t n=1)
+	{
+	    assert(sp >= n) ;
+	    sp -= n ;
+	} 
+    } ;
     
     struct Enqueue // helper for convenience
     {
@@ -338,7 +357,9 @@ struct Bang
   
 private:
 
-    Rpi::Counter counter ; Rpi::Gpio gpio ; uint32_t t ; bool stop = false ;
+    Rpi::Counter counter ; Rpi::Gpio gpio ; uint32_t t ;
+
+    bool stop = false ; // todo: provide script line & error message
 
     void assume(Command::Assume const &c)
     {

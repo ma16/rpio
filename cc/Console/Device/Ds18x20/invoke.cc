@@ -33,10 +33,11 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
     
+    RpiExt::Bang::Stack stack(0x100) ;
     Bang::Record record ;
     RpiExt::Bang scheduler(rpi) ;
 
-    auto script = Bang(rpi,pin).convert(&record) ;
+    auto script = Bang(rpi,pin).convert(&record,&stack) ;
     auto success = scheduler.execute(script) ;
     if (!success)
 	std::cerr << "timing failed\n" ;
@@ -54,10 +55,11 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
     
+    RpiExt::Bang::Stack stack(0x100) ;
     Bang::Record record ;
     RpiExt::Bang scheduler(rpi) ;
 
-    auto script = Bang(rpi,pin).readPad(&record) ;
+    auto script = Bang(rpi,pin).readPad(&record,&stack) ;
     auto success = scheduler.execute(script) ;
     if (!success)
 	std::cerr << "timing failed\n" ;
@@ -79,10 +81,11 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
     
+    RpiExt::Bang::Stack stack(0x100) ;
     Bang::Record record ;
     RpiExt::Bang scheduler(rpi) ;
 
-    auto script = Bang(rpi,pin).readRom(&record) ;
+    auto script = Bang(rpi,pin).readRom(&record,&stack) ;
     auto success = scheduler.execute(script) ;
     if (!success)
 	std::cerr << "timing failed\n" ;
