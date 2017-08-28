@@ -4,6 +4,15 @@
 #include <Device/Ds18x20/Bang.h>
 #include <Ui/strto.h>
 
+static std::vector<bool> to_bitStream(char const buffer[],size_t n)
+{
+    std::vector<bool> v ; v.reserve(n*8) ;
+    for (decltype(n) i=0 ; i<n ; ++i)
+	for (auto j=0 ; j<8 ; ++j)
+	    v.push_back(0 != (buffer[i] & (1u << j))) ;
+    return v ;
+}
+
 static unsigned long long to_ull(std::vector<bool> const &v)
 {
     unsigned long long ull = 0 ;
@@ -34,19 +43,12 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     using Bang = Device::Ds18x20::Bang ;
     
     RpiExt::Bang::Stack stack(0x100) ;
-    Bang::Record record ;
     RpiExt::Bang scheduler(rpi) ;
 
-    auto script = Bang(rpi,pin).convert(&record,&stack) ;
+    auto script = Bang(rpi,pin).convert(&stack) ;
     auto success = scheduler.execute(script) ;
     if (!success)
 	std::cerr << "timing failed\n" ;
-
-    // debugging
-    auto v = Bang::assemble(record.buffer,72,1u<<pin.value()) ; 
-    std::cout << v << '\n' ;
-    v = Bang::assemble(record.buffer,64,1u<<pin.value()) ; 
-    std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
 }
 
 static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -56,18 +58,19 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     using Bang = Device::Ds18x20::Bang ;
     
     RpiExt::Bang::Stack stack(0x100) ;
-    Bang::Record record ;
+    uint32_t rx[72] ;
     RpiExt::Bang scheduler(rpi) ;
 
-    auto script = Bang(rpi,pin).readPad(&record,&stack) ;
+    auto script = Bang(rpi,pin).readPad(&stack,&rx) ;
     auto success = scheduler.execute(script) ;
     if (!success)
 	std::cerr << "timing failed\n" ;
+    char buffer[9] ; Bang::pack(rx,72,1u<<pin.value(),buffer) ;
 
     // debugging
-    auto v = Bang::assemble(record.buffer,72,1u<<pin.value()) ; 
+    auto v = to_bitStream(buffer,sizeof(buffer)) ; 
     std::cout << v << '\n' ;
-    v = Bang::assemble(record.buffer,64,1u<<pin.value()) ; 
+    v = to_bitStream(buffer,sizeof(buffer)-1) ; 
     std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
 
     auto pad = to_ull(v) ;
@@ -82,18 +85,19 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     
     RpiExt::Bang::Stack stack(0x100) ;
-    Bang::Record record ;
+    uint32_t rx[64] ;
     RpiExt::Bang scheduler(rpi) ;
 
-    auto script = Bang(rpi,pin).readRom(&record,&stack) ;
+    auto script = Bang(rpi,pin).readRom(&stack,&rx) ;
     auto success = scheduler.execute(script) ;
     if (!success)
 	std::cerr << "timing failed\n" ;
-
+    char buffer[8] ; Bang::pack(rx,64,1u<<pin.value(),buffer) ;
+    
     // debugging
-    auto v = Bang::assemble(record.buffer,64,1u<<pin.value()) ; 
+    auto v = to_bitStream(buffer,sizeof(buffer)) ; 
     std::cout << v << '\n' ;
-    v = Bang::assemble(record.buffer,56,1u<<pin.value()) ; 
+    v = to_bitStream(buffer,sizeof(buffer)-1) ; 
     std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
 
     auto code = to_ull(v) ;

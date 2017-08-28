@@ -55,29 +55,17 @@ struct Bang
 
     static Timing<uint32_t> ticks(Timing<double> const &seconds,double tps) ;
     
-    struct Record
-    {
-	uint32_t t[4] ;
-
-	uint32_t low ;
-	uint32_t high ;
-
-	uint32_t buffer[0x1000] ;
-
-	uint32_t temp[2] ; // local timing
-    } ;
-
-    static std::vector<bool> assemble(uint32_t const *buffer,
-				      size_t nwords,
-				      uint32_t mask) ;
-    
     // assumes
     // * busPin.mode=Input (changed between input and output)
     // * busPin.outputLevel = Low (not changed)
+
+    using Stack = RpiExt::Bang::Stack ;
     
-    Script convert(Record *record,RpiExt::Bang::Stack *stack) const ;
-    Script readPad(Record *record,RpiExt::Bang::Stack *stack) const ;
-    Script readRom(Record *record,RpiExt::Bang::Stack *stack) const ;
+    Script convert(Stack*) const ;
+    Script readPad(Stack*,uint32_t(*)[72]) const ;
+    Script readRom(Stack*,uint32_t(*)[64]) const ;
+    
+    static void pack(uint32_t const from[],size_t nwords,uint32_t mask,char to[]) ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
@@ -92,26 +80,15 @@ struct Bang
 
 private:
 
-    void init(RpiExt::Bang::Enqueue *q,uint32_t(*t)[4],uint32_t *low,uint32_t *high) const ;
-
-#define NEW
-
-    void read(RpiExt::Bang::Enqueue *q,uint32_t *levels,uint32_t (*t)[2]) const ;
-    void read(RpiExt::Bang::Enqueue *q,size_t nwords,uint32_t *levels,uint32_t (*t)[2]) const ;
-
-#ifdef NEW
-    void write(RpiExt::Bang::Enqueue *q,RpiExt::Bang::Stack *stack,bool bit) const ;
-    void write(RpiExt::Bang::Enqueue *q,RpiExt::Bang::Stack *stack,uint8_t byte) const ;
-#else
-    void write(RpiExt::Bang::Enqueue *q,bool bit,uint32_t (*t)[2]) const ;
-    void write(RpiExt::Bang::Enqueue *q,uint8_t byte,uint32_t (*t)[2]) const ;
-#endif
+    using Enqueue = RpiExt::Bang::Enqueue ;
     
-    Rpi::Peripheral *rpi ;
-
-    Rpi::Pin busPin ;
-
-    Timing<uint32_t> timing ;
+    void  init(Enqueue*,Stack*) const ;
+    void  read(Enqueue*,Stack*,uint32_t *levels) const ;
+    void  read(Enqueue*,Stack*,size_t nwords,uint32_t *levels) const ;
+    void write(Enqueue*,Stack*,bool bit) const ;
+    void write(Enqueue*,Stack*,uint8_t byte) const ;
+    
+    Rpi::Peripheral *rpi ; Rpi::Pin busPin ; Timing<uint32_t> timing ;
 
 } ; } } 
 
