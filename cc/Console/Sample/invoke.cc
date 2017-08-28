@@ -153,10 +153,50 @@ static void dutyInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto tn = std::chrono::steady_clock::now() ; 
   auto dt = std::chrono::duration<double>(tn-t0).count() ;
   std::cout.setf(std::ios::scientific) ;
-  std::cout.precision(2) ;
+  std::cout.precision(6) ;
   std::cout <<      "f=" << static_cast<double>(nsamples)/dt << "/s " 
 	    << "signal=" << static_cast<double>(nchanges)/dt << "/s "
 	    <<   "duty=" << static_cast<double>(nhis) / static_cast<double>(nsamples) << std::endl ;
+}
+
+// --------------------------------------------------------------------
+
+static void pulseInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    argL->finalize() ;
+    
+    Rpi::Gpio gpio(rpi) ;
+    Rpi::Counter counter(rpi) ;
+    auto mask = 1u << pin.value() ;
+    
+    auto t0 = counter.clock() ;
+    gpio.enable(mask,Rpi::Gpio::Event::Rise,true) ;
+    gpio.reset(mask) ;
+    while (0 == (gpio.getEvents() & mask))
+	t0 = counter.clock() ;
+    auto t1 = counter.clock() ;
+    gpio.enable(mask,Rpi::Gpio::Event::Rise,false) ;
+
+    auto t2 = t1 ;
+    gpio.enable(mask,Rpi::Gpio::Event::Fall,true) ;
+    gpio.reset(mask) ;
+    while (0 == (gpio.getEvents() & mask))
+	t2 = counter.clock() ;
+    auto t3 = counter.clock() ;
+    gpio.enable(mask,Rpi::Gpio::Event::Fall,false) ;
+
+    auto t4 = t3 ;
+    gpio.enable(mask,Rpi::Gpio::Event::Rise,true) ;
+    gpio.reset(mask) ;
+    while (0 == (gpio.getEvents() & mask))
+	t4 = counter.clock() ;
+    auto t5 = counter.clock() ;
+    gpio.enable(mask,Rpi::Gpio::Event::Rise,false) ;
+
+    std::cout <<       0 << '+' << (t1-t0) << ' '
+	      << (t2-t0) << '+' << (t3-t2) << ' '
+	      << (t4-t0) << '+' << (t5-t4) << '\n' ;
 }
 
 // --------------------------------------------------------------------
@@ -201,6 +241,8 @@ static void watchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
 }
   
+// --------------------------------------------------------------------
+
 void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") { 
@@ -210,6 +252,7 @@ void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << '\n'
       	      << "MODE : count  # count number of subsequent events\n"
 	      << "     | duty   # determine signal's duty cycle\n"
+	      << "     | pulse  # determine signal's pulse length\n"
 	      << '\n'
 	      << "-d : dry run to determine maximum sampling rate f\n"
 	      << std::flush ;
@@ -218,6 +261,7 @@ void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   std::string arg = argL->pop() ;
   if      (arg == "count") { countInvoke(rpi,argL) ; } 
   else if (arg ==  "duty") {  dutyInvoke(rpi,argL) ; } 
+  else if (arg == "pulse") { pulseInvoke(rpi,argL) ; } 
   else if (arg == "watch") { watchInvoke(rpi,argL) ; } 
   else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
