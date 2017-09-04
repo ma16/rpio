@@ -4,14 +4,17 @@
 #define INCLUDE_Device_Ds18x20_Bang_h
 
 #include <Neat/Bit/Crc.h>
-#include <RpiExt/Bang.h>
+#include <RpiExt/BangIo.h>
 
 namespace Device { namespace Ds18x20 {
 
 struct Bang
 {
-    using Script = std::vector<RpiExt::Bang::Command> ;
-
+    struct Error : Neat::Error
+    {
+	Error(std::string const &m) : Neat::Error("Device:Ds18x20:Bang:" + m) {}
+    } ;
+    
     template<typename T> struct Timing
     {
 	struct Range
@@ -59,12 +62,10 @@ struct Bang
     // * busPin.mode=Input (changed between input and output)
     // * busPin.outputLevel = Low (not changed)
 
-    using Stack = RpiExt::Bang::Stack ;
-    
-    Script convert(Stack*) const ;
-    Script readPad(Stack*,bool(*)[72]) const ;
-    Script readRom(Stack*,bool(*)[64]) const ;
-    Script isIdle(Stack*,bool *idle) const ;
+    void convert(RpiExt::BangIo*) const ;
+    void readPad(RpiExt::BangIo*,bool(*)[72]) const ;
+    void readRom(RpiExt::BangIo*,bool(*rx)[64]) const ;
+    bool isBusy(RpiExt::BangIo*) const ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
@@ -75,21 +76,22 @@ struct Bang
 	Rpi::Peripheral *rpi,
 	Rpi::Pin busPin,
 	Timing<uint32_t> const& timing = ticks(spec,250e+6))
-	: rpi(rpi),busPin(busPin),timing(timing) {}
+	: rpi(rpi),busPin(busPin),pinMask(1u << busPin.value()),timing(timing) {}
 
 private:
 
-    using Enqueue = RpiExt::Bang::Enqueue ;
+    void  init(RpiExt::BangIo*) const ;
+    bool  read(RpiExt::BangIo*) const ;
+    void  read(RpiExt::BangIo*,size_t nbits,bool *bitA) const ;
+    void write(RpiExt::BangIo*,bool bit) const ;
+    void write(RpiExt::BangIo*,uint8_t byte) const ;
     
-    void  init(Enqueue*,Stack*) const ;
-    void  read(Enqueue*,Stack*,bool *bit) const ;
-    void  read(Enqueue*,Stack*,size_t nbits,bool *bitA) const ;
-    void write(Enqueue*,Stack*,bool bit) const ;
-    void write(Enqueue*,Stack*,uint8_t byte) const ;
-    
-    Rpi::Peripheral *rpi ; Rpi::Pin busPin ; Timing<uint32_t> timing ;
+    Rpi::Peripheral *rpi ;
+
+    Rpi::Pin busPin ; uint32_t pinMask ;
+
+    Timing<uint32_t> timing ;
 
 } ; } } 
 
 #endif // INCLUDE_Device_Ds18x20_Bang_h
- 

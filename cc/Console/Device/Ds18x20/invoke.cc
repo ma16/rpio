@@ -56,39 +56,49 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
     
-    RpiExt::Bang::Stack stack(0x100) ;
-    RpiExt::Bang scheduler(rpi) ;
+    RpiExt::BangIo io(rpi) ;
 
-    auto script = Bang(rpi,pin).convert(&stack) ;
-    auto error = scheduler.execute(script) ;
-    if (error != 0)
+    try
     {
-	std::cerr << "start conversion error:" << error << '\n' ;
+	Bang(rpi,pin).convert(&io) ;
+    }
+    catch (Bang::Error &e)
+    {
+	std::cerr << "start conversion error:" << e.what() << '\n' ;
 	exit(1) ;
     }
 
     if (wait)
     {
-	bool idle ;
-	script = Bang(rpi,pin).isIdle(&stack,&idle) ;
 	unsigned count = 1 ;
-	error = scheduler.execute(script) ;
-	while (error != 33 && !idle)
+      Proceed: ;
+	try
 	{
-	    error = scheduler.execute(script) ;
-	    ++count ;
+	    auto busy = Bang(rpi,pin).isBusy(&io) ;
+	    while (busy)
+	    {
+		busy = Bang(rpi,pin).isBusy(&io) ;
+		++count ;
+	    }
 	}
-	if (error == 33)
+	catch (Bang::Error &e)
 	{
-	    std::cerr << "got suspended while setting the bus low\n" ;
-	    exit(1) ;
+	    if (0 == strcmp(e.what(),"reset"))
+	    {
+		std::cerr << "got suspended while setting the bus low\n" ;
+		exit(1) ;
+	    }
+	    goto Proceed ;
 	}
+	
 	bool rx[72] ;
-	script = Bang(rpi,pin).readPad(&stack,&rx) ;
-	error = scheduler.execute(script) ;
-	if (error != 0)
+	try
 	{
-	    std::cerr << "read scratch-pad error:" << error << '\n' ;
+	    Bang(rpi,pin).readPad(&io,&rx) ;
+	}
+	catch (Bang::Error &e)
+	{
+	    std::cerr << "read scratch-pad error:" << e.what() << '\n' ;
 	    exit(1) ;
 	}
 	char buffer[9] ; pack(rx,72,buffer) ;
@@ -112,16 +122,20 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
     
-    RpiExt::Bang::Stack stack(0x100) ;
     bool rx[72] ;
-    RpiExt::Bang scheduler(rpi) ;
+    RpiExt::BangIo io(rpi) ;
 
-    auto script = Bang(rpi,pin).readPad(&stack,&rx) ;
-    auto error = scheduler.execute(script) ;
-    if (error != 0)
-	std::cerr << "error:" << error << '\n' ;
+    try
+    {
+	Bang(rpi,pin).readPad(&io,&rx) ;
+    }
+    catch (Bang::Error &e)
+    {
+	std::cerr << "error:" << e.what() << '\n' ;
+	exit(1) ;
+    }
+    
     char buffer[9] ; pack(rx,72,buffer) ;
-
     // debugging
     auto v = to_bitStream(buffer,sizeof(buffer)) ; 
     std::cout << v << '\n' ;
@@ -139,14 +153,19 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
     
-    RpiExt::Bang::Stack stack(0x100) ;
     bool rx[64] ;
-    RpiExt::Bang scheduler(rpi) ;
+    RpiExt::BangIo io(rpi) ;
 
-    auto script = Bang(rpi,pin).readRom(&stack,&rx) ;
-    auto error = scheduler.execute(script) ;
-    if (error != 0)
-	std::cerr << "error:" << error << '\n' ;
+    try
+    {
+	Bang(rpi,pin).readRom(&io,&rx) ;
+    }
+    catch (Bang::Error &e)
+    {
+	std::cerr << "error:" << e.what() << '\n' ;
+	exit(1) ;
+    }
+	
     char buffer[8] ; pack(rx,64,buffer) ;
     
     // debugging
