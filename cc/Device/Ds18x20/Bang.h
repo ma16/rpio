@@ -27,8 +27,8 @@ struct Bang
 	T rinit ; // minimum low time to initiate Read Time Slot
 	T rrc ; // maximum recovery time after read initiation
 	T rdv ; // Maximum Read Data Valid
-	T rsth ; // Reset Time High
-	T rstl ; // Reset Time Low
+	T rsth ; // Minimum Reset Time High (Rx/Open Collector)
+	T rstl ; // Minimum Reset Time Low (Actual Low Time)
 	Range pdhigh ; // Presence-Detect High (period for HL edge)
 	Range pdlow ; // Presence-Detect Low (period for LH edge)
     } ;

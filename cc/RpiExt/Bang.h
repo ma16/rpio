@@ -29,6 +29,8 @@ struct Bang
 	enum class Choice
 	{
 	    Assume,     // stop if condition isn't true
+	    AssumeLe,   // assume Less-or-Equal
+	    Duration,   // save the difference of two time-stamps
 	    Levels,     // get pin level
 	    Mode,       // set pin function mode
 	    Recent,     // get last recorded timer tick
@@ -46,13 +48,39 @@ struct Bang
 	
 	class Assume
 	{
+	public:
+	    enum class Op { Eq,Ge,Gt,Le,Lt,Ne } ;
+	private:
 	    friend Command ;
 	    friend Bang ;
-	    uint32_t *t0 ;
-	    uint32_t span ;
+	    uint32_t const *x ;
+	    Op op ;
+	    uint32_t y ;
 	    unsigned error ;
-	    Assume(uint32_t *t0,uint32_t span,unsigned error)
-		: t0(t0),span(span),error(error) {}
+	    Assume(uint32_t const*x,Op op,uint32_t y,unsigned error)
+		: x(x),op(op),y(y),error(error) {}
+	} ;
+	    
+	class AssumeLe
+	{
+	    friend Command ;
+	    friend Bang ;
+	    uint32_t const*x ;
+	    uint32_t const*y ;
+	    uint32_t error ;
+	    AssumeLe(uint32_t const*x,uint32_t const*y,unsigned error)
+		: x(x),y(y),error(error) {}
+	} ;
+
+	class Duration
+	{
+	    friend Command ;
+	    friend Bang ;
+	    uint32_t const *t0 ;
+	    uint32_t const *t1 ;
+	    uint32_t     *span ;
+	    Duration(uint32_t *t0,uint32_t *t1,uint32_t *span)
+		: t0(t0),t1(t1),span(span) {}
 	} ;
 	    
 	class Levels
@@ -140,11 +168,13 @@ struct Bang
 	    uint32_t span ;
 	    uint32_t mask ;
 	    uint32_t cond ;
+	    uint32_t *t1 ;
 	    WaitFor(uint32_t const *t0,
 		    uint32_t      span,
 		    uint32_t      mask,
-		    uint32_t      cond)
-		: t0(t0),span(span),mask(mask),cond(cond) {}
+		    uint32_t      cond,
+		    uint32_t       *t1)
+		: t0(t0),span(span),mask(mask),cond(cond),t1(t1) {}
 	} ;
 	    
 	class WaitLevel
@@ -173,6 +203,8 @@ struct Bang
 	    friend Bang ;
 	    
 	    Assume         assume ;
+	    AssumeLe     assumeLe ;
+	    Duration     duration ;
 	    Levels         levels ;
 	    Mode             mode ;
 	    Recent         recent ;
@@ -186,6 +218,8 @@ struct Bang
 	    WaitLevel   waitLevel ;
 	    
 	    Value(Assume     const&     assume) : assume        (assume) {}
+	    Value(AssumeLe   const&   assumeLe) : assumeLe    (assumeLe) {}
+	    Value(Duration   const&   duration) : duration    (duration) {}
 	    Value(Levels     const&     levels) : levels        (levels) {}
 	    Value(Mode       const&       mode) : mode            (mode) {}
 	    Value(Recent     const&     recent) : recent        (recent) {}
@@ -204,9 +238,22 @@ struct Bang
 	Command(Choice choice,Value value)
 	    : choice(choice),value(value) {}
 
-	static Command assume(uint32_t *t0,uint32_t span,unsigned error)
+	static Command assume(uint32_t const*      x,
+			      Command::Assume::Op op,
+			      uint32_t             y,
+			      unsigned         error)
 	{
-	    return Command(Choice::Assume,Assume(t0,span,error)) ;
+	    return Command(Choice::Assume,Assume(x,op,y,error)) ;
+	}
+
+	static Command assumeLe(uint32_t const*x,uint32_t const*y,unsigned error)
+	{
+	    return Command(Choice::AssumeLe,AssumeLe(x,y,error)) ;
+	}
+
+	static Command duration(uint32_t *t0,uint32_t *t1,uint32_t *span)
+	{
+	    return Command(Choice::Duration,Duration(t0,t1,span)) ;
 	}
 
 	static Command levels(uint32_t *pins)
@@ -257,9 +304,10 @@ struct Bang
 	static Command waitFor(uint32_t const *t0,
 			       uint32_t      span,
 			       uint32_t      mask,
-			       uint32_t      cond)
+			       uint32_t      cond,
+			       uint32_t       *t1)
 	{
-	    return Command(Choice::WaitFor,WaitFor(t0,span,mask,cond)) ;
+	    return Command(Choice::WaitFor,WaitFor(t0,span,mask,cond,t1)) ;
 	}
 	
 	static Command waitLevel(uint32_t const *t0,
@@ -285,6 +333,8 @@ struct Bang
 	switch (c.choice)
 	{
 	case Choice::Assume     :     assume(c.value.    assume) ; break ;
+	case Choice::AssumeLe   :   assumeLe(c.value.  assumeLe) ; break ;
+	case Choice::Duration   :   duration(c.value.  duration) ; break ;
 	case Choice::Levels     :     levels(c.value.    levels) ; break ;
 	case Choice::Mode       :       mode(c.value.      mode) ; break ;
 	case Choice::Recent     :     recent(c.value.    recent) ; break ;
@@ -327,7 +377,17 @@ struct Bang
 	{
 	    assert(sp >= n) ;
 	    sp -= n ;
-	} 
+	}
+
+	uint32_t save() const
+	{
+	    return sp ;
+	}
+
+	void recover(uint32_t sp)
+	{
+	    this->sp = sp ;
+	}
     } ;
     
     struct Enqueue // helper for convenience
@@ -339,9 +399,22 @@ struct Bang
 	    return std::vector<Command>(q.begin(),q.end()) ;
 	}
 	
-	void assume(uint32_t *t0,uint32_t span,unsigned error)
+	void assume(uint32_t const      *x,
+		    Command::Assume::Op op,
+		    uint32_t             y,
+		    unsigned         error)
 	{
-	    q.push_back(Command::assume(t0,span,error)) ;
+	    q.push_back(Command::assume(x,op,y,error)) ;
+	}
+
+	void assumeLe(uint32_t const*x,uint32_t const*y,uint32_t error)
+	{
+	    q.push_back(Command::assumeLe(x,y,error)) ;
+	}
+
+	void duration(uint32_t *t0,uint32_t *t1,uint32_t *span)
+	{
+	    q.push_back(Command::duration(t0,t1,span)) ;
 	}
 
 	void levels(uint32_t *pins)
@@ -403,19 +476,21 @@ struct Bang
 	void waitFor(uint32_t const *t0,
 		     uint32_t      span,
 		     Rpi::Pin       pin,
-		     bool          high)
+		     bool          high,
+		     uint32_t       *t1)
 	{
 	    auto mask = 1u<<pin.value() ;
 	    auto cond = high ? mask : 0u ;
-	    q.push_back(Command::waitFor(t0,span,mask,cond)) ;
+	    q.push_back(Command::waitFor(t0,span,mask,cond,t1)) ;
 	}
 	
 	void waitFor(uint32_t const *t0,
 		     uint32_t      span,
 		     uint32_t      mask,
-		     uint32_t      cond)
+		     uint32_t      cond,
+		     uint32_t       *t1)
 	{
-	    q.push_back(Command::waitFor(t0,span,mask,cond)) ;
+	    q.push_back(Command::waitFor(t0,span,mask,cond,t1)) ;
 	}
 	
 	void waitLevel(uint32_t const *t0,
@@ -440,9 +515,28 @@ private:
 
     void assume(Command::Assume const &c)
     {
-	//this->t = this->counter.clock() ;
-	if (this->t - (*c.t0) > c.span)
-	    this->error = error ;
+	switch (c.op)
+	{
+	case Command::Assume::Op::Eq: if ((*c.x) == c.y) return ;
+	case Command::Assume::Op::Ge: if ((*c.x) >= c.y) return ;
+	case Command::Assume::Op::Gt: if ((*c.x) >  c.y) return ;
+	case Command::Assume::Op::Le: if ((*c.x) <= c.y) return ;
+	case Command::Assume::Op::Lt: if ((*c.x) <  c.y) return ;
+	case Command::Assume::Op::Ne: if ((*c.x) != c.y) return ;
+	}
+	this->error = c.error ;
+    }
+
+    void assumeLe(Command::AssumeLe const &c)
+    {
+	if ((*c.x) <= (*c.y))
+	    return ;
+	this->error = c.error ;
+    }
+
+    void duration(Command::Duration const &c)
+    {
+	(*c.span) = (*c.t1) - (*c.t0) ;
     }
 
     void levels(Command::Levels const &c)
@@ -503,11 +597,15 @@ private:
 	{
 	    this->l = this->gpio.getLevels() ;
 	    if (c.cond == (this->l & c.mask))
-		return ; // [todo] success flag
+	    {
+		(*c.t1) = this->t ;
+		this->t = this->counter.clock() ;
+		return ;
+	    }
 	    this->t = this->counter.clock() ;
 	}
 	while (this->t - (*c.t0) <= c.span) ;
-	// [todo] timeout flag
+	this->error = 43 ; // [todo]
     }
     
     void waitLevel(Command::WaitLevel const &c)

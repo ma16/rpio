@@ -5,39 +5,45 @@
 
 constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 
-void Device::Ds18x20::Bang::
-init(Enqueue *q,Stack *stack) const
+void Device::Ds18x20::Bang::init(Enqueue *q,Stack *stack) const
 {
-    //  t0       t1    t2    
-    // ---+     +-----+     +--
+    //  t0 t1 t2 t3 t4 t5 t6 t7
+    // ---+     +-----+     +----...
     //    |     |     |     |
     //    +-----+     +-----+
-
+    auto sp = stack->save() ;
+    using Op = RpiExt::Bang::Command::Assume::Op ;
+    
     // tx: Reset-Pulse
-    auto t0 = stack->push() ; q->time(t0) ; // [todo] not used
     q->mode(this->busPin,Rpi::Gpio::Mode::Out) ; 
     q->sleep(this->timing.rstl) ;
+    auto t2 = stack->push() ; q->time(t2) ; 
     q->mode(this->busPin,Rpi::Gpio::Mode::In) ;
-    // ...don't care if we exceed rstl
     
-    // rx: Present-Pulse (HL-edge)
-    auto t1 = stack->push() ; q->time(t1) ;
-    q->waitFor(t1,this->timing.pdhigh.max,this->busPin,0) ;
-    q->assume (t1,this->timing.pdhigh.max,1) ; 
-    // ...we cannot (precisely) verify pdhigh.min
+    // rx: wait for HL-edge (start of Presence-Pulse)
+    auto t3 = stack->push() ; q->time(t3) ;
+    auto t4 = stack->push() ; 
+    q->waitFor(t2,this->timing.pdhigh.max,this->busPin,/*Low*/0,t4) ;
+    auto t5 = stack->push() ; q->recent(t5) ;
+    auto duration = stack->push() ;
+    q->duration(t2,t5,duration) ;
+    q->assume(duration,Op::Le,this->timing.pdhigh.max,45) ;
+    q->duration(t3,t4,duration) ;
+    q->assume(duration,Op::Ge,this->timing.pdhigh.min,46) ;
     
-    // rx: Present-Pulse (LH-edge)
-    auto t2 = stack->push() ; 
-    q->waitFor(t2,this->timing.pdlow.max,this->busPin,1) ;
-    q->assume (t2,this->timing.pdlow.max,2) ; 
-    // todo verify: pdlow.min <= t3
-    // todo verify: 0 != hi & mask
+    // rx: wait for LH-edge (end of Presence-Pulse)
+    auto t6 = stack->push() ; 
+    q->waitFor(t4,this->timing.pdlow.max,this->busPin,/*High*/1,t6) ;
+    auto t7 = stack->push() ; q->recent(t7) ;
+    q->duration(t4,t7,duration) ;
+    q->assume(duration,Op::Le,this->timing.pdlow.max,47) ;
+    q->duration(t5,t6,duration) ;
+    q->assume(duration,Op::Ge,this->timing.pdlow.min,48) ;
 
     // rx: wait for end of Present-Pulse cycle
-    q->wait(t1,this->timing.rsth) ;
-    // ...don't care if we exceed rsth
+    q->wait(t3,this->timing.rsth) ;
     
-    stack->pop(3) ;
+    stack->recover(sp) ;
 }
 
 void Device::Ds18x20::Bang::
@@ -57,7 +63,7 @@ write(Enqueue *q,Stack *stack,bool bit) const
 
     // make sure the low time doesn't exceed max limit
     //auto t2 = stack->push() ; q->time(t1) ; 
-    q->assume(t0,range.max,3) ; 
+    //q->assume(t0,range.max,3) ; 
 
     // make sure the slot has a minimum length
     q->wait(t1,this->timing.slot.min + this->timing.rec) ;
@@ -90,7 +96,7 @@ read(Enqueue *q,Stack *stack,uint32_t *levels) const
     // ...there might be better ways to record the signal, especially
     // since we want to record it as late as possible (but before RDV
     // expires!).
-    q->assume(t0,this->timing.rdv,4) ; 
+    //q->assume(t0,this->timing.rdv,4) ; 
     q->wait(t1,this->timing.slot.min + this->timing.rec) ;
     // ...don't care if we exceed slot.max since the bus is idle anyway
     stack->pop(2) ;
