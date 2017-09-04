@@ -37,11 +37,9 @@ struct Bang
 	    Reset,      // set GPIO pin level to Low
 	    Set,        // set GPIO pin level to High
 	    Sleep,      // sleep for a number of ticks based on current time
-	    StopIfLate, // stop it point in time has been exceeded
 	    Time,       // query time
 	    Wait,       // sleep for a number of ticks based on given time
 	    WaitFor,    // wait for a signal level
-	    WaitLevel,  // wait for a signal level
         } ;
 	
 	Choice choice ;
@@ -132,17 +130,6 @@ struct Bang
 	    Sleep(uint32_t span) : span(span) {}
 	} ;
 	    
-	class StopIfLate
-	{
-	    friend Command ;
-	    friend Bang ;
-	    uint32_t *t0 ;
-	    uint32_t span ;
-	    uint32_t *t1 ;
-	    StopIfLate(uint32_t *t0,uint32_t span,uint32_t *t1)
-		: t0(t0),span(span),t1(t1) {}
-	} ;
-	    
 	class Time
 	{
 	    friend Command ;
@@ -177,25 +164,6 @@ struct Bang
 		: t0(t0),span(span),mask(mask),cond(cond),t1(t1) {}
 	} ;
 	    
-	class WaitLevel
-	{
-	    friend Command ;
-	    friend Bang ;
-	    uint32_t const *t0 ;
-	    uint32_t span ;
-	    uint32_t *t1 ;
-	    uint32_t mask ;
-	    uint32_t cond ;
-	    uint32_t *pins ;
-	    WaitLevel(uint32_t const *t0,
-		      uint32_t      span,
-		      uint32_t       *t1,
-		      uint32_t      mask,
-		      uint32_t      cond,
-		      uint32_t     *pins)
-		: t0(t0),span(span),t1(t1),mask(mask),cond(cond),pins(pins) {}
-	} ;
-	    
 	union Value
 	{
 	private:
@@ -211,11 +179,9 @@ struct Bang
 	    Reset           reset ;
 	    Set               set ;
 	    Sleep           sleep ;
-	    StopIfLate stopIfLate ;
 	    Time             time ;
 	    Wait             wait ;
 	    WaitFor       waitFor ;
-	    WaitLevel   waitLevel ;
 	    
 	    Value(Assume     const&     assume) : assume        (assume) {}
 	    Value(Compare    const&    compare) : compare      (compare) {}
@@ -226,11 +192,9 @@ struct Bang
 	    Value(Reset      const&      reset) : reset          (reset) {}
 	    Value(Set        const&        set) : set              (set) {}
 	    Value(Sleep      const&      sleep) : sleep          (sleep) {}
-	    Value(StopIfLate const& stopIfLate) : stopIfLate(stopIfLate) {}
 	    Value(Time       const&       time) : time            (time) {}
 	    Value(Wait       const&       wait) : wait            (wait) {}
 	    Value(WaitFor    const&    waitFor) : waitFor      (waitFor) {}
-	    Value(WaitLevel  const&  waitLevel) : waitLevel  (waitLevel) {}
 	} ;
 	
 	Value value ;
@@ -289,11 +253,6 @@ struct Bang
 	    return Command(Choice::Sleep,Sleep(span)) ;
 	}
 
-	static Command stopIfLate(uint32_t *t0,uint32_t span,uint32_t *t1)
-	{
-	    return Command(Choice::StopIfLate,StopIfLate(t0,span,t1)) ;
-	}
-
 	static Command time(uint32_t *ticks)
 	{
 	    return Command(Choice::Time,Time(ticks)) ;
@@ -313,15 +272,6 @@ struct Bang
 	    return Command(Choice::WaitFor,WaitFor(t0,span,mask,cond,t1)) ;
 	}
 	
-	static Command waitLevel(uint32_t const *t0,
-				 uint32_t      span,
-				 uint32_t       *t1,
-				 uint32_t      mask,
-				 uint32_t      cond,
-				 uint32_t     *pins)
-	{
-	    return Command(Choice::WaitLevel,WaitLevel(t0,span,t1,mask,cond,pins)) ;
-	}
     } ;
 
     Bang(Rpi::Peripheral *rpi) :
@@ -344,11 +294,9 @@ struct Bang
 	case Choice::Reset      :      reset(c.value.     reset) ; break ;
 	case Choice::Set        :        set(c.value.       set) ; break ;
 	case Choice::Sleep      :      sleep(c.value.     sleep) ; break ;
-	case Choice::StopIfLate : stopIfLate(c.value.stopIfLate) ; break ;
 	case Choice::Time       :       time(c.value.      time) ; break ;
 	case Choice::Wait       :       wait(c.value.      wait) ; break ;
 	case Choice::WaitFor    :    waitFor(c.value.   waitFor) ; break ;
-	case Choice::WaitLevel  :   waitLevel(c.value.waitLevel) ; break ;
 	default: assert(false) ; abort() ;
 	}
     }
@@ -356,11 +304,11 @@ struct Bang
     unsigned execute(std::vector<Command> const &v)
     {
 	this->error = 0 ;
-	for (auto &c : v)
+	for (auto const &c: v)
 	{
+	    this->execute(c) ;
 	    if (this->error != 0)
 		return this->error ;
-	    this->execute(c) ;
 	}
 	return 0 ;
     }
@@ -465,11 +413,6 @@ struct Bang
 	    q.push_back(Command::sleep(span)) ;
 	}
     
-	void stopIfLate(uint32_t *t0,uint32_t span,uint32_t *t1)
-	{
-	    q.push_back(Command::stopIfLate(t0,span,t1)) ;
-	}
-    
 	void time(uint32_t *ticks)
 	{
 	    q.push_back(Command::time(ticks)) ;
@@ -498,16 +441,6 @@ struct Bang
 		     uint32_t       *t1)
 	{
 	    q.push_back(Command::waitFor(t0,span,mask,cond,t1)) ;
-	}
-	
-	void waitLevel(uint32_t const *t0,
-		       uint32_t      span,
-		       uint32_t       *t1,
-		       uint32_t      mask,
-		       uint32_t      cond,
-		       uint32_t     *pins)
-	{
-	    q.push_back(Command::waitLevel(t0,span,t1,mask,cond,pins)) ;
 	}
     } ;
   
@@ -592,12 +525,6 @@ private:
 	}
     }
 
-    void stopIfLate(Command::StopIfLate const &c)
-    {
-	if ((*c.t1) - (*c.t0) > c.span)
-	    this->error = 42 ; // [todo]
-    }
-
     void wait(Command::Wait const &c)
     {
 	while (this->t - (*c.t0) < c.span) 
@@ -618,20 +545,6 @@ private:
 	    this->t = this->counter.clock() ;
 	}
 	while (this->t - (*c.t0) <= c.span) ;
-    }
-    
-    void waitLevel(Command::WaitLevel const &c)
-    {
-	do
-	{
-	    this->l = this->gpio.getLevels() ;
-	    if (c.cond == (this->l & c.mask))
-		break ;
-	    this->t = this->counter.clock() ;
-	}
-	while (this->t - (*c.t0) <= c.span) ;
-	(*c.t1)   = this->t ;
-	(*c.pins) = this->l ;
     }
     
 } ; }
