@@ -29,7 +29,7 @@ struct Bang
 	enum class Choice
 	{
 	    Assume,     // stop if condition isn't true
-	    AssumeLe,   // assume Less-or-Equal
+	    Compare,    // execute comparison
 	    Duration,   // save the difference of two time-stamps
 	    Levels,     // get pin level
 	    Mode,       // set pin function mode
@@ -46,11 +46,10 @@ struct Bang
 	
 	Choice choice ;
 	
+	enum class Op { Eq,Ge,Gt,Le,Lt,Ne } ;
+	
 	class Assume
 	{
-	public:
-	    enum class Op { Eq,Ge,Gt,Le,Lt,Ne } ;
-	private:
 	    friend Command ;
 	    friend Bang ;
 	    uint32_t const *x ;
@@ -61,17 +60,18 @@ struct Bang
 		: x(x),op(op),y(y),error(error) {}
 	} ;
 	    
-	class AssumeLe
+	class Compare
 	{
 	    friend Command ;
 	    friend Bang ;
-	    uint32_t const*x ;
-	    uint32_t const*y ;
-	    uint32_t error ;
-	    AssumeLe(uint32_t const*x,uint32_t const*y,unsigned error)
-		: x(x),y(y),error(error) {}
+	    uint32_t const *x ;
+	    Op op ;
+	    uint32_t y ;
+	    bool *success ;
+	    Compare(uint32_t const*x,Op op,uint32_t y,bool *success)
+		: x(x),op(op),y(y),success(success) {}
 	} ;
-
+	    
 	class Duration
 	{
 	    friend Command ;
@@ -203,7 +203,7 @@ struct Bang
 	    friend Bang ;
 	    
 	    Assume         assume ;
-	    AssumeLe     assumeLe ;
+	    Compare       compare ;
 	    Duration     duration ;
 	    Levels         levels ;
 	    Mode             mode ;
@@ -218,7 +218,7 @@ struct Bang
 	    WaitLevel   waitLevel ;
 	    
 	    Value(Assume     const&     assume) : assume        (assume) {}
-	    Value(AssumeLe   const&   assumeLe) : assumeLe    (assumeLe) {}
+	    Value(Compare    const&    compare) : compare      (compare) {}
 	    Value(Duration   const&   duration) : duration    (duration) {}
 	    Value(Levels     const&     levels) : levels        (levels) {}
 	    Value(Mode       const&       mode) : mode            (mode) {}
@@ -238,17 +238,20 @@ struct Bang
 	Command(Choice choice,Value value)
 	    : choice(choice),value(value) {}
 
-	static Command assume(uint32_t const*      x,
-			      Command::Assume::Op op,
-			      uint32_t             y,
-			      unsigned         error)
+	static Command assume(uint32_t const* x,
+			      Command::Op    op,
+			      uint32_t        y,
+			      unsigned    error)
 	{
 	    return Command(Choice::Assume,Assume(x,op,y,error)) ;
 	}
 
-	static Command assumeLe(uint32_t const*x,uint32_t const*y,unsigned error)
+	static Command compare(uint32_t const* x,
+			       Command::Op    op,
+			       uint32_t        y,
+			       bool     *success)
 	{
-	    return Command(Choice::AssumeLe,AssumeLe(x,y,error)) ;
+	    return Command(Choice::Compare,Compare(x,op,y,success)) ;
 	}
 
 	static Command duration(uint32_t *t0,uint32_t *t1,uint32_t *span)
@@ -333,7 +336,7 @@ struct Bang
 	switch (c.choice)
 	{
 	case Choice::Assume     :     assume(c.value.    assume) ; break ;
-	case Choice::AssumeLe   :   assumeLe(c.value.  assumeLe) ; break ;
+	case Choice::Compare    :    compare(c.value.   compare) ; break ;
 	case Choice::Duration   :   duration(c.value.  duration) ; break ;
 	case Choice::Levels     :     levels(c.value.    levels) ; break ;
 	case Choice::Mode       :       mode(c.value.      mode) ; break ;
@@ -399,17 +402,20 @@ struct Bang
 	    return std::vector<Command>(q.begin(),q.end()) ;
 	}
 	
-	void assume(uint32_t const      *x,
-		    Command::Assume::Op op,
-		    uint32_t             y,
-		    unsigned         error)
+	void assume(uint32_t const *x,
+		    Command::Op    op,
+		    uint32_t        y,
+		    unsigned    error)
 	{
 	    q.push_back(Command::assume(x,op,y,error)) ;
 	}
 
-	void assumeLe(uint32_t const*x,uint32_t const*y,uint32_t error)
+	void compare(uint32_t const *x,
+		     Command::Op    op,
+		     uint32_t        y,
+		     bool     *success)
 	{
-	    q.push_back(Command::assumeLe(x,y,error)) ;
+	    q.push_back(Command::compare(x,op,y,success)) ;
 	}
 
 	void duration(uint32_t *t0,uint32_t *t1,uint32_t *span)
@@ -517,21 +523,27 @@ private:
     {
 	switch (c.op)
 	{
-	case Command::Assume::Op::Eq: if ((*c.x) == c.y) return ;
-	case Command::Assume::Op::Ge: if ((*c.x) >= c.y) return ;
-	case Command::Assume::Op::Gt: if ((*c.x) >  c.y) return ;
-	case Command::Assume::Op::Le: if ((*c.x) <= c.y) return ;
-	case Command::Assume::Op::Lt: if ((*c.x) <  c.y) return ;
-	case Command::Assume::Op::Ne: if ((*c.x) != c.y) return ;
+	case Command::Op::Eq: if ((*c.x) == c.y) return ; break ;
+	case Command::Op::Ge: if ((*c.x) >= c.y) return ; break ;
+	case Command::Op::Gt: if ((*c.x) >  c.y) return ; break ;
+	case Command::Op::Le: if ((*c.x) <= c.y) return ; break ;
+	case Command::Op::Lt: if ((*c.x) <  c.y) return ; break ;
+	case Command::Op::Ne: if ((*c.x) != c.y) return ; break ;
 	}
 	this->error = c.error ;
     }
 
-    void assumeLe(Command::AssumeLe const &c)
+    void compare(Command::Compare const &c)
     {
-	if ((*c.x) <= (*c.y))
-	    return ;
-	this->error = c.error ;
+	switch (c.op)
+	{
+	case Command::Op::Eq: (*c.success) = (*c.x) == c.y ; break ;
+	case Command::Op::Ge: (*c.success) = (*c.x) >= c.y ; break ;
+	case Command::Op::Gt: (*c.success) = (*c.x) >  c.y ; break ;
+	case Command::Op::Le: (*c.success) = (*c.x) <= c.y ; break ;
+	case Command::Op::Lt: (*c.success) = (*c.x) <  c.y ; break ;
+	case Command::Op::Ne: (*c.success) = (*c.x) != c.y ; break ;
+	}
     }
 
     void duration(Command::Duration const &c)
@@ -605,7 +617,6 @@ private:
 	    this->t = this->counter.clock() ;
 	}
 	while (this->t - (*c.t0) <= c.span) ;
-	this->error = 43 ; // [todo]
     }
     
     void waitLevel(Command::WaitLevel const &c)

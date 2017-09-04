@@ -3,8 +3,19 @@
 #include "../invoke.h"
 #include <Device/Ds18x20/Bang.h>
 #include <Ui/strto.h>
+#include <cstring> // memset
 
 // [todo] command line options: timing and ARM counter frequency
+
+static void pack(bool const from[],size_t nbits,char to[])
+{
+    memset(to,0x0,(nbits+7)/8) ;
+    for (decltype(nbits) i=0 ; i<nbits ; ++i)
+    {
+	if (from[i])
+	    to[i/8] |= static_cast<char>(1 << (i % 8)) ;
+    }
+}
 
 static std::vector<bool> to_bitStream(char const buffer[],size_t n)
 {
@@ -60,14 +71,14 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     using Bang = Device::Ds18x20::Bang ;
     
     RpiExt::Bang::Stack stack(0x100) ;
-    uint32_t rx[72] ;
+    bool rx[72] ;
     RpiExt::Bang scheduler(rpi) ;
 
     auto script = Bang(rpi,pin).readPad(&stack,&rx) ;
     auto error = scheduler.execute(script) ;
     if (error != 0)
 	std::cerr << "error:" << error << '\n' ;
-    char buffer[9] ; Bang::pack(rx,72,1u<<pin.value(),buffer) ;
+    char buffer[9] ; pack(rx,72,buffer) ;
 
     // debugging
     auto v = to_bitStream(buffer,sizeof(buffer)) ; 
@@ -87,14 +98,14 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     
     RpiExt::Bang::Stack stack(0x100) ;
-    uint32_t rx[64] ;
+    bool rx[64] ;
     RpiExt::Bang scheduler(rpi) ;
 
     auto script = Bang(rpi,pin).readRom(&stack,&rx) ;
     auto error = scheduler.execute(script) ;
     if (error != 0)
 	std::cerr << "error:" << error << '\n' ;
-    char buffer[8] ; Bang::pack(rx,64,1u<<pin.value(),buffer) ;
+    char buffer[8] ; pack(rx,64,buffer) ;
     
     // debugging
     auto v = to_bitStream(buffer,sizeof(buffer)) ; 

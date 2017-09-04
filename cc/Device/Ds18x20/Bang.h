@@ -24,8 +24,8 @@ struct Bang
 	T rec ; // Minimum Recovery Time
 	Range low0 ; // Write 0 Low Time
 	Range low1 ; // Write 1 Low Time
-	T rinit ; // minimum low time to initiate Read Time Slot
-	T rrc ; // maximum recovery time after read initiation
+	Range rinit ; // minimum low time to initiate Read Time Slot
+	T rinitgap ; // max gap fpr rinit HL edge
 	T rdv ; // Maximum Read Data Valid
 	T rsth ; // Minimum Reset Time High (Rx/Open Collector)
 	T rstl ; // Minimum Reset Time Low (Actual Low Time)
@@ -43,14 +43,14 @@ struct Bang
 	{ 60e-6,120e-6 },
 	1e-6,
 	{ 60e-6,120e-6 },
-	{ 1e-6, 15e-6 },
+	{  1e-6, 15e-6 },
+	{  1e-6, 10e-6 },
 	1e-6,
-	5e-6, // a guess?!
 	15e-6,
 	480e-6,
 	480e-6,
-	{ 15e-6,60e-6 },
-	{ 60e-6,240e-6 },
+	{  15e-6, 60e-6 },
+	{  60e-6,240e-6 },
     } ;
 
     static Timing<uint32_t> ticks(Timing<double> const &seconds,double tps) ;
@@ -62,10 +62,8 @@ struct Bang
     using Stack = RpiExt::Bang::Stack ;
     
     Script convert(Stack*) const ;
-    Script readPad(Stack*,uint32_t(*)[72]) const ;
-    Script readRom(Stack*,uint32_t(*)[64]) const ;
-    
-    static void pack(uint32_t const from[],size_t nwords,uint32_t mask,char to[]) ;
+    Script readPad(Stack*,bool(*)[72]) const ;
+    Script readRom(Stack*,bool(*)[64]) const ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
@@ -83,8 +81,8 @@ private:
     using Enqueue = RpiExt::Bang::Enqueue ;
     
     void  init(Enqueue*,Stack*) const ;
-    void  read(Enqueue*,Stack*,uint32_t *levels) const ;
-    void  read(Enqueue*,Stack*,size_t nwords,uint32_t *levels) const ;
+    void  read(Enqueue*,Stack*,bool *bit) const ;
+    void  read(Enqueue*,Stack*,size_t nbits,bool *bitA) const ;
     void write(Enqueue*,Stack*,bool bit) const ;
     void write(Enqueue*,Stack*,uint8_t byte) const ;
     

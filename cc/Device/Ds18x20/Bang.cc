@@ -1,18 +1,17 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include <Device/Ds18x20/Bang.h>
-#include <cstring> // memset
 
 constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 
 void Device::Ds18x20::Bang::init(Enqueue *q,Stack *stack) const
 {
+    auto sp = stack->save() ;
+    
     //  t0 t1 t2 t3 t4 t5 t6 t7
     // ---+     +-----+     +----...
     //    |     |     |     |
     //    +-----+     +-----+
-    auto sp = stack->save() ;
-    using Op = RpiExt::Bang::Command::Assume::Op ;
     
     // tx: Reset-Pulse
     q->mode(this->busPin,Rpi::Gpio::Mode::Out) ; 
@@ -27,18 +26,19 @@ void Device::Ds18x20::Bang::init(Enqueue *q,Stack *stack) const
     auto t5 = stack->push() ; q->recent(t5) ;
     auto duration = stack->push() ;
     q->duration(t2,t5,duration) ;
-    q->assume(duration,Op::Le,this->timing.pdhigh.max,45) ;
+    using Op = RpiExt::Bang::Command::Op ;
+    q->assume(duration,Op::Le,this->timing.pdhigh.max,11) ;
     q->duration(t3,t4,duration) ;
-    q->assume(duration,Op::Ge,this->timing.pdhigh.min,46) ;
+    q->assume(duration,Op::Ge,this->timing.pdhigh.min,12) ;
     
     // rx: wait for LH-edge (end of Presence-Pulse)
     auto t6 = stack->push() ; 
     q->waitFor(t4,this->timing.pdlow.max,this->busPin,/*High*/1,t6) ;
     auto t7 = stack->push() ; q->recent(t7) ;
     q->duration(t4,t7,duration) ;
-    q->assume(duration,Op::Le,this->timing.pdlow.max,47) ;
+    q->assume(duration,Op::Le,this->timing.pdlow.max,13) ;
     q->duration(t5,t6,duration) ;
-    q->assume(duration,Op::Ge,this->timing.pdlow.min,48) ;
+    q->assume(duration,Op::Ge,this->timing.pdlow.min,14) ;
 
     // rx: wait for end of Present-Pulse cycle
     q->wait(t3,this->timing.rsth) ;
@@ -46,33 +46,38 @@ void Device::Ds18x20::Bang::init(Enqueue *q,Stack *stack) const
     stack->recover(sp) ;
 }
 
-void Device::Ds18x20::Bang::
-write(Enqueue *q,Stack *stack,bool bit) const
+void Device::Ds18x20::Bang::write(Enqueue *q,Stack *stack,bool bit) const
 {
-    //  t0 t1    t2
-    // ---+     +-----
+    auto sp = stack->save() ;
+    
+    //  t0 t1 t2 t3
+    // ---+     +---
     //    |     |
     //    +-----+
 
+    // tx: Bit Pulse
     auto t0 = stack->push() ; q->time(t0) ;
     q->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    auto t1 = stack->push() ; q->time(t1) ; 
+    auto t1 = stack->push() ; q->time(t1) ;
     auto range = bit ? this->timing.low1 : this->timing.low0 ;
     q->wait(t1,range.min) ; 
     q->mode(this->busPin,Rpi::Gpio::Mode::In) ;
+    auto t3 = stack->push() ; q->time(t3) ; 
+    auto duration = stack->push() ;
+    q->duration(t0,t3,duration) ;
+    using Op = RpiExt::Bang::Command::Op ;
+    q->assume(duration,Op::Le,range.max,21) ; 
 
-    // make sure the low time doesn't exceed max limit
-    //auto t2 = stack->push() ; q->time(t1) ; 
-    //q->assume(t0,range.max,3) ; 
-
-    // make sure the slot has a minimum length
-    q->wait(t1,this->timing.slot.min + this->timing.rec) ;
-    // ...don't care if we exceed slot.max since the bus is idle anyway
-    stack->pop(2) ;
+    // minimum recovery time (after LH edge)
+    q->wait(t3,this->timing.rec) ;
+	
+    // rx: wait for end of cycle
+    q->wait(t1,this->timing.slot.min) ;
+    
+    stack->recover(sp) ;
 }
 
-void Device::Ds18x20::Bang::
-write(Enqueue *q,Stack *stack,uint8_t byte) const
+void Device::Ds18x20::Bang::write(Enqueue *q,Stack *stack,uint8_t byte) const
 {
     for (auto i=0u ; i<8u ; ++i)
     {
@@ -81,33 +86,58 @@ write(Enqueue *q,Stack *stack,uint8_t byte) const
     }
 }
 
-void Device::Ds18x20::Bang::
-read(Enqueue *q,Stack *stack,uint32_t *levels) const
+void Device::Ds18x20::Bang::read(Enqueue *q,Stack *stack,bool *bit) const
 {
-    auto t0 = stack->push() ;
-    auto t1 = stack->push() ;
-    q->time(t0) ; 
+    auto sp = stack->save() ;
+    
+    //  t0 t1 t2 t3 t4 t5
+    // ---+     +-----+---
+    //    |     |     |   
+    //    +-----+-----+
+
+    // tx: initiate Read-Time-Slot
+    auto t0 = stack->push() ; q->time(t0) ; 
     q->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    q->time(t1) ; 
-    q->wait(t1,this->timing.rinit) ; 
+    auto t1 = stack->push() ; q->time(t1) ; 
+    q->wait(t1,this->timing.rinit.min) ;
+    auto t2 = stack->push() ; q->recent(t2) ;
     q->mode(this->busPin,Rpi::Gpio::Mode::In) ;
-    q->sleep(this->timing.rrc) ;
-    q->levels(levels) ; // [todo] ALLOC and RETURN location
-    // ...there might be better ways to record the signal, especially
-    // since we want to record it as late as possible (but before RDV
-    // expires!).
-    //q->assume(t0,this->timing.rdv,4) ; 
-    q->wait(t1,this->timing.slot.min + this->timing.rec) ;
-    // ...don't care if we exceed slot.max since the bus is idle anyway
-    stack->pop(2) ;
+    auto t3 = stack->push() ; q->time(t3) ; 
+
+    // rx: wait for LH edge 
+    auto t4 = stack->push() ; 
+    q->waitFor(t1,this->timing.slot.max,this->busPin,/*High*/1,t4) ;
+    auto t5 = stack->push() ; q->recent(t5) ; 
+
+    // make sure we got not interrupted while HL edge
+    auto duration = stack->push() ;
+    q->duration(t0,t1,duration) ;
+    using Op = RpiExt::Bang::Command::Op ;
+    q->assume(duration,Op::Le,this->timing.rinitgap,31) ; 
+
+    // make sure we got not interrupted when releasing the bus
+    q->duration(t0,t3,duration) ;
+    q->assume(duration,Op::Le,this->timing.rinit.max,32) ; 
+
+    // what did we receive? A one- or a zero-bit?
+    q->duration(t0,t5,duration) ;
+    q->compare(duration,Op::Le,this->timing.rdv,bit) ; 
+    
+    // minimum recovery time (after LH edge)
+    q->wait(t5,this->timing.rec) ;
+	
+    // rx: wait for end of cycle
+    q->wait(t1,this->timing.slot.min) ;
+    
+    stack->recover(sp) ;
 }
 
 void Device::Ds18x20::Bang::
-read(Enqueue *q,Stack *stack,size_t nwords,uint32_t *levels) const
+read(Enqueue *q,Stack *stack,size_t nbits,bool *bitA) const
 {
-    for (auto i=0u ; i<nwords ; ++i)
+    for (auto i=0u ; i<nbits ; ++i)
     {
-	read(q,stack,levels+i) ;
+	read(q,stack,bitA+i) ;
     }
 }
 
@@ -127,7 +157,7 @@ convert(Stack *stack) const
 }
 
 Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::
-readPad(Stack *stack,uint32_t(*rx)[72]) const
+readPad(Stack *stack,bool(*rx)[72]) const
 {
     Enqueue q ;
     this->init(&q,stack) ;
@@ -140,7 +170,7 @@ readPad(Stack *stack,uint32_t(*rx)[72]) const
 }
 
 Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::
-readRom(Stack *stack,uint32_t(*rx)[64]) const
+readRom(Stack *stack,bool(*rx)[64]) const
 {
     Enqueue q ;
     this->init(&q,stack) ;
@@ -148,18 +178,6 @@ readRom(Stack *stack,uint32_t(*rx)[64]) const
     this->write(&q,stack,static_cast<uint8_t>(0x33)) ;
     this->read(&q,stack,64,*rx) ;
     return q.vector() ;
-}
-
-void Device::Ds18x20::Bang::
-pack(uint32_t const from[],size_t nwords,uint32_t mask,char to[])
-{
-    memset(to,0x0,(nwords+7)/8) ;
-    for (decltype(nwords) i=0 ; i<nwords ; ++i)
-    {
-	auto bit = 0 != (from[i] & mask) ;
-	if (bit)
-	    to[i/8] |= static_cast<char>(1 << (i % 8)) ;
-    }
 }
 
 Device::Ds18x20::Bang::Timing<uint32_t>
@@ -179,8 +197,9 @@ Device::Ds18x20::Bang::ticks(Timing<double> const &seconds,double tps)
     ticks.low1.min = f(seconds.low1.min) ;
     ticks.low1.max = f(seconds.low1.max) ;
 
-    ticks.rinit = f(seconds.rinit) ;
-    ticks.rrc = f(seconds.rrc) ;
+    ticks.rinit.min = f(seconds.rinit.min) ;
+    ticks.rinit.max = f(seconds.rinit.max) ;
+    ticks.rinitgap = f(seconds.rinitgap) ;
     ticks.rdv = f(seconds.rdv) ;
     ticks.rsth = f(seconds.rsth) ;
     ticks.rstl = f(seconds.rstl) ;
