@@ -2,7 +2,8 @@
 
 // --------------------------------------------------------------------
 // An interface for bit-banging (that is supposed to be generic and
-// hide as many details of the Raspberry Pi as possible).
+// hide as many details of the Raspberry Pi as possible). Actually,
+// this is more like a "script" generator for bit-banging.
 //
 // The ARM counter is used as time-reference.
 //
@@ -27,16 +28,18 @@ struct Bang
     {
 	enum class Choice
 	{
-	    Assume,    // stop if condition isn't true
-	    Levels,    // get pin level
-	    Mode,      // set pin function mode
-	    Recent,    // get last recorded timer tick
-	    Reset,     // set GPIO pin level to Low
-	    Set,       // set GPIO pin level to High
-	    Sleep,     // sleep for a number of ticks based on current time
-	    Time,      // query time
-	    Wait,      // sleep for a number of ticks based on given time
-	    WaitLevel, // wait for a signal level
+	    Assume,     // stop if condition isn't true
+	    Levels,     // get pin level
+	    Mode,       // set pin function mode
+	    Recent,     // get last recorded timer tick
+	    Reset,      // set GPIO pin level to Low
+	    Set,        // set GPIO pin level to High
+	    Sleep,      // sleep for a number of ticks based on current time
+	    StopIfLate, // stop it point in time has been exceeded
+	    Time,       // query time
+	    Wait,       // sleep for a number of ticks based on given time
+	    WaitFor,    // wait for a signal level
+	    WaitLevel,  // wait for a signal level
         } ;
 	
 	Choice choice ;
@@ -47,7 +50,9 @@ struct Bang
 	    friend Bang ;
 	    uint32_t *t0 ;
 	    uint32_t span ;
-	    Assume(uint32_t *t0,uint32_t span) : t0(t0),span(span) {}
+	    unsigned error ;
+	    Assume(uint32_t *t0,uint32_t span,unsigned error)
+		: t0(t0),span(span),error(error) {}
 	} ;
 	    
 	class Levels
@@ -99,6 +104,17 @@ struct Bang
 	    Sleep(uint32_t span) : span(span) {}
 	} ;
 	    
+	class StopIfLate
+	{
+	    friend Command ;
+	    friend Bang ;
+	    uint32_t *t0 ;
+	    uint32_t span ;
+	    uint32_t *t1 ;
+	    StopIfLate(uint32_t *t0,uint32_t span,uint32_t *t1)
+		: t0(t0),span(span),t1(t1) {}
+	} ;
+	    
 	class Time
 	{
 	    friend Command ;
@@ -114,6 +130,21 @@ struct Bang
 	    uint32_t const *t0 ;
 	    uint32_t span ;
 	    Wait(uint32_t const *t0,uint32_t span) : t0(t0),span(span) {}
+	} ;
+	    
+	class WaitFor
+	{
+	    friend Command ;
+	    friend Bang ;
+	    uint32_t const *t0 ;
+	    uint32_t span ;
+	    uint32_t mask ;
+	    uint32_t cond ;
+	    WaitFor(uint32_t const *t0,
+		    uint32_t      span,
+		    uint32_t      mask,
+		    uint32_t      cond)
+		: t0(t0),span(span),mask(mask),cond(cond) {}
 	} ;
 	    
 	class WaitLevel
@@ -141,27 +172,31 @@ struct Bang
 	    
 	    friend Bang ;
 	    
-	    Assume assume ;
-	    Levels levels ;
-	    Mode     mode ;
-	    Recent recent ;
-	    Reset   reset ;
-	    Set       set ;
-	    Sleep   sleep ;
-	    Time     time ;
-	    Wait     wait ;
-	    WaitLevel waitLevel ;
+	    Assume         assume ;
+	    Levels         levels ;
+	    Mode             mode ;
+	    Recent         recent ;
+	    Reset           reset ;
+	    Set               set ;
+	    Sleep           sleep ;
+	    StopIfLate stopIfLate ;
+	    Time             time ;
+	    Wait             wait ;
+	    WaitFor       waitFor ;
+	    WaitLevel   waitLevel ;
 	    
-	    Value(Assume const& assume) : assume(assume) {}
-	    Value(Levels const& levels) : levels(levels) {}
-	    Value(Mode   const&   mode) :   mode  (mode) {}
-	    Value(Recent const& recent) : recent(recent) {}
-	    Value(Reset  const&  reset) : reset  (reset) {}
-	    Value(Set    const&    set) : set      (set) {}
-	    Value(Sleep  const&  sleep) : sleep  (sleep) {}
-	    Value(Time   const&   time) : time    (time) {}
-	    Value(Wait   const&   wait) : wait    (wait) {}
-	    Value(WaitLevel const& waitLevel) : waitLevel(waitLevel) {}
+	    Value(Assume     const&     assume) : assume        (assume) {}
+	    Value(Levels     const&     levels) : levels        (levels) {}
+	    Value(Mode       const&       mode) : mode            (mode) {}
+	    Value(Recent     const&     recent) : recent        (recent) {}
+	    Value(Reset      const&      reset) : reset          (reset) {}
+	    Value(Set        const&        set) : set              (set) {}
+	    Value(Sleep      const&      sleep) : sleep          (sleep) {}
+	    Value(StopIfLate const& stopIfLate) : stopIfLate(stopIfLate) {}
+	    Value(Time       const&       time) : time            (time) {}
+	    Value(Wait       const&       wait) : wait            (wait) {}
+	    Value(WaitFor    const&    waitFor) : waitFor      (waitFor) {}
+	    Value(WaitLevel  const&  waitLevel) : waitLevel  (waitLevel) {}
 	} ;
 	
 	Value value ;
@@ -169,9 +204,9 @@ struct Bang
 	Command(Choice choice,Value value)
 	    : choice(choice),value(value) {}
 
-	static Command assume(uint32_t *t0,uint32_t span)
+	static Command assume(uint32_t *t0,uint32_t span,unsigned error)
 	{
-	    return Command(Choice::Assume,Assume(t0,span)) ;
+	    return Command(Choice::Assume,Assume(t0,span,error)) ;
 	}
 
 	static Command levels(uint32_t *pins)
@@ -204,6 +239,11 @@ struct Bang
 	    return Command(Choice::Sleep,Sleep(span)) ;
 	}
 
+	static Command stopIfLate(uint32_t *t0,uint32_t span,uint32_t *t1)
+	{
+	    return Command(Choice::StopIfLate,StopIfLate(t0,span,t1)) ;
+	}
+
 	static Command time(uint32_t *ticks)
 	{
 	    return Command(Choice::Time,Time(ticks)) ;
@@ -214,6 +254,14 @@ struct Bang
 	    return Command(Choice::Wait,Wait(t0,span)) ;
 	}
 
+	static Command waitFor(uint32_t const *t0,
+			       uint32_t      span,
+			       uint32_t      mask,
+			       uint32_t      cond)
+	{
+	    return Command(Choice::WaitFor,WaitFor(t0,span,mask,cond)) ;
+	}
+	
 	static Command waitLevel(uint32_t const *t0,
 				 uint32_t      span,
 				 uint32_t       *t1,
@@ -233,31 +281,34 @@ struct Bang
 
     void execute(Command const &c)
     {
+	using Choice = Command::Choice ;
 	switch (c.choice)
 	{
-	case Command::Choice::Assume : assume(c.value.assume) ; break ;
-	case Command::Choice::Levels : levels(c.value.levels) ; break ;
-	case Command::Choice::Mode   :   mode(c.value.  mode) ; break ;
-	case Command::Choice::Recent : recent(c.value.recent) ; break ;
-	case Command::Choice::Reset  :  reset(c.value. reset) ; break ;
-	case Command::Choice::Set    :    set(c.value.   set) ; break ;
-	case Command::Choice::Sleep  :  sleep(c.value. sleep) ; break ;
-	case Command::Choice::Time   :   time(c.value.  time) ; break ;
-	case Command::Choice::Wait   :   wait(c.value.  wait) ; break ;
-	case Command::Choice::WaitLevel : waitLevel(c.value.waitLevel) ; break ;
+	case Choice::Assume     :     assume(c.value.    assume) ; break ;
+	case Choice::Levels     :     levels(c.value.    levels) ; break ;
+	case Choice::Mode       :       mode(c.value.      mode) ; break ;
+	case Choice::Recent     :     recent(c.value.    recent) ; break ;
+	case Choice::Reset      :      reset(c.value.     reset) ; break ;
+	case Choice::Set        :        set(c.value.       set) ; break ;
+	case Choice::Sleep      :      sleep(c.value.     sleep) ; break ;
+	case Choice::StopIfLate : stopIfLate(c.value.stopIfLate) ; break ;
+	case Choice::Time       :       time(c.value.      time) ; break ;
+	case Choice::Wait       :       wait(c.value.      wait) ; break ;
+	case Choice::WaitFor    :    waitFor(c.value.   waitFor) ; break ;
+	case Choice::WaitLevel  :   waitLevel(c.value.waitLevel) ; break ;
 	default: assert(false) ; abort() ;
 	}
     }
     
-    bool execute(std::vector<Command> const &v)
+    unsigned execute(std::vector<Command> const &v)
     {
 	for (auto &c : v)
 	{
-	    if (this->stop)
-		return false ;
+	    if (this->error != 0)
+		return this->error ;
 	    this->execute(c) ;
 	}
-	return true ;
+	return 0 ;
     }
 
     struct Stack
@@ -288,9 +339,9 @@ struct Bang
 	    return std::vector<Command>(q.begin(),q.end()) ;
 	}
 	
-	void assume(uint32_t *t0,uint32_t span)
+	void assume(uint32_t *t0,uint32_t span,unsigned error)
 	{
-	    q.push_back(Command::assume(t0,span)) ;
+	    q.push_back(Command::assume(t0,span,error)) ;
 	}
 
 	void levels(uint32_t *pins)
@@ -334,6 +385,11 @@ struct Bang
 	    q.push_back(Command::sleep(span)) ;
 	}
     
+	void stopIfLate(uint32_t *t0,uint32_t span,uint32_t *t1)
+	{
+	    q.push_back(Command::stopIfLate(t0,span,t1)) ;
+	}
+    
 	void time(uint32_t *ticks)
 	{
 	    q.push_back(Command::time(ticks)) ;
@@ -344,6 +400,24 @@ struct Bang
 	    q.push_back(Command::wait(t0,span)) ;
 	}
 
+	void waitFor(uint32_t const *t0,
+		     uint32_t      span,
+		     Rpi::Pin       pin,
+		     bool          high)
+	{
+	    auto mask = 1u<<pin.value() ;
+	    auto cond = high ? mask : 0u ;
+	    q.push_back(Command::waitFor(t0,span,mask,cond)) ;
+	}
+	
+	void waitFor(uint32_t const *t0,
+		     uint32_t      span,
+		     uint32_t      mask,
+		     uint32_t      cond)
+	{
+	    q.push_back(Command::waitFor(t0,span,mask,cond)) ;
+	}
+	
 	void waitLevel(uint32_t const *t0,
 		       uint32_t      span,
 		       uint32_t       *t1,
@@ -357,15 +431,18 @@ struct Bang
   
 private:
 
-    Rpi::Counter counter ; Rpi::Gpio gpio ; uint32_t t ;
+    Rpi::Counter counter ; Rpi::Gpio gpio ;
 
-    bool stop = false ; // todo: provide script line & error message
+    uint32_t t ; // last read time-stamp
+    uint32_t l ; // last read GPIO level
+
+    unsigned error = 0 ; // todo: provide script line & error message
 
     void assume(Command::Assume const &c)
     {
-	this->t = this->counter.clock() ;
+	//this->t = this->counter.clock() ;
 	if (this->t - (*c.t0) > c.span)
-	    this->stop = true ;
+	    this->error = error ;
     }
 
     void levels(Command::Levels const &c)
@@ -398,26 +475,6 @@ private:
 	(*c.ticks) = this->t ;
     }
 
-    void wait(Command::Wait const &c)
-    {
-	while (this->t - (*c.t0) < c.span) 
-	    this->t = this->counter.clock() ;
-    }
-    
-    void waitLevel(Command::WaitLevel const &c)
-    {
-	goto Start ;
-	while (this->t - (*c.t0) < c.span)
-	{
-	    this->t = this->counter.clock() ;
-	  Start:
-	    (*c.pins) = this->gpio.getLevels() ;
-	    if (c.cond == (*c.pins & c.mask))
-		break ;
-	}
-	(*c.t1) = this->t ;
-    }
-    
     void sleep(Command::Sleep const &c)
     {
 	if (c.span > 0)
@@ -428,6 +485,45 @@ private:
 	}
     }
 
+    void stopIfLate(Command::StopIfLate const &c)
+    {
+	if ((*c.t1) - (*c.t0) > c.span)
+	    this->error = 42 ; // [todo]
+    }
+
+    void wait(Command::Wait const &c)
+    {
+	while (this->t - (*c.t0) < c.span) 
+	    this->t = this->counter.clock() ;
+    }
+    
+    void waitFor(Command::WaitFor const &c)
+    {
+	do
+	{
+	    this->l = this->gpio.getLevels() ;
+	    if (c.cond == (this->l & c.mask))
+		return ; // [todo] success flag
+	    this->t = this->counter.clock() ;
+	}
+	while (this->t - (*c.t0) <= c.span) ;
+	// [todo] timeout flag
+    }
+    
+    void waitLevel(Command::WaitLevel const &c)
+    {
+	do
+	{
+	    this->l = this->gpio.getLevels() ;
+	    if (c.cond == (this->l & c.mask))
+		break ;
+	    this->t = this->counter.clock() ;
+	}
+	while (this->t - (*c.t0) <= c.span) ;
+	(*c.t1)   = this->t ;
+	(*c.pins) = this->l ;
+    }
+    
 } ; }
 	
 #endif // INCLUDE_RpiExt_Bang_h

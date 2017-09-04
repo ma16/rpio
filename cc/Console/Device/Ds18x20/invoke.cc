@@ -4,6 +4,8 @@
 #include <Device/Ds18x20/Bang.h>
 #include <Ui/strto.h>
 
+// [todo] command line options: timing and ARM counter frequency
+
 static std::vector<bool> to_bitStream(char const buffer[],size_t n)
 {
     std::vector<bool> v ; v.reserve(n*8) ;
@@ -46,9 +48,9 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     RpiExt::Bang scheduler(rpi) ;
 
     auto script = Bang(rpi,pin).convert(&stack) ;
-    auto success = scheduler.execute(script) ;
-    if (!success)
-	std::cerr << "timing failed\n" ;
+    auto error = scheduler.execute(script) ;
+    if (error != 0)
+	std::cerr << "error:" << error << '\n' ;
 }
 
 static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -62,9 +64,9 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     RpiExt::Bang scheduler(rpi) ;
 
     auto script = Bang(rpi,pin).readPad(&stack,&rx) ;
-    auto success = scheduler.execute(script) ;
-    if (!success)
-	std::cerr << "timing failed\n" ;
+    auto error = scheduler.execute(script) ;
+    if (error != 0)
+	std::cerr << "error:" << error << '\n' ;
     char buffer[9] ; Bang::pack(rx,72,1u<<pin.value(),buffer) ;
 
     // debugging
@@ -89,9 +91,9 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     RpiExt::Bang scheduler(rpi) ;
 
     auto script = Bang(rpi,pin).readRom(&stack,&rx) ;
-    auto success = scheduler.execute(script) ;
-    if (!success)
-	std::cerr << "timing failed\n" ;
+    auto error = scheduler.execute(script) ;
+    if (error != 0)
+	std::cerr << "error:" << error << '\n' ;
     char buffer[8] ; Bang::pack(rx,64,1u<<pin.value(),buffer) ;
     
     // debugging
