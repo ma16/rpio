@@ -118,6 +118,8 @@ void Device::Ds18x20::Bang::read(Enqueue *q,Stack *stack,bool *bit) const
     // make sure we got not interrupted when releasing the bus
     q->duration(t0,t3,duration) ;
     q->assume(duration,Op::Le,this->timing.rinit.max,32) ; 
+    // make sure we didn't reset the bus
+    q->assume(duration,Op::Le,this->timing.rstl/2,33) ; 
 
     // what did we receive? A one- or a zero-bit?
     q->duration(t0,t5,duration) ;
@@ -177,6 +179,14 @@ readRom(Stack *stack,bool(*rx)[64]) const
     // ROM-command: Read-ROM-Code
     this->write(&q,stack,static_cast<uint8_t>(0x33)) ;
     this->read(&q,stack,64,*rx) ;
+    return q.vector() ;
+}
+
+Device::Ds18x20::Bang::Script Device::Ds18x20::Bang::
+isIdle(Stack *stack,bool *idle) const
+{
+    Enqueue q ;
+    this->read(&q,stack,idle) ;
     return q.vector() ;
 }
 

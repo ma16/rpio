@@ -355,6 +355,7 @@ struct Bang
     
     unsigned execute(std::vector<Command> const &v)
     {
+	this->error = 0 ;
 	for (auto &c : v)
 	{
 	    if (this->error != 0)
@@ -517,7 +518,7 @@ private:
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level
 
-    unsigned error = 0 ; // todo: provide script line & error message
+    unsigned error ; // todo: provide script line & error message
 
     void assume(Command::Assume const &c)
     {

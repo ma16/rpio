@@ -44,8 +44,8 @@ struct Bang
 	1e-6,
 	{ 60e-6,120e-6 },
 	{  1e-6, 15e-6 },
-	{  1e-6, 10e-6 },
-	1e-6,
+	{  1e-6,  5e-6 },
+	3e-6,
 	15e-6,
 	480e-6,
 	480e-6,
@@ -64,6 +64,7 @@ struct Bang
     Script convert(Stack*) const ;
     Script readPad(Stack*,bool(*)[72]) const ;
     Script readRom(Stack*,bool(*)[64]) const ;
+    Script isIdle(Stack*,bool *idle) const ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {

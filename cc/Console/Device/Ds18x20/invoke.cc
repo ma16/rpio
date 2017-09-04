@@ -52,6 +52,7 @@ static std::ostream& operator<< (std::ostream &os,std::vector<bool> const &v)
 static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto wait = !argL->pop_if("-n") ;
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
     
@@ -61,7 +62,48 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto script = Bang(rpi,pin).convert(&stack) ;
     auto error = scheduler.execute(script) ;
     if (error != 0)
-	std::cerr << "error:" << error << '\n' ;
+    {
+	std::cerr << "start conversion error:" << error << '\n' ;
+	exit(1) ;
+    }
+
+    if (wait)
+    {
+	bool idle ;
+	script = Bang(rpi,pin).isIdle(&stack,&idle) ;
+	unsigned count = 1 ;
+	error = scheduler.execute(script) ;
+	while (error != 33 && !idle)
+	{
+	    error = scheduler.execute(script) ;
+	    ++count ;
+	}
+	if (error == 33)
+	{
+	    std::cerr << "got suspended while setting the bus low\n" ;
+	    exit(1) ;
+	}
+	bool rx[72] ;
+	script = Bang(rpi,pin).readPad(&stack,&rx) ;
+	error = scheduler.execute(script) ;
+	if (error != 0)
+	{
+	    std::cerr << "read scratch-pad error:" << error << '\n' ;
+	    exit(1) ;
+	}
+	char buffer[9] ; pack(rx,72,buffer) ;
+	auto bs = to_bitStream(buffer,sizeof(buffer)) ;
+	if (0 != Bang::crc(bs))
+	{
+	    std::cerr << "read scratch-pad crc error\n" ;
+	    exit(1) ;
+	}
+	auto pad = to_ull(bs) ;
+	auto temp = static_cast<int16_t>(pad & 0xffff) ;
+	auto mode = static_cast<unsigned>((pad >> 37) & 0x3) ;
+	auto div = 2u << mode ;
+	std::cout << static_cast<double>(temp) / div << '\n' ;
+    }
 }
 
 static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
