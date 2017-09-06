@@ -183,11 +183,11 @@ static void print(bool const (*rom)[64])
     char buffer[8] ; pack(*rom,64,buffer) ;
     // debugging
     auto v = to_bitStream(buffer,sizeof(buffer)) ; 
-    std::cout << v << '\n' ;
+    std::cout << v << ' ' ;
     v = to_bitStream(buffer,sizeof(buffer)-1) ;
 
     using Bang = Device::Ds18x20::Bang ;
-    std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
+    std::cout << std::hex << (unsigned)Bang::crc(v) << ' ' ;
 
     auto code = to_ull(v) ;
     std::cout << code << '\n' ;
@@ -202,23 +202,24 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     RpiExt::BangIo io(rpi) ;
 
+  Retry:
+    
     try
     {
 	bool prev[64],next[64] ;
 	Bang(rpi,pin).firstRom(&io,&next) ;
-	bool success ;
-	do
+	bool success = 1 ;
+	while (success) 
 	{
 	    print(&next) ;
 	    memcpy(prev,next,sizeof(prev)) ;
 	    success = Bang(rpi,pin).nextRom(&io,&prev,&next) ;
 	}
-	while (success) ;
     }
     catch (Bang::Error &e)
     {
 	std::cerr << "error:" << e.what() << '\n' ;
-	exit(1) ;
+	goto Retry ;
     }
 }
 

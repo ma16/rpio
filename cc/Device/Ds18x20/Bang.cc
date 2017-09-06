@@ -1,6 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include <Device/Ds18x20/Bang.h>
+#include <cassert>
 
 constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 
@@ -180,7 +181,7 @@ bool Device::Ds18x20::Bang::isBusy(RpiExt::BangIo *io) const
 
 
 void Device::Ds18x20::Bang::
-scan(RpiExt::BangIo *io,size_t offset,bool(*rx)[64]) const
+lowAddress(RpiExt::BangIo *io,size_t offset,bool(*rx)[64]) const
 {
     for (auto i=offset ; i<64 ; ++i)
     {
@@ -204,6 +205,50 @@ scan(RpiExt::BangIo *io,size_t offset,bool(*rx)[64]) const
     }
 }
 
+unsigned /* 0..64 */ Device::Ds18x20::Bang::
+scanAddress(RpiExt::BangIo *io,bool const(*rom)[64]) const
+{
+    this->init(io) ;
+    // ROM-command: Search Read-ROM-Code
+    this->write(io,static_cast<uint8_t>(0xf0)) ;
+    // [todo] support Search Alarm ROM code too
+
+    auto i = 0u ;
+    auto branch = 64u ;
+    
+    while (i < 64)
+    {
+	auto bit = this->read(io) ;
+	auto inv = this->read(io) ;
+
+	if ((bit == 1) && (inv == 1))
+	{
+	    // no device (if i=0 and if the not sent presence pulse was ignored)
+	    // or device was just now removed
+	    throw Error(std::to_string(__LINE__)) ;
+	}
+	if (bit != inv) // (0,1) and (1,0)
+	{
+	    if ((*rom)[i] != bit)
+		// just now device was removed
+		throw Error(std::to_string(__LINE__)) ;
+	}
+	else // (0,0)
+	{
+            // attached devices split into 0 and 1 addresses
+	    if ((*rom)[i] == 0)
+	    {
+		// address is in the low-address-branch, so we might
+		// wanna branch here (unless there are other branches)
+		branch = i ;
+	    }
+	}
+
+	this->write(io,(*rom)[i]) ;
+	++i ;
+    }
+    return branch ;
+}
 
 void Device::Ds18x20::Bang::firstRom(RpiExt::BangIo *io,bool(*rx)[64]) const
 {
@@ -211,9 +256,71 @@ void Device::Ds18x20::Bang::firstRom(RpiExt::BangIo *io,bool(*rx)[64]) const
     // ROM-command: Search Read-ROM-Code
     this->write(io,static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
-    this->scan(io,0,rx) ;
+    return this->lowAddress(io,0,rx) ;
 } 
 
+#if 1
+bool Device::Ds18x20::Bang::
+nextRom(RpiExt::BangIo *io,bool const(*prev)[64],bool (*next)[64]) const
+{
+    auto branch = scanAddress(io,prev) ;
+    if (branch == 64)
+	return false ;
+    
+    this->init(io) ;
+    // ROM-command: Search Read-ROM-Code
+    this->write(io,static_cast<uint8_t>(0xf0)) ;
+    // [todo] support Search Alarm ROM code too
+
+    for (auto i=0u ; i<branch ; ++i)
+    {
+	auto bit = this->read(io) ;
+	auto inv = this->read(io) ;
+
+	if ((bit == 1) && (inv == 1))
+	    // no device (if i=0 and if the not sent presence pulse was ignored)
+	    // or device was just now removed
+	    throw Error(std::to_string(__LINE__)) ;
+	
+	if (bit != inv) // (0,1) and (1,0)
+	{
+	    if ((*prev)[i] != bit)
+		// previous device has been just now removed
+		throw Error(std::to_string(__LINE__)) ;
+	}
+
+	(*next)[i] = (*prev)[i] ;
+	this->write(io,(*next)[i]) ;
+    }
+
+    { // switch branch 
+	auto bit = this->read(io) ;
+	auto inv = this->read(io) ;
+
+	if ((bit == 1) && (inv == 1))
+	    // no device (if i=0 and if the not sent presence pulse was ignored)
+	    // or device was just now removed
+	    throw Error(std::to_string(__LINE__)) ;
+    
+	if (bit != inv) // (0,1) and (1,0)
+	{
+	    // this has to be a branch; device removed? 
+	    throw Error(std::to_string(__LINE__)) ;
+	}
+	else // (0,0)
+	{
+	    assert((*prev)[branch] == 0) ;
+	    // otherwise we got a bug in scanAddress()
+	}
+    
+	(*next)[branch] = 1 ;
+	this->write(io,true) ;
+    }
+
+    this->lowAddress(io,branch+1,next) ;
+    return true ;
+}
+#else
 bool Device::Ds18x20::Bang::
 nextRom(RpiExt::BangIo *io,bool const(*prev)[64],bool (*next)[64]) const
 {
@@ -265,9 +372,10 @@ nextRom(RpiExt::BangIo *io,bool const(*prev)[64],bool (*next)[64]) const
 	if (i == 64)
 	    return false ;
     }
-    this->scan(io,i,next) ;
+    this->lowAddress(io,i,next) ;
     return true ;
 }
+#endif
 
 Device::Ds18x20::Bang::Timing<uint32_t>
 Device::Ds18x20::Bang::ticks(Timing<double> const &seconds,double tps)
