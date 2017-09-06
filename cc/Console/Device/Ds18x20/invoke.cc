@@ -167,7 +167,10 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     {
 	RpiExt::BangIo io(rpi) ;
 	auto address = Bang(rpi,pin).address(&io) ;
-	print(address) ;
+	if (address)
+	    print(*address) ;
+	else
+	    std::cout << "no device present\n" ;
     }
     catch (Bang::Error &e)
     {
@@ -183,18 +186,19 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
 
+	RpiExt::BangIo io(rpi) ;
+	
   Retry:
     
     try
     {
-	RpiExt::BangIo io(rpi) ;
 	auto next = Bang(rpi,pin).first(&io) ;
-	bool success = 1 ;
-	while (success) 
+	if (!next)
+	    std::cout << "no device present\n" ;
+	while (next) 
 	{
-	    print(next) ;
-	    auto prev = next ;
-	    success = Bang(rpi,pin).next(&io,prev,&next) ;
+	    print(*next) ;
+	    next = Bang(rpi,pin).next(&io,*next) ;
 	}
     }
     catch (Bang::Error &e)

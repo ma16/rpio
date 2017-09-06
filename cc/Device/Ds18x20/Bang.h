@@ -6,6 +6,7 @@
 #include <Neat/Bit/Crc.h>
 #include <RpiExt/BangIo.h>
 #include <bitset>
+#include <boost/optional.hpp>
 
 namespace Device { namespace Ds18x20 {
 
@@ -70,9 +71,10 @@ struct Bang
 
     using Address = std::bitset<64> ; // the "ROM code"
 
-    Address address (RpiExt::BangIo*) const ;
-    Address first   (RpiExt::BangIo*) const ;
-    bool    next    (RpiExt::BangIo*,Address const &prev,Address *next) const ;
+    boost::optional<Address> address(RpiExt::BangIo*) const ;
+    
+    boost::optional<Address> first(RpiExt::BangIo*) const ;
+    boost::optional<Address> next(RpiExt::BangIo*,Address const &prev) const ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
@@ -96,7 +98,7 @@ struct Bang
 
 private:
 
-    void  init(RpiExt::BangIo*) const ;
+    bool  init(RpiExt::BangIo*) const ;
     bool  read(RpiExt::BangIo*) const ;
     void  read(RpiExt::BangIo*,size_t nbits,bool *bitA) const ;
     void write(RpiExt::BangIo*,bool bit) const ;
