@@ -63,18 +63,25 @@ struct Bang
     // * busPin.mode=Input (changed between input and output)
     // * busPin.outputLevel = Low (not changed)
 
-    using Rom = std::bitset<64> ;
     
     void convert (RpiExt::BangIo*) const ;
     void readPad (RpiExt::BangIo*,bool(*)[72]) const ;
-    void readRom (RpiExt::BangIo*,bool(*rx)[64]) const ;
-    void firstRom (RpiExt::BangIo*,bool(*rx)[64]) const ;
-    bool nextRom (RpiExt::BangIo*,bool const(*prev)[64],bool(*next)[64]) const ;
     bool  isBusy (RpiExt::BangIo*) const ;
+
+    using Address = std::bitset<64> ; // the "ROM code"
+
+    Address address (RpiExt::BangIo*) const ;
+    Address first   (RpiExt::BangIo*) const ;
+    bool    next    (RpiExt::BangIo*,Address const &prev,Address *next) const ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
 	return Neat::Bit::Crc::x31(v) ;
+    }
+
+    template<size_t N> static uint8_t crc(std::bitset<N> const &set)
+    {
+	return Neat::Bit::Crc::x31(set) ;
     }
     
     Bang(
@@ -95,9 +102,9 @@ private:
     void write(RpiExt::BangIo*,bool bit) const ;
     void write(RpiExt::BangIo*,uint8_t byte) const ;
 
-    void lowAddress(RpiExt::BangIo*,size_t offset,bool(*rx)[64]) const ;
+    void complete(RpiExt::BangIo*,size_t offset,Address*) const ;
 
-    unsigned /* 0..64 */ scanAddress(RpiExt::BangIo*,bool const(*rom)[64]) const ;
+    unsigned /* 0..64 */ scan(RpiExt::BangIo*,Address const&) const ;
     
     
     Rpi::Peripheral *rpi ;

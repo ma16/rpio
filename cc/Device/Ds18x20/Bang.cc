@@ -166,22 +166,29 @@ void Device::Ds18x20::Bang::readPad(RpiExt::BangIo *io,bool(*rx)[72]) const
     Bang::read(io,72,*rx) ;
 }
 
-void Device::Ds18x20::Bang::readRom(RpiExt::BangIo *io,bool(*rx)[64]) const
-{
-    this->init(io) ;
-    // ROM-command: Read-ROM-Code
-    this->write(io,static_cast<uint8_t>(0x33)) ;
-    this->read(io,64,*rx) ;
-}
-
 bool Device::Ds18x20::Bang::isBusy(RpiExt::BangIo *io) const
 {
     return !this->read(io) ;
 }
 
+// ----
+
+Device::Ds18x20::Bang::Address Device::Ds18x20::Bang::
+address(RpiExt::BangIo *io) const
+{
+    this->init(io) ;
+    // ROM-command: Read-ROM-Code
+    this->write(io,static_cast<uint8_t>(0x33)) ;
+    bool rx[64] ;
+    this->read(io,64,rx) ;
+    Address address ;
+    for (auto i=0u ; i<64 ; ++i)
+	address[i] = rx[i] ;
+    return address ;
+}
 
 void Device::Ds18x20::Bang::
-lowAddress(RpiExt::BangIo *io,size_t offset,bool(*rx)[64]) const
+complete(RpiExt::BangIo *io,size_t offset,Address *address) const
 {
     for (auto i=offset ; i<64 ; ++i)
     {
@@ -201,22 +208,21 @@ lowAddress(RpiExt::BangIo *io,size_t offset,bool(*rx)[64]) const
 	this->write(io,bit) ;
 	// ...proceed with the lowest address bit (if more than one)
 	
-	(*rx)[i] = bit ;
+	(*address)[i] = bit ;
     }
 }
 
 unsigned /* 0..64 */ Device::Ds18x20::Bang::
-scanAddress(RpiExt::BangIo *io,bool const(*rom)[64]) const
+scan(RpiExt::BangIo *io,Address const &address) const
 {
     this->init(io) ;
     // ROM-command: Search Read-ROM-Code
     this->write(io,static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
 
-    auto i = 0u ;
     auto branch = 64u ;
     
-    while (i < 64)
+    for (auto i=0u ; i<64 ; ++i)
     {
 	auto bit = this->read(io) ;
 	auto inv = this->read(io) ;
@@ -229,14 +235,14 @@ scanAddress(RpiExt::BangIo *io,bool const(*rom)[64]) const
 	}
 	if (bit != inv) // (0,1) and (1,0)
 	{
-	    if ((*rom)[i] != bit)
+	    if (address[i] != bit)
 		// just now device was removed
 		throw Error(std::to_string(__LINE__)) ;
 	}
 	else // (0,0)
 	{
             // attached devices split into 0 and 1 addresses
-	    if ((*rom)[i] == 0)
+	    if (address[i] == 0)
 	    {
 		// address is in the low-address-branch, so we might
 		// wanna branch here (unless there are other branches)
@@ -244,26 +250,27 @@ scanAddress(RpiExt::BangIo *io,bool const(*rom)[64]) const
 	    }
 	}
 
-	this->write(io,(*rom)[i]) ;
-	++i ;
+	this->write(io,address[i]) ;
     }
     return branch ;
 }
 
-void Device::Ds18x20::Bang::firstRom(RpiExt::BangIo *io,bool(*rx)[64]) const
+Device::Ds18x20::Bang::Address Device::Ds18x20::Bang::
+first(RpiExt::BangIo *io) const
 {
     this->init(io) ;
     // ROM-command: Search Read-ROM-Code
     this->write(io,static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
-    return this->lowAddress(io,0,rx) ;
+    Address address ;
+    this->complete(io,0,&address) ;
+    return address ;
 } 
 
-#if 1
 bool Device::Ds18x20::Bang::
-nextRom(RpiExt::BangIo *io,bool const(*prev)[64],bool (*next)[64]) const
+next(RpiExt::BangIo *io,Address const &prev,Address *next) const
 {
-    auto branch = scanAddress(io,prev) ;
+    auto branch = this->scan(io,prev) ;
     if (branch == 64)
 	return false ;
     
@@ -284,12 +291,12 @@ nextRom(RpiExt::BangIo *io,bool const(*prev)[64],bool (*next)[64]) const
 	
 	if (bit != inv) // (0,1) and (1,0)
 	{
-	    if ((*prev)[i] != bit)
+	    if (prev[i] != bit)
 		// previous device has been just now removed
 		throw Error(std::to_string(__LINE__)) ;
 	}
 
-	(*next)[i] = (*prev)[i] ;
+	(*next)[i] = prev[i] ;
 	this->write(io,(*next)[i]) ;
     }
 
@@ -309,73 +316,17 @@ nextRom(RpiExt::BangIo *io,bool const(*prev)[64],bool (*next)[64]) const
 	}
 	else // (0,0)
 	{
-	    assert((*prev)[branch] == 0) ;
-	    // otherwise we got a bug in scanAddress()
+	    assert(prev[branch] == 0) ;
+	    // otherwise we got a bug in scan()
 	}
     
 	(*next)[branch] = 1 ;
 	this->write(io,true) ;
     }
 
-    this->lowAddress(io,branch+1,next) ;
+    this->complete(io,branch+1,next) ;
     return true ;
 }
-#else
-bool Device::Ds18x20::Bang::
-nextRom(RpiExt::BangIo *io,bool const(*prev)[64],bool (*next)[64]) const
-{
-    this->init(io) ;
-    // ROM-command: Search Read-ROM-Code
-    this->write(io,static_cast<uint8_t>(0xf0)) ;
-    // [todo] support Search Alarm ROM code too
-
-    auto i = 0u ;
-    
-    while (i < 64)
-    {
-	auto bit = this->read(io) ;
-	auto inv = this->read(io) ;
-
-	if ((bit == 1) && (inv == 1))
-	    // no device (if i=0 and if the not sent presence pulse was ignored)
-	    // or device was just now removed
-	    throw Error(std::to_string(__LINE__)) ;
-	
-	if (bit != inv) // (0,1) and (1,0)
-	{
-	    if ((*prev)[i] != bit)
-		// previous device has been just now removed
-		throw Error(std::to_string(__LINE__)) ;
-	    (*next)[i] = bit ;
-	}
-	else // (0,0)
-	{
-            // attached devices split into 0 and 1 addresses
-	    if ((*prev)[i] == 0)
-	    {
-		// previous address is in the low-address-branch, 
-		// we proceed in the high-address-branch
-		(*next)[i] = 1 ;
-		this->write(io,(*next)[i]) ;
-		++i ;
-		break ;
-	    }
-	    else
-	    {
-		// previous address is already in the high-address-branch
-		(*next)[i] = prev[i] ;
-	    }
-	}
-
-	this->write(io,(*next)[i]) ;
-	++i ;
-	if (i == 64)
-	    return false ;
-    }
-    this->lowAddress(io,i,next) ;
-    return true ;
-}
-#endif
 
 Device::Ds18x20::Bang::Timing<uint32_t>
 Device::Ds18x20::Bang::ticks(Timing<double> const &seconds,double tps)

@@ -146,51 +146,34 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     std::cout << pad << '\n' ;
 }
 
+static void print(Device::Ds18x20::Bang::Address const &address)
+{
+    using Bang = Device::Ds18x20::Bang ;
+    auto crc = 0 == Bang::crc(address) ;
+    std::cout
+	<< std::hex << address.to_ullong() << ' '
+	<< address << ' '
+	<< (crc ? "crc:ok" : "crc:failure") << '\n' ;
+}
+
 static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     using Bang = Device::Ds18x20::Bang ;
   
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
-    
-    bool rx[64] ;
-    RpiExt::BangIo io(rpi) ;
 
     try
     {
-	Bang(rpi,pin).readRom(&io,&rx) ;
+	RpiExt::BangIo io(rpi) ;
+	auto address = Bang(rpi,pin).address(&io) ;
+	print(address) ;
     }
     catch (Bang::Error &e)
     {
 	std::cerr << "error:" << e.what() << '\n' ;
 	exit(1) ;
     }
-	
-    char buffer[8] ; pack(rx,64,buffer) ;
-    
-    // debugging
-    auto v = to_bitStream(buffer,sizeof(buffer)) ; 
-    std::cout << v << '\n' ;
-    v = to_bitStream(buffer,sizeof(buffer)-1) ; 
-    std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
-
-    auto code = to_ull(v) ;
-    std::cout << code << '\n' ;
-}
-
-static void print(bool const (*rom)[64])
-{
-    char buffer[8] ; pack(*rom,64,buffer) ;
-    // debugging
-    auto v = to_bitStream(buffer,sizeof(buffer)) ; 
-    std::cout << v << ' ' ;
-    v = to_bitStream(buffer,sizeof(buffer)-1) ;
-
-    using Bang = Device::Ds18x20::Bang ;
-    std::cout << std::hex << (unsigned)Bang::crc(v) << ' ' ;
-
-    auto code = to_ull(v) ;
-    std::cout << code << '\n' ;
 }
 
 static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -199,21 +182,19 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
-    
-    RpiExt::BangIo io(rpi) ;
 
   Retry:
     
     try
     {
-	bool prev[64],next[64] ;
-	Bang(rpi,pin).firstRom(&io,&next) ;
+	RpiExt::BangIo io(rpi) ;
+	auto next = Bang(rpi,pin).first(&io) ;
 	bool success = 1 ;
 	while (success) 
 	{
-	    print(&next) ;
-	    memcpy(prev,next,sizeof(prev)) ;
-	    success = Bang(rpi,pin).nextRom(&io,&prev,&next) ;
+	    print(next) ;
+	    auto prev = next ;
+	    success = Bang(rpi,pin).next(&io,prev,&next) ;
 	}
     }
     catch (Bang::Error &e)
