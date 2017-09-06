@@ -62,10 +62,12 @@ struct Bang
     // * busPin.mode=Input (changed between input and output)
     // * busPin.outputLevel = Low (not changed)
 
-    void convert(RpiExt::BangIo*) const ;
-    void readPad(RpiExt::BangIo*,bool(*)[72]) const ;
-    void readRom(RpiExt::BangIo*,bool(*rx)[64]) const ;
-    bool isBusy(RpiExt::BangIo*) const ;
+    void convert  (RpiExt::BangIo*) const ;
+    void readPad  (RpiExt::BangIo*,bool(*)[72]) const ;
+    void readRom  (RpiExt::BangIo*,bool(*rx)[64]) const ;
+    void firstRom (RpiExt::BangIo*,bool(*rx)[64]) const ;
+    bool nextRom  (RpiExt::BangIo*,bool const(*prev)[64],bool(*next)[64]) const ;
+    bool isBusy   (RpiExt::BangIo*) const ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
@@ -76,13 +78,18 @@ struct Bang
 	Rpi::Peripheral *rpi,
 	Rpi::Pin busPin,
 	Timing<uint32_t> const& timing = ticks(spec,250e+6))
-	: rpi(rpi),busPin(busPin),pinMask(1u << busPin.value()),timing(timing) {}
+
+	: rpi                     (rpi)
+	, busPin               (busPin)
+	, pinMask(1u << busPin.value())
+	, timing               (timing) {}
 
 private:
 
     void  init(RpiExt::BangIo*) const ;
     bool  read(RpiExt::BangIo*) const ;
     void  read(RpiExt::BangIo*,size_t nbits,bool *bitA) const ;
+    void  scan(RpiExt::BangIo*,size_t offset,bool(*rx)[64]) const ;
     void write(RpiExt::BangIo*,bool bit) const ;
     void write(RpiExt::BangIo*,uint8_t byte) const ;
     

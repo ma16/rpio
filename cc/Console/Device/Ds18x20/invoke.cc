@@ -178,6 +178,50 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     std::cout << code << '\n' ;
 }
 
+static void print(bool const (*rom)[64])
+{
+    char buffer[8] ; pack(*rom,64,buffer) ;
+    // debugging
+    auto v = to_bitStream(buffer,sizeof(buffer)) ; 
+    std::cout << v << '\n' ;
+    v = to_bitStream(buffer,sizeof(buffer)-1) ;
+
+    using Bang = Device::Ds18x20::Bang ;
+    std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
+
+    auto code = to_ull(v) ;
+    std::cout << code << '\n' ;
+}
+
+static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    using Bang = Device::Ds18x20::Bang ;
+  
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    argL->finalize() ;
+    
+    RpiExt::BangIo io(rpi) ;
+
+    try
+    {
+	bool prev[64],next[64] ;
+	Bang(rpi,pin).firstRom(&io,&next) ;
+	bool success ;
+	do
+	{
+	    print(&next) ;
+	    memcpy(prev,next,sizeof(prev)) ;
+	    success = Bang(rpi,pin).nextRom(&io,&prev,&next) ;
+	}
+	while (success) ;
+    }
+    catch (Bang::Error &e)
+    {
+	std::cerr << "error:" << e.what() << '\n' ;
+	exit(1) ;
+    }
+}
+
 #include <Rpi/Timer.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -248,6 +292,7 @@ void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     else if (arg == "convert") convert(rpi,argL) ;
     else if (arg == "rom") rom(rpi,argL) ;
     else if (arg == "pad") pad(rpi,argL) ;
+    else if (arg == "search") search(rpi,argL) ;
     
     else if (arg == "test") test(rpi,argL) ;
   

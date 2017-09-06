@@ -6,6 +6,8 @@ constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 
 void Device::Ds18x20::Bang::init(RpiExt::BangIo *io) const
 {
+    // todo: true if there is at least one device, false otherwise
+  
     //  t0 t1 t2 t3 t4 t5 t6 t7
     // ---+     +-----+     +----...
     //    |     |     |     |
@@ -23,20 +25,34 @@ void Device::Ds18x20::Bang::init(RpiExt::BangIo *io) const
     auto t5 = io->recent() ;
     if (t5 - t2 > this->timing.pdhigh.max)
 	throw Error(std::to_string(__LINE__)) ;
+    // [todo] this can trigger anytime since (t2,t5) are time-stamps
+    // beyond the real edges
     if (t4 - t3 < this->timing.pdhigh.min)
 	throw Error(std::to_string(__LINE__)) ;
+    // [todo] this can trigger anytime since (t3,t4) are time-stamps
+    // beyond the real edges
+
+    // [todo] a hard criteria would be met
+    // -- if (t5-t2) < min
+    // -- if (t4-t3) > max
     
     // rx: wait for LH-edge (end of Presence-Pulse)
-    auto t6 = io->waitFor(t4,
+    auto t6 = io->waitFor(t5,
 			  this->timing.pdlow.max,
 			  this->pinMask,
 			  /*High*/this->pinMask) ;
     auto t7 = io->recent() ;
     if (t7 - t4 > this->timing.pdlow.max)
 	throw Error(std::to_string(__LINE__)) ;
+    // [todo] this can trigger anytime 
     if (t6 - t5 < this->timing.pdlow.min)
 	throw Error(std::to_string(__LINE__)) ;
+    // [todo] this can trigger anytime 
 
+    // [todo] hard criteria
+    // -- if (t7-t4) < min
+    // -- if (t6-t5) > max
+    
     // rx: wait for end of Presence-Pulse cycle
     io->wait(t3,this->timing.rsth) ;
 }
@@ -58,6 +74,7 @@ void Device::Ds18x20::Bang::write(RpiExt::BangIo *io,bool bit) const
     auto t3 = io->time() ; 
     if (t3 - t0 > range.max) 
 	throw Error(std::to_string(__LINE__)) ;
+    // [todo] false positives
 
     // minimum recovery time (after LH edge)
     io->wait(t3,this->timing.rec) ;
@@ -161,41 +178,96 @@ bool Device::Ds18x20::Bang::isBusy(RpiExt::BangIo *io) const
     return !this->read(io) ;
 }
 
-#if 0
 
-// this doesn't work with script generator; at least not without
-// heavy modifications to the script generator
-
-? searchRom(Stack *stack,bool(*rx)[64]) const
+void Device::Ds18x20::Bang::
+scan(RpiExt::BangIo *io,size_t offset,bool(*rx)[64]) const
 {
-    this->init(&q,stack) ;
-    // ROM-command: Search Read-ROM-Code
-    this->write(&q,stack,static_cast<uint8_t>(0xf0)) ;
-    for (auto i=0u ; i<64 ; ++i)
+    for (auto i=offset ; i<64 ; ++i)
     {
-	auto sp = stack->save() ;
-	//auto bit = reinterpret_cast<bool*>(stack.push()) ;
-	//this->read(&q,stack,bit) ;
-	this->read(&q,stack,(*rx)+i) ;
-	auto inv = reinterpret_cast<bool*>(stack->push()) ;
-	this->read(&q,stack,inv) ;
+	auto bit = this->read(io) ;
+	auto inv = this->read(io) ;
 
-	// if 0-1: branch into 0
-	// if 1-0: branch into 1
-	q->call((*rx)+i,write1,write0) ;
-
-	// if 1-1: end of list ; no device (bit0) or device removed
+	if ((bit == 1) && (inv == 1))
+	{
+	    // no device (if i=0 and if the not sent presence pulse was ignored)
+	    // or device was just now removed
+	    throw Error(std::to_string(__LINE__)) ;
+	}
 	
-	//this->write(&q,stack,(*rx)+i) ;
-	//this->write(&q,stack,inv) ;
+	// if 0-1: address bit is 1 (for all attached devices)
+	// if 1-0: address bit is 0 (for all attached devices)
+	// if 0-0: attached devices split into 0 and 1 addresses
+	this->write(io,bit) ;
+	// ...proceed with the lowest address bit (if more than one)
 	
-	// if 0-0:
-	// ...
-	stack->recover(sp) ;
+	(*rx)[i] = bit ;
     }
-    return q.vector() ;
 }
-#endif
+
+
+void Device::Ds18x20::Bang::firstRom(RpiExt::BangIo *io,bool(*rx)[64]) const
+{
+    this->init(io) ;
+    // ROM-command: Search Read-ROM-Code
+    this->write(io,static_cast<uint8_t>(0xf0)) ;
+    // [todo] support Search Alarm ROM code too
+    this->scan(io,0,rx) ;
+} 
+
+bool Device::Ds18x20::Bang::
+nextRom(RpiExt::BangIo *io,bool const(*prev)[64],bool (*next)[64]) const
+{
+    this->init(io) ;
+    // ROM-command: Search Read-ROM-Code
+    this->write(io,static_cast<uint8_t>(0xf0)) ;
+    // [todo] support Search Alarm ROM code too
+
+    auto i = 0u ;
+    
+    while (i < 64)
+    {
+	auto bit = this->read(io) ;
+	auto inv = this->read(io) ;
+
+	if ((bit == 1) && (inv == 1))
+	    // no device (if i=0 and if the not sent presence pulse was ignored)
+	    // or device was just now removed
+	    throw Error(std::to_string(__LINE__)) ;
+	
+	if (bit != inv) // (0,1) and (1,0)
+	{
+	    if ((*prev)[i] != bit)
+		// previous device has been just now removed
+		throw Error(std::to_string(__LINE__)) ;
+	    (*next)[i] = bit ;
+	}
+	else // (0,0)
+	{
+            // attached devices split into 0 and 1 addresses
+	    if ((*prev)[i] == 0)
+	    {
+		// previous address is in the low-address-branch, 
+		// we proceed in the high-address-branch
+		(*next)[i] = 1 ;
+		this->write(io,(*next)[i]) ;
+		++i ;
+		break ;
+	    }
+	    else
+	    {
+		// previous address is already in the high-address-branch
+		(*next)[i] = prev[i] ;
+	    }
+	}
+
+	this->write(io,(*next)[i]) ;
+	++i ;
+	if (i == 64)
+	    return false ;
+    }
+    this->scan(io,i,next) ;
+    return true ;
+}
 
 Device::Ds18x20::Bang::Timing<uint32_t>
 Device::Ds18x20::Bang::ticks(Timing<double> const &seconds,double tps)
