@@ -5,7 +5,7 @@
 
 constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 
-bool Device::Ds18x20::Bang::init(RpiExt::BangIo *io) const
+bool Device::Ds18x20::Bang::init()
 {
     //  t0 t1 t2 t3 t4 t5 t6 t7
     // ---+     +-----+     +----...
@@ -13,15 +13,15 @@ bool Device::Ds18x20::Bang::init(RpiExt::BangIo *io) const
     //    +-----+     +-----+
     
     // tx: Reset-Pulse
-    io->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    io->sleep(this->timing.rstl) ;
-    auto t2 = io->time() ; 
-    io->mode(this->busPin,Rpi::Gpio::Mode::In) ;
+    this->io.mode(this->busPin,Rpi::Gpio::Mode::Out) ;
+    this->io.sleep(this->timing.rstl) ;
+    auto t2 = this->io.time() ; 
+    this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
     
     // rx: wait for HL-edge (start of Presence-Pulse)
-    auto t3 = io->time() ;
-    auto t4 = io->waitFor(t2,this->timing.pdhigh.max,this->pinMask,/*Low*/0) ;
-    auto t5 = io->recent() ;
+    auto t3 = this->io.time() ;
+    auto t4 = this->io.waitFor(t2,this->timing.pdhigh.max,this->pinMask,/*Low*/0) ;
+    auto t5 = this->io.recent() ;
 
     auto isPresent = t5 - t2 <= this->timing.pdhigh.max ;
     // [todo] if we got suspended, we may get a not-present
@@ -37,11 +37,11 @@ bool Device::Ds18x20::Bang::init(RpiExt::BangIo *io) const
 	// -- if (t4-t3) > max
     
 	// rx: wait for LH-edge (end of Presence-Pulse)
-	auto t6 = io->waitFor(t5,
+	auto t6 = this->io.waitFor(t5,
 			      this->timing.pdlow.max,
 			      this->pinMask,
 			      /*High*/this->pinMask) ;
-	auto t7 = io->recent() ;
+	auto t7 = this->io.recent() ;
 	if (t7 - t4 > this->timing.pdlow.max)
 	    throw Error(std::to_string(__LINE__)) ;
 	// [todo] this can trigger anytime 
@@ -55,12 +55,12 @@ bool Device::Ds18x20::Bang::init(RpiExt::BangIo *io) const
     }
     
     // rx: wait for end of Presence-Pulse cycle
-    io->wait(t3,this->timing.rsth) ;
+    this->io.wait(t3,this->timing.rsth) ;
 
     return isPresent ;
 }
 
-void Device::Ds18x20::Bang::write(RpiExt::BangIo *io,bool bit) const
+void Device::Ds18x20::Bang::write(bool bit) 
 {
     //  t0 t1 t2 t3
     // ---+     +---
@@ -68,34 +68,34 @@ void Device::Ds18x20::Bang::write(RpiExt::BangIo *io,bool bit) const
     //    +-----+
 
     // tx: Bit Pulse
-    auto t0 = io->time() ;
-    io->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    auto t1 = io->time() ;
+    auto t0 = this->io.time() ;
+    this->io.mode(this->busPin,Rpi::Gpio::Mode::Out) ;
+    auto t1 = this->io.time() ;
     auto range = bit ? this->timing.low1 : this->timing.low0 ;
-    io->wait(t1,range.min) ; 
-    io->mode(this->busPin,Rpi::Gpio::Mode::In) ;
-    auto t3 = io->time() ; 
+    this->io.wait(t1,range.min) ; 
+    this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
+    auto t3 = this->io.time() ; 
     if (t3 - t0 > range.max) 
 	throw Error(std::to_string(__LINE__)) ;
     // [todo] false positives
 
     // minimum recovery time (after LH edge)
-    io->wait(t3,this->timing.rec) ;
+    this->io.wait(t3,this->timing.rec) ;
 	
     // rx: wait for end of cycle
-    io->wait(t1,this->timing.slot.min) ;
+    this->io.wait(t1,this->timing.slot.min) ;
 }
 
-void Device::Ds18x20::Bang::write(RpiExt::BangIo *io,uint8_t byte) const
+void Device::Ds18x20::Bang::write(uint8_t byte)
 {
     for (auto i=0u ; i<8u ; ++i)
     {
 	auto bit = 0 != (byte & (1u<<i)) ;
-	this->write(io,bit) ;
+	this->write(bit) ;
     }
 }
 
-bool Device::Ds18x20::Bang::read(RpiExt::BangIo *io) const
+bool Device::Ds18x20::Bang::read()
 {
     //  t0 t1 t2 t3 t4 t5
     // ---+     +-----+---
@@ -103,16 +103,16 @@ bool Device::Ds18x20::Bang::read(RpiExt::BangIo *io) const
     //    +-----+-----+
 
     // tx: initiate Read-Time-Slot
-    auto t0 = io->time() ; 
-    io->mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    auto t1 = io->time() ; 
-    io->wait(t1,this->timing.rinit.min) ;
-    io->mode(this->busPin,Rpi::Gpio::Mode::In) ;
-    auto t3 = io->time() ; 
+    auto t0 = this->io.time() ; 
+    this->io.mode(this->busPin,Rpi::Gpio::Mode::Out) ;
+    auto t1 = this->io.time() ; 
+    this->io.wait(t1,this->timing.rinit.min) ;
+    this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
+    auto t3 = this->io.time() ; 
 
     // rx: wait for LH edge 
-    io->waitFor(t1,this->timing.slot.max,this->pinMask,/*High*/this->pinMask) ;
-    auto t5 = io->recent() ; 
+    this->io.waitFor(t1,this->timing.slot.max,this->pinMask,/*High*/this->pinMask) ;
+    auto t5 = this->io.recent() ; 
 
     // make sure we got not interrupted while HL edge
     if (t1 - t0 > this->timing.rinitgap)
@@ -129,75 +129,73 @@ bool Device::Ds18x20::Bang::read(RpiExt::BangIo *io) const
     auto bit = (t5 - t0) <= this->timing.rdv ; 
     
     // minimum recovery time (after LH edge)
-    io->wait(t5,this->timing.rec) ;
+    this->io.wait(t5,this->timing.rec) ;
 	
     // rx: wait for end of cycle
-    io->wait(t1,this->timing.slot.min) ;
+    this->io.wait(t1,this->timing.slot.min) ;
 
     return bit ;
 }
 
-void Device::Ds18x20::Bang::
-read(RpiExt::BangIo *io,size_t nbits,bool *bitA) const
+void Device::Ds18x20::Bang::read(size_t nbits,bool *bitA)
 {
     for (auto i=0u ; i<nbits ; ++i)
     {
-	bitA[i] = this->read(io) ;
+	bitA[i] = this->read() ;
     }
 }
 
-void Device::Ds18x20::Bang::convert(RpiExt::BangIo *io) const
+void Device::Ds18x20::Bang::convert()
 {
-    /* todo: return value */ this->init(io) ;
+    /* todo: return value */ this->init() ;
     // ROM-command: Skip-ROM-Code
-    this->write(io,static_cast<uint8_t>(0xcc)) ;
+    this->write(static_cast<uint8_t>(0xcc)) ;
     // Function-command: Convert-T
-    this->write(io,static_cast<uint8_t>(0x44)) ;
+    this->write(static_cast<uint8_t>(0x44)) ;
     // [todo]
     //   here we can issue Read-Time-Slot until 1;
     //   we would need our script to loop
 }
 
-void Device::Ds18x20::Bang::readPad(RpiExt::BangIo *io,bool(*rx)[72]) const
+void Device::Ds18x20::Bang::readPad(bool(*rx)[72])
 {
-    /* todo: return value */ this->init(io) ;
+    /* todo: return value */ this->init() ;
     // ROM-command: Skip-ROM-Code
-    this->write(io,static_cast<uint8_t>(0xcc)) ;
+    this->write(static_cast<uint8_t>(0xcc)) ;
     // Function-command: Read-Sratch-Pad
-    this->write(io,static_cast<uint8_t>(0xbe)) ;
-    Bang::read(io,72,*rx) ;
+    this->write(static_cast<uint8_t>(0xbe)) ;
+    Bang::read(72,*rx) ;
 }
 
-bool Device::Ds18x20::Bang::isBusy(RpiExt::BangIo *io) const
+bool Device::Ds18x20::Bang::isBusy()
 {
-    return !this->read(io) ;
+    return !this->read() ;
 }
 
 // ----
 
 boost::optional<Device::Ds18x20::Bang::Address> Device::Ds18x20::Bang::
-address(RpiExt::BangIo *io) const
+address()
 {
-    auto success = this->init(io) ;
+    auto success = this->init() ;
     if (!success)
 	return boost::none ;
     // ROM-command: Read-ROM-Code
-    this->write(io,static_cast<uint8_t>(0x33)) ;
+    this->write(static_cast<uint8_t>(0x33)) ;
     bool rx[64] ;
-    this->read(io,64,rx) ;
+    this->read(64,rx) ;
     Address address ;
     for (auto i=0u ; i<64 ; ++i)
 	address[i] = rx[i] ;
     return address ;
 }
 
-void Device::Ds18x20::Bang::
-complete(RpiExt::BangIo *io,Address *address,size_t offset) const
+void Device::Ds18x20::Bang::complete(Address *address,size_t offset)
 {
     for (auto i=offset ; i<64 ; ++i)
     {
-	auto bit = this->read(io) ;
-	auto inv = this->read(io) ;
+	auto bit = this->read() ;
+	auto inv = this->read() ;
 
 	if ((bit == 1) && (inv == 1))
 	{
@@ -209,32 +207,31 @@ complete(RpiExt::BangIo *io,Address *address,size_t offset) const
 	// if 0-1: address bit is 1 (for all attached devices)
 	// if 1-0: address bit is 0 (for all attached devices)
 	// if 0-0: attached devices split into 0 and 1 addresses
-	this->write(io,bit) ;
+	this->write(bit) ;
 	// ...proceed with the lowest address bit (if more than one)
 	
 	(*address)[i] = bit ;
     }
 }
 
-unsigned /* 0..64 */ Device::Ds18x20::Bang::
-scan(RpiExt::BangIo *io,Address const &address) const
+unsigned Device::Ds18x20::Bang::scan(Address const &address)
 {
-    auto success = this->init(io) ;
+    auto success = this->init() ;
     if (!success)
     {
 	// device vanished
 	throw Error(std::to_string(__LINE__)) ;
     }
     // ROM-command: Search Read-ROM-Code
-    this->write(io,static_cast<uint8_t>(0xf0)) ;
+    this->write(static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
 
     auto branch = 64u ; // default: no branches found
     
     for (auto i=0u ; i<64 ; ++i)
     {
-	auto bit = this->read(io) ;
-	auto inv = this->read(io) ;
+	auto bit = this->read() ;
+	auto inv = this->read() ;
 
 	if ((bit == 1) && (inv == 1))
 	{
@@ -258,18 +255,17 @@ scan(RpiExt::BangIo *io,Address const &address) const
 	    }
 	}
 
-	this->write(io,address[i]) ;
+	this->write(address[i]) ;
     }
     return branch ;
 }
 
-void Device::Ds18x20::Bang::
-track(RpiExt::BangIo *io,Address const &address,size_t nbits) const
+void Device::Ds18x20::Bang::track(Address const &address,size_t nbits)
 {
     for (auto i=0u ; i<nbits ; ++i)
     {
-	auto bit = this->read(io) ;
-	auto inv = this->read(io) ;
+	auto bit = this->read() ;
+	auto inv = this->read() ;
 
 	if ((bit == 1) && (inv == 1))
 	{
@@ -283,15 +279,15 @@ track(RpiExt::BangIo *io,Address const &address,size_t nbits) const
 		// device was removed
 		throw Error(std::to_string(__LINE__)) ;
 	}
-	this->write(io,address[i]) ;
+	this->write(address[i]) ;
     }
 }
 
 Device::Ds18x20::Bang::Address Device::Ds18x20::Bang::
-branch(RpiExt::BangIo *io,Address const &address,size_t offset) const
+branch(Address const &address,size_t offset)
 {
-    auto bit = this->read(io) ;
-    auto inv = this->read(io) ;
+    auto bit = this->read() ;
+    auto inv = this->read() ;
 
     if ((bit == 1) && (inv == 1))
     {
@@ -308,7 +304,7 @@ branch(RpiExt::BangIo *io,Address const &address,size_t offset) const
 	assert(address[offset] == 0) ;
 	// otherwise we got a bug in scan()
     }
-    this->write(io,true) ;
+    this->write(true) ;
 
     auto next = address ;
     next[offset] = 1 ;
@@ -317,34 +313,34 @@ branch(RpiExt::BangIo *io,Address const &address,size_t offset) const
 
 
 boost::optional<Device::Ds18x20::Bang::Address> Device::Ds18x20::Bang::
-first(RpiExt::BangIo *io) const
+first()
 {
-    auto success = this->init(io) ;
+    auto success = this->init() ;
     if (!success)
 	return boost::none ;
     // ROM-command: Search Read-ROM-Code
-    this->write(io,static_cast<uint8_t>(0xf0)) ;
+    this->write(static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
     Address address ;
-    this->complete(io,&address,0) ;
+    this->complete(&address,0) ;
     return address ;
 } 
 
 boost::optional<Device::Ds18x20::Bang::Address> Device::Ds18x20::Bang::
-next(RpiExt::BangIo *io,Address const &prev) const
+next(Address const &prev)
 {
-    auto offset = this->scan(io,prev) ;
+    auto offset = this->scan(prev) ;
     if (offset == 64)
 	return boost::none ;
     
-    this->init(io) ;
+    this->init() ;
     // ROM-command: Search Read-ROM-Code
-    this->write(io,static_cast<uint8_t>(0xf0)) ;
+    this->write(static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
 
-    this->track(io,prev,offset) ;
-    auto next = this->branch(io,prev,offset) ;
-    this->complete(io,&next,offset+1) ;
+    this->track(prev,offset) ;
+    auto next = this->branch(prev,offset) ;
+    this->complete(&next,offset+1) ;
     
     return next ;
 }

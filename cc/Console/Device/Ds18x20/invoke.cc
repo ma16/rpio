@@ -56,11 +56,9 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
     
-    RpiExt::BangIo io(rpi) ;
-
     try
     {
-	Bang(rpi,pin).convert(&io) ;
+	Bang(rpi,pin).convert() ;
     }
     catch (Bang::Error &e)
     {
@@ -74,10 +72,10 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
       Proceed: ;
 	try
 	{
-	    auto busy = Bang(rpi,pin).isBusy(&io) ;
+	    auto busy = Bang(rpi,pin).isBusy() ;
 	    while (busy)
 	    {
-		busy = Bang(rpi,pin).isBusy(&io) ;
+		busy = Bang(rpi,pin).isBusy() ;
 		++count ;
 	    }
 	}
@@ -94,7 +92,7 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	bool rx[72] ;
 	try
 	{
-	    Bang(rpi,pin).readPad(&io,&rx) ;
+	    Bang(rpi,pin).readPad(&rx) ;
 	}
 	catch (Bang::Error &e)
 	{
@@ -123,11 +121,9 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     using Bang = Device::Ds18x20::Bang ;
     
     bool rx[72] ;
-    RpiExt::BangIo io(rpi) ;
-
     try
     {
-	Bang(rpi,pin).readPad(&io,&rx) ;
+	Bang(rpi,pin).readPad(&rx) ;
     }
     catch (Bang::Error &e)
     {
@@ -167,8 +163,7 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     try
     {
-	RpiExt::BangIo io(rpi) ;
-	auto address = Bang(rpi,pin).address(&io) ;
+	auto address = Bang(rpi,pin).address() ;
 	if (address)
 	    print(*address) ;
 	else
@@ -188,19 +183,17 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
 
-	RpiExt::BangIo io(rpi) ;
-	
   Retry:
     
     try
     {
-	auto next = Bang(rpi,pin).first(&io) ;
+	auto next = Bang(rpi,pin).first() ;
 	if (!next)
 	    std::cout << "no device present\n" ;
 	while (next) 
 	{
 	    print(*next) ;
-	    next = Bang(rpi,pin).next(&io,*next) ;
+	    next = Bang(rpi,pin).next(*next) ;
 	}
     }
     catch (Bang::Error &e)

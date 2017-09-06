@@ -65,16 +65,15 @@ struct Bang
     // * busPin.outputLevel = Low (not changed)
 
     
-    void convert (RpiExt::BangIo*) const ;
-    void readPad (RpiExt::BangIo*,bool(*)[72]) const ;
-    bool  isBusy (RpiExt::BangIo*) const ;
+    void convert () ;
+    void readPad (bool(*)[72]) ;
+    bool isBusy  () ;
 
     using Address = std::bitset<64> ; // the "ROM code"
 
-    boost::optional<Address> address(RpiExt::BangIo*) const ;
-    
-    boost::optional<Address> first(RpiExt::BangIo*) const ;
-    boost::optional<Address> next(RpiExt::BangIo*,Address const &prev) const ;
+    boost::optional<Address> address () ;
+    boost::optional<Address> first   () ;
+    boost::optional<Address> next    (Address const&) ;
     
     static uint8_t crc(std::vector<bool> const &v)
     {
@@ -92,26 +91,28 @@ struct Bang
 	Timing<uint32_t> const& timing = ticks(spec,250e+6))
 
 	: rpi                     (rpi)
+	, io                      (rpi)
 	, busPin               (busPin)
 	, pinMask(1u << busPin.value())
 	, timing               (timing) {}
 
 private:
 
-    bool  init(RpiExt::BangIo*) const ;
-    bool  read(RpiExt::BangIo*) const ;
-    void  read(RpiExt::BangIo*,size_t nbits,bool *bitA) const ;
-    void write(RpiExt::BangIo*,bool bit) const ;
-    void write(RpiExt::BangIo*,uint8_t byte) const ;
+    bool  init () ;
+    bool  read () ;
+    void  read (size_t nbits,bool *bitA) ;
+    void write (bool bit) ;
+    void write (uint8_t byte) ;
 
-    void track(RpiExt::BangIo*,Address const&,size_t nbits) const ;
-    Address branch(RpiExt::BangIo*,Address const&,size_t offset) const ;
-    void complete(RpiExt::BangIo*,Address*,size_t offset) const ;
-
-    unsigned /* 0..64 */ scan(RpiExt::BangIo*,Address const&) const ;
-    
+    void  complete(Address      *,size_t offset) ;
+    Address branch(Address const&,size_t offset) ;
+    unsigned  scan(Address const&              ) ;
+    void     track(Address const&,size_t  nbits) ;
+    // [todo] make offset range 0..63
     
     Rpi::Peripheral *rpi ;
+
+    RpiExt::BangIo io ;
 
     Rpi::Pin busPin ; uint32_t pinMask ;
 
