@@ -147,7 +147,9 @@ void Device::Ds18x20::Bang::read(size_t nbits,bool *bitA)
 
 void Device::Ds18x20::Bang::convert()
 {
-    /* todo: return value */ this->init() ;
+    auto feedback = this->init() ;
+    if (!feedback)
+	throw Error(std::to_string(__LINE__)) ;
     // ROM-command: Skip-ROM-Code
     this->write(static_cast<uint8_t>(0xcc)) ;
     // Function-command: Convert-T
@@ -157,14 +159,21 @@ void Device::Ds18x20::Bang::convert()
     //   we would need our script to loop
 }
 
-void Device::Ds18x20::Bang::readPad(bool(*rx)[72])
+Device::Ds18x20::Bang::Pad Device::Ds18x20::Bang::readPad()
 {
-    /* todo: return value */ this->init() ;
+    auto feedback = this->init() ;
+    if (!feedback)
+	throw Error(std::to_string(__LINE__)) ;
     // ROM-command: Skip-ROM-Code
     this->write(static_cast<uint8_t>(0xcc)) ;
     // Function-command: Read-Sratch-Pad
     this->write(static_cast<uint8_t>(0xbe)) ;
-    Bang::read(72,*rx) ;
+    bool rx[72] ;
+    Bang::read(72,rx) ;
+    Pad pad ;
+    for (auto i=0u ; i<72 ; ++i)
+	pad[i] = rx[i] ;
+    return pad ;
 }
 
 bool Device::Ds18x20::Bang::isBusy()
@@ -177,8 +186,8 @@ bool Device::Ds18x20::Bang::isBusy()
 boost::optional<Device::Ds18x20::Bang::Address> Device::Ds18x20::Bang::
 address()
 {
-    auto success = this->init() ;
-    if (!success)
+    auto feedback = this->init() ;
+    if (!feedback)
 	return boost::none ;
     // ROM-command: Read-ROM-Code
     this->write(static_cast<uint8_t>(0x33)) ;
@@ -216,12 +225,10 @@ void Device::Ds18x20::Bang::complete(Address *address,size_t offset)
 
 unsigned Device::Ds18x20::Bang::scan(Address const &address)
 {
-    auto success = this->init() ;
-    if (!success)
-    {
+    auto feedback = this->init() ;
+    if (!feedback)
 	// device vanished
 	throw Error(std::to_string(__LINE__)) ;
-    }
     // ROM-command: Search Read-ROM-Code
     this->write(static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
@@ -315,8 +322,8 @@ branch(Address const &address,size_t offset)
 boost::optional<Device::Ds18x20::Bang::Address> Device::Ds18x20::Bang::
 first()
 {
-    auto success = this->init() ;
-    if (!success)
+    auto feedback = this->init() ;
+    if (!feedback)
 	return boost::none ;
     // ROM-command: Search Read-ROM-Code
     this->write(static_cast<uint8_t>(0xf0)) ;
@@ -333,7 +340,9 @@ next(Address const &prev)
     if (offset == 64)
 	return boost::none ;
     
-    this->init() ;
+    auto feedback = this->init() ;
+    if (!feedback)
+	throw Error(std::to_string(__LINE__)) ;
     // ROM-command: Search Read-ROM-Code
     this->write(static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too

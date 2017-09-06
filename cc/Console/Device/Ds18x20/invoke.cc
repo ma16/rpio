@@ -7,46 +7,16 @@
 
 // [todo] command line options: timing and ARM counter frequency
 
-static void pack(bool const from[],size_t nbits,char to[])
+template<size_t N> static void print(std::bitset<N> const &set)
 {
-    memset(to,0x0,(nbits+7)/8) ;
-    for (decltype(nbits) i=0 ; i<nbits ; ++i)
-    {
-	if (from[i])
-	    to[i/8] |= static_cast<char>(1 << (i % 8)) ;
-    }
-}
-
-static std::vector<bool> to_bitStream(char const buffer[],size_t n)
-{
-    std::vector<bool> v ; v.reserve(n*8) ;
-    for (decltype(n) i=0 ; i<n ; ++i)
-	for (auto j=0 ; j<8 ; ++j)
-	    v.push_back(0 != (buffer[i] & (1u << j))) ;
-    return v ;
-}
-
-static unsigned long long to_ull(std::vector<bool> const &v)
-{
-    unsigned long long ull = 0 ;
-    for (unsigned i=v.size() ; i>0 ; )
-    {
-	ull <<= 1 ;
-	--i ;
-	ull |= v[i] ;
-    }
-    return ull ;
-}
-
-static std::ostream& operator<< (std::ostream &os,std::vector<bool> const &v)
-{
-    for (auto i=0u ; i<v.size() ; ++i)
-    {
-	os << v[i] ;
-	if ((i % 8) == 7) os << ' ' ;
-	else if ((i % 4) == 3) os << ':' ;
-    }
-    return os ;
+    using Bang = Device::Ds18x20::Bang ;
+    auto crc = 0 == Bang::crc(set) ;
+    auto string = set.to_string() ;
+    std::reverse(string.begin(),string.end()) ;
+    std::cout
+	<< std::hex << set.to_ullong() << ' '
+	<< string << ' '
+	<< (crc ? "crc:ok" : "crc:failure") << '\n' ;
 }
 
 static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -59,6 +29,7 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     try
     {
 	Bang(rpi,pin).convert() ;
+	// [todo] retry
     }
     catch (Bang::Error &e)
     {
@@ -69,7 +40,9 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (wait)
     {
 	unsigned count = 1 ;
+	
       Proceed: ;
+	
 	try
 	{
 	    auto busy = Bang(rpi,pin).isBusy() ;
@@ -88,29 +61,25 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    }
 	    goto Proceed ;
 	}
+	// [todo] measure and display the time it takes to finish
+	// (this piece of information might be quite interesting)
 	
-	bool rx[72] ;
 	try
 	{
-	    Bang(rpi,pin).readPad(&rx) ;
+	    // this does only word on a single drop bus
+	    auto pad = Bang(rpi,pin).readPad() ;
+	    print(pad) ;
+	    auto ull = pad.to_ullong() ;
+	    auto temp = static_cast<int16_t>(ull & 0xffff) ;
+	    auto mode = static_cast<unsigned>((ull >> 37) & 0x3) ;
+	    auto div = 2u << mode ;
+	    std::cout << static_cast<double>(temp) / div << '\n' ;
 	}
 	catch (Bang::Error &e)
 	{
 	    std::cerr << "read scratch-pad error:" << e.what() << '\n' ;
 	    exit(1) ;
 	}
-	char buffer[9] ; pack(rx,72,buffer) ;
-	auto bs = to_bitStream(buffer,sizeof(buffer)) ;
-	if (0 != Bang::crc(bs))
-	{
-	    std::cerr << "read scratch-pad crc error\n" ;
-	    exit(1) ;
-	}
-	auto pad = to_ull(bs) ;
-	auto temp = static_cast<int16_t>(pad & 0xffff) ;
-	auto mode = static_cast<unsigned>((pad >> 37) & 0x3) ;
-	auto div = 2u << mode ;
-	std::cout << static_cast<double>(temp) / div << '\n' ;
     }
 }
 
@@ -120,38 +89,16 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
     
-    bool rx[72] ;
     try
     {
-	Bang(rpi,pin).readPad(&rx) ;
+	auto pad = Bang(rpi,pin).readPad() ;
+	print(pad) ;
     }
     catch (Bang::Error &e)
     {
 	std::cerr << "error:" << e.what() << '\n' ;
 	exit(1) ;
     }
-    
-    char buffer[9] ; pack(rx,72,buffer) ;
-    // debugging
-    auto v = to_bitStream(buffer,sizeof(buffer)) ; 
-    std::cout << v << '\n' ;
-    v = to_bitStream(buffer,sizeof(buffer)-1) ; 
-    std::cout << std::hex << (unsigned)Bang::crc(v) << '\n' ;
-
-    auto pad = to_ull(v) ;
-    std::cout << pad << '\n' ;
-}
-
-static void print(Device::Ds18x20::Bang::Address const &address)
-{
-    using Bang = Device::Ds18x20::Bang ;
-    auto crc = 0 == Bang::crc(address) ;
-    auto string = address.to_string() ;
-    std::reverse(string.begin(),string.end()) ;
-    std::cout
-	<< std::hex << address.to_ullong() << ' '
-	<< string << ' '
-	<< (crc ? "crc:ok" : "crc:failure") << '\n' ;
 }
 
 static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)

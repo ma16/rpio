@@ -64,10 +64,21 @@ struct Bang
     // * busPin.mode=Input (changed between input and output)
     // * busPin.outputLevel = Low (not changed)
 
+    // returns true it at least one device is present
+    bool init() ;
+    // ...subsequent functions will throw if no device is present
+
+    // start temperature measurement on all attached devices
+    void convert() ;
+
+    // returns true as long as the current operation has not finished
+    bool isBusy() ;
+    // only usable for convert() and as long as no new operation begins
+
+    using Pad = std::bitset<72> ; // the scratch-pad
     
-    void convert () ;
-    void readPad (bool(*)[72]) ;
-    bool isBusy  () ;
+    // read scratch-pad (single drop bus)
+    Pad readPad() ;
 
     using Address = std::bitset<64> ; // the "ROM code"
 
@@ -98,7 +109,6 @@ struct Bang
 
 private:
 
-    bool  init () ;
     bool  read () ;
     void  read (size_t nbits,bool *bitA) ;
     void write (bool bit) ;
