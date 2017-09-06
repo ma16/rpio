@@ -104,7 +104,9 @@ private:
     void write(RpiExt::BangIo*,bool bit) const ;
     void write(RpiExt::BangIo*,uint8_t byte) const ;
 
-    void complete(RpiExt::BangIo*,size_t offset,Address*) const ;
+    void track(RpiExt::BangIo*,Address const&,size_t nbits) const ;
+    Address branch(RpiExt::BangIo*,Address const&,size_t offset) const ;
+    void complete(RpiExt::BangIo*,Address*,size_t offset) const ;
 
     unsigned /* 0..64 */ scan(RpiExt::BangIo*,Address const&) const ;
     

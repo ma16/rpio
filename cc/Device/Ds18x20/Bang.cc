@@ -192,7 +192,7 @@ address(RpiExt::BangIo *io) const
 }
 
 void Device::Ds18x20::Bang::
-complete(RpiExt::BangIo *io,size_t offset,Address *address) const
+complete(RpiExt::BangIo *io,Address *address,size_t offset) const
 {
     for (auto i=offset ; i<64 ; ++i)
     {
@@ -222,15 +222,14 @@ scan(RpiExt::BangIo *io,Address const &address) const
     auto success = this->init(io) ;
     if (!success)
     {
-	// device vanished?
+	// device vanished
 	throw Error(std::to_string(__LINE__)) ;
     }
-	
     // ROM-command: Search Read-ROM-Code
     this->write(io,static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
 
-    auto branch = 64u ;
+    auto branch = 64u ; // default: no branches found
     
     for (auto i=0u ; i<64 ; ++i)
     {
@@ -239,14 +238,13 @@ scan(RpiExt::BangIo *io,Address const &address) const
 
 	if ((bit == 1) && (inv == 1))
 	{
-	    // no device (if i=0 and if the not sent presence pulse was ignored)
-	    // or device was just now removed
+	    // device vanished
 	    throw Error(std::to_string(__LINE__)) ;
 	}
 	if (bit != inv) // (0,1) and (1,0)
 	{
 	    if (address[i] != bit)
-		// just now device was removed
+		// device vanished
 		throw Error(std::to_string(__LINE__)) ;
 	}
 	else // (0,0)
@@ -265,6 +263,59 @@ scan(RpiExt::BangIo *io,Address const &address) const
     return branch ;
 }
 
+void Device::Ds18x20::Bang::
+track(RpiExt::BangIo *io,Address const &address,size_t nbits) const
+{
+    for (auto i=0u ; i<nbits ; ++i)
+    {
+	auto bit = this->read(io) ;
+	auto inv = this->read(io) ;
+
+	if ((bit == 1) && (inv == 1))
+	{
+	    // device was removed
+	    throw Error(std::to_string(__LINE__)) ;
+	}
+	
+	if (bit != inv) // (0,1) and (1,0)
+	{
+	    if (address[i] != bit)
+		// device was removed
+		throw Error(std::to_string(__LINE__)) ;
+	}
+	this->write(io,address[i]) ;
+    }
+}
+
+Device::Ds18x20::Bang::Address Device::Ds18x20::Bang::
+branch(RpiExt::BangIo *io,Address const &address,size_t offset) const
+{
+    auto bit = this->read(io) ;
+    auto inv = this->read(io) ;
+
+    if ((bit == 1) && (inv == 1))
+    {
+	// device removed
+	throw Error(std::to_string(__LINE__)) ;
+    }
+    if (bit != inv) // (0,1) and (1,0)
+    {
+	// device removed
+	throw Error(std::to_string(__LINE__)) ;
+    }
+    else // (0,0)
+    {
+	assert(address[offset] == 0) ;
+	// otherwise we got a bug in scan()
+    }
+    this->write(io,true) ;
+
+    auto next = address ;
+    next[offset] = 1 ;
+    return next ;
+}
+
+
 boost::optional<Device::Ds18x20::Bang::Address> Device::Ds18x20::Bang::
 first(RpiExt::BangIo *io) const
 {
@@ -275,15 +326,15 @@ first(RpiExt::BangIo *io) const
     this->write(io,static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
     Address address ;
-    this->complete(io,0,&address) ;
+    this->complete(io,&address,0) ;
     return address ;
 } 
 
 boost::optional<Device::Ds18x20::Bang::Address> Device::Ds18x20::Bang::
 next(RpiExt::BangIo *io,Address const &prev) const
 {
-    auto branch = this->scan(io,prev) ;
-    if (branch == 64)
+    auto offset = this->scan(io,prev) ;
+    if (offset == 64)
 	return boost::none ;
     
     this->init(io) ;
@@ -291,51 +342,10 @@ next(RpiExt::BangIo *io,Address const &prev) const
     this->write(io,static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
 
-    for (auto i=0u ; i<branch ; ++i)
-    {
-	auto bit = this->read(io) ;
-	auto inv = this->read(io) ;
-
-	if ((bit == 1) && (inv == 1))
-	    // no device (if i=0 and if the not sent presence pulse was ignored)
-	    // or device was just now removed
-	    throw Error(std::to_string(__LINE__)) ;
-	
-	if (bit != inv) // (0,1) and (1,0)
-	{
-	    if (prev[i] != bit)
-		// previous device has been just now removed
-		throw Error(std::to_string(__LINE__)) ;
-	}
-	this->write(io,prev[i]) ;
-    }
-
-    auto next = prev ;
-    { // switch branch 
-	auto bit = this->read(io) ;
-	auto inv = this->read(io) ;
-
-	if ((bit == 1) && (inv == 1))
-	    // no device (if i=0 and if the not sent presence pulse was ignored)
-	    // or device was just now removed
-	    throw Error(std::to_string(__LINE__)) ;
+    this->track(io,prev,offset) ;
+    auto next = this->branch(io,prev,offset) ;
+    this->complete(io,&next,offset+1) ;
     
-	if (bit != inv) // (0,1) and (1,0)
-	{
-	    // this has to be a branch; device removed? 
-	    throw Error(std::to_string(__LINE__)) ;
-	}
-	else // (0,0)
-	{
-	    assert(prev[branch] == 0) ;
-	    // otherwise we got a bug in scan()
-	}
-
-	next[branch] = 1 ;
-	this->write(io,true) ;
-    }
-
-    this->complete(io,branch+1,&next) ;
     return next ;
 }
 

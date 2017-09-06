@@ -150,9 +150,11 @@ static void print(Device::Ds18x20::Bang::Address const &address)
 {
     using Bang = Device::Ds18x20::Bang ;
     auto crc = 0 == Bang::crc(address) ;
+    auto string = address.to_string() ;
+    std::reverse(string.begin(),string.end()) ;
     std::cout
 	<< std::hex << address.to_ullong() << ' '
-	<< address << ' '
+	<< string << ' '
 	<< (crc ? "crc:ok" : "crc:failure") << '\n' ;
 }
 
