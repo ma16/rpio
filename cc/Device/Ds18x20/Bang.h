@@ -70,6 +70,7 @@ struct Bang
 
     // start temperature measurement on all attached devices
     void convert() ;
+    // can be followed by isBusy() to wait for completion
 
     // returns true as long as the current operation has not finished
     bool isBusy() ;
@@ -77,14 +78,21 @@ struct Bang
 
     using Pad = std::bitset<72> ; // the scratch-pad
     
-    // read scratch-pad (single drop bus)
+    // read scratch-pad (single drop bus only)
     Pad readPad() ;
 
     using Address = std::bitset<64> ; // the "ROM code"
 
-    boost::optional<Address> address () ;
-    boost::optional<Address> first   () ;
-    boost::optional<Address> next    (Address const&) ;
+    // get device address (single drop bus only)
+    boost::optional<Address> address() ;
+
+    // get address of first device
+    boost::optional<Address> first() ;
+
+    // get address of next device
+    boost::optional<Address> next(Address const&) ;
+
+    // ....
     
     static uint8_t crc(std::vector<bool> const &v)
     {

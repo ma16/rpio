@@ -10,6 +10,19 @@ namespace RpiExt {
 
 struct BangIo
 {
+    void detect(Rpi::Pin pin,Rpi::Gpio::Event event,bool enable=true)
+    {
+	this->gpio.enable(pin,event,enable) ;
+    }
+
+    uint32_t events(uint32_t mask)
+    {
+	auto raised = mask & this->gpio.getEvents() ;
+	if (raised != 0)
+	    this->gpio.reset(raised) ;
+	return raised ;
+    }
+
     void mode(Rpi::Pin pin,Rpi::Gpio::Mode mode)
     {
 	this->gpio.setMode(pin,mode) ;
@@ -66,6 +79,10 @@ struct BangIo
 	}
 	while (this->t - t0 <= span) ;
 	return this->t ;
+	// [todo] we might want to record also the gap between two
+	// subsequent timings and return the maximum of these values
+	// in order to ease the detection of involuntary context
+	// switches or other kinds of thread interruption
     }
 
     BangIo(Rpi::Peripheral *rpi)

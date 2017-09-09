@@ -2,6 +2,7 @@
 
 #include "../invoke.h"
 #include <Device/Ds18x20/Bang.h>
+#include <Posix/base.h>
 #include <Ui/strto.h>
 #include <cstring> // memset
 
@@ -129,18 +130,23 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
+    Bang bang(rpi,pin) ;
 
+    
   Retry:
     
     try
     {
-	auto next = Bang(rpi,pin).first() ;
+	auto u0 = Posix::getrusage() ;
+	auto next = bang.first() ;
 	if (!next)
+	{
 	    std::cout << "no device present\n" ;
+	}
 	while (next) 
 	{
 	    print(*next) ;
-	    next = Bang(rpi,pin).next(*next) ;
+	    next = bang.next(*next) ;
 	}
     }
     catch (Bang::Error &e)
@@ -148,58 +154,6 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cerr << "error:" << e.what() << '\n' ;
 	goto Retry ;
     }
-}
-
-#include <Rpi/Timer.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-// The _GNU_SOURCE feature test macro must be defined (before including
-// any header file) in order to obtain the definition of this constant
-// from <sys/resource.h>.
-// RUSAGE_THREAD is Linux-specific as all the fields used here
-//#define _XOPEN_SOURCE 600
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <time.h>
-#include <Posix/base.h>
-static void test(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    auto us = Ui::strto<unsigned>(argL->pop()) ;
-    argL->finalize() ;
-    Rpi::Timer timer(rpi) ;
-    
-    clockid_t id ;
-    auto result = clock_getcpuclockid(0,&id);
-    assert(result == 0) ;
-
-    struct timespec ts0 ;
-    result = clock_gettime(id,&ts0) ;
-    assert(result == 0) ;
-    
-    struct rusage u0 ;
-    result = getrusage(RUSAGE_THREAD,&u0) ;
-    assert(result == 0) ;
-    
-    auto t0 = timer.cLo() ;
-    while (timer.cLo() - t0 < us)
-	Posix::nanosleep(1e+8) ;
-
-    struct timespec ts1 ;
-    result = clock_gettime(id,&ts1) ;
-    assert(result == 0) ;
-
-    struct rusage u1 ;
-    result = getrusage(RUSAGE_THREAD,&u1) ;
-    assert(result == 0) ;
-
-    std::cout << "clock: "
-	      << ts0.tv_sec << ' ' << ts0.tv_nsec  << ' ' 
-	      << ts1.tv_sec << ' ' << ts1.tv_nsec  << '\n' ;
-
-    std::cout << "  voluntary: " << u0.ru_nvcsw    << ' ' << u1.ru_nvcsw    << '\n' ;
-    std::cout << "involuntary: " << u0.ru_nivcsw   << ' ' << u1.ru_nivcsw   << '\n' ;
-    std::cout << "    signals: " << u0.ru_nsignals << ' ' << u1.ru_nsignals << '\n' ;
 }
 
 void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
