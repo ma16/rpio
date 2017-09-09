@@ -131,27 +131,37 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
     Bang bang(rpi,pin) ;
-    
-  Retry:
-    
-    try
+
+    auto first = [&bang]
     {
-	auto next = bang.first() ;
-	if (!next)
-	{
-	    std::cout << "no device present\n" ;
-	}
-	while (next) 
-	{
-	    print(*next) ;
-	    next = bang.next(*next) ;
-	}
-    }
-    catch (Bang::Error &e)
+      Retry: ;
+      try { return bang.first() ; }
+      catch (Bang::Error &e)
+      {
+	  std::cerr << "error:" << e.what() << '\n' ;
+	  goto Retry ;
+      }
+    } ;
+    
+    auto address = first() ;
+
+    auto next = [&bang](Bang::Address const &address)
     {
-	std::cerr << "error:" << e.what() << '\n' ;
-	goto Retry ;
+      Retry: ;
+      try { return bang.next(address) ; }
+      catch (Bang::Error &e)
+      {
+	  std::cerr << "error:" << e.what() << '\n' ;
+	  goto Retry ;
+      }
+    } ;
+
+    while (address)
+    {
+	print(*address) ;
+	address = next(*address) ;
     }
+    
 }
 
 void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
