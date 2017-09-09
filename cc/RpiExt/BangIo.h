@@ -3,6 +3,7 @@
 #ifndef INCLUDE_RpiExt_BangIo_h
 #define INCLUDE_RpiExt_BangIo_h
 
+#include <arm/arm.h>
 #include <Rpi/Counter.h>
 #include <Rpi/Gpio.h>
 
@@ -73,12 +74,14 @@ struct BangIo
     {
 	do
 	{
+	    arm::dmb() ; // since we got strange values
 	    this->l = this->gpio.getLevels() ;
+	    arm::dmb() ; // since we got strange values
 	    if (cond == (l & mask))
 	    {
-		auto t = this->t ;
+		auto tx = this->t ;
 		this->t = this->counter.clock() ;
-		return t ;
+		return tx ;
 	    }
 	    this->t = this->counter.clock() ;
 	}

@@ -5,17 +5,36 @@
 #include <Posix/base.h>
 #include <Ui/strto.h>
 #include <cstring> // memset
+#include <iomanip>
 
 // [todo] command line options: timing and ARM counter frequency
 
 template<size_t N> static void print(std::bitset<N> const &set)
 {
     using Bang = Device::Ds18x20::Bang ;
+    std::ostringstream os ;
+    unsigned v = 0 ;
+    for (auto i=N ; i>0 ; )
+    {
+	--i ;
+	v |= set[i] ;
+	
+	if ((i % 8) == 0)
+	{
+	    os << std::hex << std::setfill('0') << std::setw(2) << v << ' ' ;
+	    v = 0 ;
+	}
+	else
+	{
+	    v <<= 1 ;
+	}
+    }
+    
     auto crc = 0 == Bang::crc(set) ;
     auto string = set.to_string() ;
     std::reverse(string.begin(),string.end()) ;
     std::cout
-	<< std::hex << set.to_ullong() << ' '
+	<< os.str()
 	<< string << ' '
 	<< (crc ? "crc:ok" : "crc:failure") << '\n' ;
 }
@@ -26,16 +45,18 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto wait = !argL->pop_if("-n") ;
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
+    Bang bang(rpi,pin) ;
+
+  Retry: ;
     
     try
     {
-	Bang(rpi,pin).convert() ;
-	// [todo] retry
+	bang.convert() ;
     }
     catch (Bang::Error &e)
     {
 	std::cerr << "start conversion error:" << e.what() << '\n' ;
-	exit(1) ;
+	goto Retry ;
     }
 
     if (wait)
@@ -46,7 +67,7 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	
 	try
 	{
-	    auto busy = Bang(rpi,pin).isBusy() ;
+	    auto busy = bang.isBusy() ;
 	    while (busy)
 	    {
 		busy = Bang(rpi,pin).isBusy() ;
@@ -57,7 +78,7 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	{
 	    if (0 == strcmp(e.what(),"reset"))
 	    {
-		std::cerr << "got suspended while setting the bus low\n" ;
+		std::cerr << "got suspended\n" ;
 		exit(1) ;
 	    }
 	    goto Proceed ;
@@ -68,18 +89,19 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	try
 	{
 	    // this does only word on a single drop bus
-	    auto pad = Bang(rpi,pin).readPad() ;
+	    auto pad = bang.readPad() ;
 	    print(pad) ;
-	    auto ull = pad.to_ullong() ;
-	    auto temp = static_cast<int16_t>(ull & 0xffff) ;
-	    auto mode = static_cast<unsigned>((ull >> 37) & 0x3) ;
+	    auto temp = (pad & Bang::Pad(0xffff)).to_ullong() ;
+	    auto mode = ((pad >> 37) & Bang::Pad(0x3)).to_ullong() ;
 	    auto div = 2u << mode ;
 	    std::cout << static_cast<double>(temp) / div << '\n' ;
+	    // todo: record time
 	}
 	catch (Bang::Error &e)
 	{
 	    std::cerr << "read scratch-pad error:" << e.what() << '\n' ;
 	    exit(1) ;
+	    // todo: repeat
 	}
     }
 }
@@ -89,7 +111,8 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
     using Bang = Device::Ds18x20::Bang ;
-    
+
+  Retry:
     try
     {
 	auto pad = Bang(rpi,pin).readPad() ;
@@ -98,7 +121,7 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     catch (Bang::Error &e)
     {
 	std::cerr << "error:" << e.what() << '\n' ;
-	exit(1) ;
+	goto Retry ;
     }
 }
 
@@ -108,19 +131,24 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
-
+    
+  Retry:
     try
     {
 	auto address = Bang(rpi,pin).address() ;
 	if (address)
+	{
 	    print(*address) ;
+	}
 	else
+	{
 	    std::cout << "no device present\n" ;
+	}
     }
     catch (Bang::Error &e)
     {
 	std::cerr << "error:" << e.what() << '\n' ;
-	exit(1) ;
+	goto Retry ;
     }
 }
 
@@ -161,7 +189,6 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	print(*address) ;
 	address = next(*address) ;
     }
-    
 }
 
 void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)

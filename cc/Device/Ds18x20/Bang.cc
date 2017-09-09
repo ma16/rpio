@@ -47,7 +47,6 @@ bool Device::Ds18x20::Bang::init()
 			 this->pinMask,/*High*/this->pinMask) ;
 	auto t7 = this->io.recent() ;
 	if (t7 - t4 < this->timing.pdlow.min)
-	    // there is a problem with the device(s)
 	    throw Error(std::to_string(__LINE__)) ;
 	
 	// note: we don't check against max values at the moment
