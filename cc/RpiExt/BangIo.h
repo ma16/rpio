@@ -23,6 +23,11 @@ struct BangIo
 	return raised ;
     }
 
+    uint32_t levels()
+    {
+	return this->gpio.getLevels() ;
+    }
+
     void mode(Rpi::Pin pin,Rpi::Gpio::Mode mode)
     {
 	this->gpio.setMode(pin,mode) ;

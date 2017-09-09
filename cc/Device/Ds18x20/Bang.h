@@ -29,8 +29,8 @@ struct Bang
 	T rec ; // Minimum Recovery Time
 	Range low0 ; // Write 0 Low Time
 	Range low1 ; // Write 1 Low Time
-	Range rinit ; // minimum low time to initiate Read Time Slot
-	T rinitgap ; // max gap fpr rinit HL edge
+	T rinit ; // minimum low time to initiate Read Time Slot
+	T rrc ; // RC time after releasing the bus to return to High
 	T rdv ; // Maximum Read Data Valid
 	T rsth ; // Minimum Reset Time High (Rx/Open Collector)
 	T rstl ; // Minimum Reset Time Low (Actual Low Time)
@@ -49,8 +49,8 @@ struct Bang
 	1e-6,
 	{ 60e-6,120e-6 },
 	{  1e-6, 15e-6 },
-	{  1e-6,  5e-6 },
-	3e-6,
+	1e-6,
+	1e-6,
 	15e-6,
 	480e-6,
 	480e-6,

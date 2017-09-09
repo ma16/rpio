@@ -8,54 +8,53 @@ constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 bool Device::Ds18x20::Bang::init()
 {
     //  t0 t1 t2 t3 t4 t5 t6 t7
-    // ---+     +-----+     +----...
+    // ---+     +-----+-----+----...
     //    |     |     |     |
     //    +-----+     +-----+
     
     // tx: Reset-Pulse
     this->io.mode(this->busPin,Rpi::Gpio::Mode::Out) ;
-    this->io.sleep(this->timing.rstl) ;
+    // ...assumes the configured output level is Low
     this->io.detect(this->busPin,Rpi::Gpio::Event::Fall) ;
+    // ...assumes the event flag is not set
+    this->io.sleep(this->timing.rstl) ;
+    auto t2 = this->io.recent() ;
+    // note, errors must not be thrown if Mode::Out or if Events
     this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->io.time() ;
+    // ...if we got suspended, t3 and following time-stamps may lay
+    // even behind the end of the Presence-Pulse (if there was any)
     
     // rx: wait for HL-edge (start of Presence-Pulse)
-    auto t4 = this->io.waitFor(t3,this->timing.pdhigh.max,this->pinMask,/*Low*/0) ;
+    auto t4 = this->io.waitFor(t3,this->timing.pdhigh.max,
+			       this->pinMask,/*Low*/0) ;
     auto t5 = this->io.recent() ;
     this->io.detect(this->busPin,Rpi::Gpio::Event::Fall,false) ;
-    auto fell = 0 != this->io.events(this->pinMask) ; 
-    
-    auto isPresent = t5 - t3 <= this->timing.pdhigh.max ;
-    if (fell && !isPresent)
-	throw Error(std::to_string(__LINE__)) ;
+    auto isPresent = 0 != this->io.events(this->pinMask) ;
     
     if (isPresent)
     {
-	if (t4 - t3 < this->timing.pdhigh.min)
+	auto timeout = t5 - t3 > this->timing.pdhigh.max ;
+	if (timeout)
+	    // we got suspended and missed the HL-edge in waitFor()
 	    throw Error(std::to_string(__LINE__)) ;
-	// [todo] this can trigger anytime since (t3,t4) are time-stamps
-	// beyond the real edges
-
-	// [todo] a hard criteria would be met
-	// -- if (t5-t2) < min
-	// -- if (t4-t3) > max
     
-	// rx: wait for LH-edge (end of Presence-Pulse)
-	auto t6 = this->io.waitFor(t5,
-			      this->timing.pdlow.max,
-			      this->pinMask,
-			      /*High*/this->pinMask) ;
-	auto t7 = this->io.recent() ;
-	if (t7 - t4 > this->timing.pdlow.max)
+	if (t5 - t2 < this->timing.pdhigh.min)
 	    throw Error(std::to_string(__LINE__)) ;
-	// [todo] this can trigger anytime 
-	if (t6 - t5 < this->timing.pdlow.min)
-	    throw Error(std::to_string(__LINE__)) ;
-	// [todo] this can trigger anytime 
 
-	// [todo] hard criteria
-	// -- if (t7-t4) < min
-	// -- if (t6-t5) > max
+	// rx: wait for LH-edge (end of Presence-Pulse)
+	this->io.waitFor(t5,this->timing.pdlow.max,
+			 this->pinMask,/*High*/this->pinMask) ;
+	auto t7 = this->io.recent() ;
+	if (t7 - t4 < this->timing.pdlow.min)
+	    // there is a problem with the device(s)
+	    throw Error(std::to_string(__LINE__)) ;
+	
+	// note: we don't check against max values at the moment
+	// because the results may be false positives (due to delays
+	// when recording the time-stamps). in order to get a better
+	// grip we may want to check the gap when recording the time
+	// before and after each edge.
     }
     
     // rx: wait for end of Presence-Pulse cycle
@@ -71,7 +70,7 @@ void Device::Ds18x20::Bang::write(bool bit)
     //    |     |
     //    +-----+
 
-    // tx: Bit Pulse
+    // tx: short or long Bit Pulse
     auto t0 = this->io.time() ;
     this->io.mode(this->busPin,Rpi::Gpio::Mode::Out) ;
     auto t1 = this->io.time() ;
@@ -80,8 +79,8 @@ void Device::Ds18x20::Bang::write(bool bit)
     this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->io.time() ; 
     if (t3 - t0 > range.max) 
+	// we got most-likely suspended
 	throw Error(std::to_string(__LINE__)) ;
-    // [todo] false positives
 
     // minimum recovery time (after LH edge)
     this->io.wait(t3,this->timing.rec) ;
@@ -110,35 +109,41 @@ bool Device::Ds18x20::Bang::read()
     auto t0 = this->io.time() ; 
     this->io.mode(this->busPin,Rpi::Gpio::Mode::Out) ;
     auto t1 = this->io.time() ; 
-    this->io.wait(t1,this->timing.rinit.min) ;
+    this->io.wait(t1,this->timing.rinit) ;
+    // the device keeps holding the wire low in order to "send" a
+    // 0-bit; there is no LH-HL gap as long as the pulse to initiate
+    // the Read-Time-Slot is long enough
     this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
+    this->io.sleep(this->timing.rrc) ;
+    auto sample_t3 = 0 != (this->pinMask & this->io.levels()) ;
     auto t3 = this->io.time() ; 
+    // ...if we got suspended, t3 and following time-stamps may lay
+    // far behind the end of the 0-bit Pulse (if there was any)
+    if (t3 - t0 > this->timing.rdv) 
+	// we got most-likely suspended
+	throw Error(std::to_string(__LINE__)) ;
+    // ...this does also cover t3 - t0 > rstl
 
     // rx: wait for LH edge 
     this->io.waitFor(t1,this->timing.slot.max,this->pinMask,/*High*/this->pinMask) ;
-    auto t5 = this->io.recent() ; 
-
-    // make sure we got not interrupted while HL edge
-    if (t1 - t0 > this->timing.rinitgap)
+    auto t5 = this->io.recent() ;
+    auto timeout = t5 - t1 >= this->timing.slot.max ;
+    if (timeout)
+	// we got most-likely suspended
 	throw Error(std::to_string(__LINE__)) ;
 
-    // make sure we got not interrupted when releasing the bus
-    if (t3 - t0 > this->timing.rinit.max) 
+    auto sample_rdv = (t5 - t1) <= this->timing.rdv ;
+    if (sample_t3 != sample_rdv)
+	// we got most-likely suspended
 	throw Error(std::to_string(__LINE__)) ;
-    // make sure we didn't reset the bus
-    if (t3 - t0 > this->timing.rstl/2) 
-	throw Error("reset") ;
 
-    // what did we receive? A one- or a zero-bit?
-    auto bit = (t5 - t0) <= this->timing.rdv ; 
-    
     // minimum recovery time (after LH edge)
     this->io.wait(t5,this->timing.rec) ;
 	
     // rx: wait for end of cycle
     this->io.wait(t1,this->timing.slot.min) ;
 
-    return bit ;
+    return sample_t3 ;
 }
 
 void Device::Ds18x20::Bang::read(size_t nbits,bool *bitA)
@@ -375,12 +380,11 @@ Device::Ds18x20::Bang::ticks(Timing<double> const &seconds,double tps)
     ticks.low1.min = f(seconds.low1.min) ;
     ticks.low1.max = f(seconds.low1.max) ;
 
-    ticks.rinit.min = f(seconds.rinit.min) ;
-    ticks.rinit.max = f(seconds.rinit.max) ;
-    ticks.rinitgap = f(seconds.rinitgap) ;
-    ticks.rdv = f(seconds.rdv) ;
-    ticks.rsth = f(seconds.rsth) ;
-    ticks.rstl = f(seconds.rstl) ;
+    ticks.rinit = f(seconds.rinit) ;
+    ticks.rrc   = f(seconds.  rrc) ;
+    ticks.rdv   = f(seconds.  rdv) ;
+    ticks.rsth  = f(seconds. rsth) ;
+    ticks.rstl  = f(seconds. rstl) ;
     
     ticks.pdhigh.min = f(seconds.pdhigh.min) ;
     ticks.pdhigh.max = f(seconds.pdhigh.max) ;
