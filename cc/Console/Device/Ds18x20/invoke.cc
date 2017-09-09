@@ -131,13 +131,11 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
     Bang bang(rpi,pin) ;
-
     
   Retry:
     
     try
     {
-	auto u0 = Posix::getrusage() ;
 	auto next = bang.first() ;
 	if (!next)
 	{
@@ -175,8 +173,6 @@ void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     else if (arg == "rom") rom(rpi,argL) ;
     else if (arg == "pad") pad(rpi,argL) ;
     else if (arg == "search") search(rpi,argL) ;
-    
-    else if (arg == "test") test(rpi,argL) ;
   
     else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }

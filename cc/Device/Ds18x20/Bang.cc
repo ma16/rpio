@@ -13,10 +13,8 @@ bool Device::Ds18x20::Bang::init()
     //    +-----+     +-----+
     
     // tx: Reset-Pulse
-    auto t0 = this->io.time() ;
     this->io.mode(this->busPin,Rpi::Gpio::Mode::Out) ;
     this->io.sleep(this->timing.rstl) ;
-    auto t2 = this->io.recent() ;
     this->io.detect(this->busPin,Rpi::Gpio::Event::Fall) ;
     this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->io.time() ;
