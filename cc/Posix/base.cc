@@ -137,3 +137,11 @@ std::string Posix::strerror(int no)
   return os.str() ;
 }
 
+rusage Posix::getrusage()
+{
+    struct rusage u ;
+    auto result = getrusage(RUSAGE_THREAD,&u) ;
+    if (result != 0)
+	throw Posix::Error("rusage(RUSAGE_THREAD):"+Posix::strerror(errno)) ;
+    return u ;
+}
