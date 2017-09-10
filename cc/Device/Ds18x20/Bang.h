@@ -14,7 +14,22 @@ struct Bang
 {
     struct Error : Neat::Error
     {
-	Error(std::string const &m) : Neat::Error("Device:Ds18x20:Bang:" + m) {}
+	enum class Type : unsigned
+	{
+	    NotPresent = 0, // no device found on the bus
+	    Retry      = 1, // timing exceeded due to process suspension 
+	    Timing     = 2, // timing exceeded by device
+	    Vanished   = 3, // device vanished in ROM search
+	} ;
+	using TypeN = Neat::Numerator<Type,Type::Vanished> ;
+	
+	Error(Type type,int line) ;
+	
+	Type type() const { return type_ ; }
+	
+    private:
+	
+	Type type_ ; 
     } ;
     
     template<typename T> struct Timing

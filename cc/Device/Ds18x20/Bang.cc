@@ -3,6 +3,21 @@
 #include <Device/Ds18x20/Bang.h>
 #include <cassert>
 
+static std::string toStr(Device::Ds18x20::Bang::Error::Type type,int line)
+{
+    static char const *v[] = { "NotPresent","Retry","Timing","Vanished" } ;
+    auto s = v[Device::Ds18x20::Bang::Error::TypeN(type).n()] ;
+    std::ostringstream os ;
+    os << "Device:Ds18x20:Bang: " << s << " #" << line ;
+    return os.str() ;
+}
+
+Device::Ds18x20::Bang::Error::Error(Type type,int line)
+    : Neat::Error(toStr(type,line)),type_(type)
+{
+    // void
+}
+
 constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 
 bool Device::Ds18x20::Bang::init()
@@ -39,17 +54,17 @@ bool Device::Ds18x20::Bang::init()
 	auto timeout = t5 - t3 > this->timing.pdhigh.max ;
 	if (timeout)
 	    // we got suspended and missed the HL-edge in waitFor()
-	    throw Error(std::to_string(__LINE__)) ;
+	    throw Error(Error::Type::Retry,__LINE__) ;
     
 	if (t5 - t2 < this->timing.pdhigh.min)
-	    throw Error(std::to_string(__LINE__)) ;
+	    throw Error(Error::Type::Timing,__LINE__) ;
 
 	// rx: wait for LH-edge (end of Presence-Pulse)
 	this->io.waitFor(t5,this->timing.pdlow.max,
 			 this->pinMask,/*High*/this->pinMask) ;
 	auto t7 = this->io.recent() ;
 	if (t7 - t4 < this->timing.pdlow.min)
-	    throw Error(std::to_string(__LINE__)) ;
+	    throw Error(Error::Type::Timing,__LINE__) ;
 	
 	// note: we don't check against max values at the moment
 	// because the results may be false positives (due to delays
@@ -80,8 +95,7 @@ void Device::Ds18x20::Bang::write(bool bit)
     this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->io.time() ; 
     if (t3 - t0 > range.max) 
-	// we got most-likely suspended
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::Retry,__LINE__) ;
 
     // minimum recovery time (after LH edge)
     this->io.wait(t3,this->timing.rec) ;
@@ -121,8 +135,7 @@ bool Device::Ds18x20::Bang::read()
     // ...if we got suspended, t3 and following time-stamps may lay
     // far behind the end of the 0-bit Pulse (if there was any)
     if (t3 - t0 > this->timing.rdv) 
-	// we got most-likely suspended
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::Retry,__LINE__) ;
     // ...this does also cover t3 - t0 > rstl
 
     // rx: wait for LH edge 
@@ -130,13 +143,11 @@ bool Device::Ds18x20::Bang::read()
     auto t5 = this->io.recent() ;
     auto timeout = t5 - t1 >= this->timing.slot.max ;
     if (timeout)
-	// we got most-likely suspended
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::Retry,__LINE__) ;
 
     auto sample_rdv = (t5 - t1) <= this->timing.rdv ;
     if (sample_t3 != sample_rdv)
-	// we got most-likely suspended
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::Retry,__LINE__) ;
 
     // minimum recovery time (after LH edge)
     this->io.wait(t5,this->timing.rec) ;
@@ -159,7 +170,7 @@ void Device::Ds18x20::Bang::convert()
 {
     auto feedback = this->init() ;
     if (!feedback)
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::NotPresent,__LINE__) ;
     // ROM-command: Skip-ROM-Code
     this->write(static_cast<uint8_t>(0xcc)) ;
     // Function-command: Convert-T
@@ -173,7 +184,7 @@ Device::Ds18x20::Bang::Pad Device::Ds18x20::Bang::readPad()
 {
     auto feedback = this->init() ;
     if (!feedback)
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::NotPresent,__LINE__) ;
     // ROM-command: Skip-ROM-Code
     this->write(static_cast<uint8_t>(0xcc)) ;
     // Function-command: Read-Sratch-Pad
@@ -195,7 +206,7 @@ bool Device::Ds18x20::Bang::isPowered()
 {
     auto feedback = this->init() ;
     if (!feedback)
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::NotPresent,__LINE__) ;
     // ROM-command: Skip-ROM-Code
     this->write(static_cast<uint8_t>(0xcc)) ;
     // Function-command: Read-Power-Supply
@@ -230,11 +241,7 @@ void Device::Ds18x20::Bang::complete(Address *address,size_t offset)
 	auto inv = this->read() ;
 
 	if ((bit == 1) && (inv == 1))
-	{
-	    // no device (if i=0 and if the not sent presence pulse was ignored)
-	    // or device was just now removed
-	    throw Error(std::to_string(__LINE__)) ;
-	}
+	    throw Error(Error::Type::Vanished,__LINE__) ;
 	
 	// if 0-1: address bit is 1 (for all attached devices)
 	// if 1-0: address bit is 0 (for all attached devices)
@@ -250,8 +257,7 @@ unsigned Device::Ds18x20::Bang::scan(Address const &address)
 {
     auto feedback = this->init() ;
     if (!feedback)
-	// device vanished
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::Vanished,__LINE__) ;
     // ROM-command: Search Read-ROM-Code
     this->write(static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
@@ -264,15 +270,11 @@ unsigned Device::Ds18x20::Bang::scan(Address const &address)
 	auto inv = this->read() ;
 
 	if ((bit == 1) && (inv == 1))
-	{
-	    // device vanished
-	    throw Error(std::to_string(__LINE__)) ;
-	}
+	    throw Error(Error::Type::Vanished,__LINE__) ;
 	if (bit != inv) // (0,1) and (1,0)
 	{
 	    if (address[i] != bit)
-		// device vanished
-		throw Error(std::to_string(__LINE__)) ;
+		throw Error(Error::Type::Vanished,__LINE__) ;
 	}
 	else // (0,0)
 	{
@@ -298,16 +300,11 @@ void Device::Ds18x20::Bang::track(Address const &address,size_t nbits)
 	auto inv = this->read() ;
 
 	if ((bit == 1) && (inv == 1))
-	{
-	    // device was removed
-	    throw Error(std::to_string(__LINE__)) ;
-	}
-	
+	    throw Error(Error::Type::Vanished,__LINE__) ;
 	if (bit != inv) // (0,1) and (1,0)
 	{
 	    if (address[i] != bit)
-		// device was removed
-		throw Error(std::to_string(__LINE__)) ;
+		throw Error(Error::Type::Vanished,__LINE__) ;
 	}
 	this->write(address[i]) ;
     }
@@ -320,15 +317,9 @@ branch(Address const &address,size_t offset)
     auto inv = this->read() ;
 
     if ((bit == 1) && (inv == 1))
-    {
-	// device removed
-	throw Error(std::to_string(__LINE__)) ;
-    }
+	throw Error(Error::Type::Vanished,__LINE__) ;
     if (bit != inv) // (0,1) and (1,0)
-    {
-	// device removed
-	throw Error(std::to_string(__LINE__)) ;
-    }
+	throw Error(Error::Type::Vanished,__LINE__) ;
     else // (0,0)
     {
 	assert(address[offset] == 0) ;
@@ -365,7 +356,7 @@ next(Address const &prev)
     
     auto feedback = this->init() ;
     if (!feedback)
-	throw Error(std::to_string(__LINE__)) ;
+	throw Error(Error::Type::NotPresent,__LINE__) ;
     // ROM-command: Search Read-ROM-Code
     this->write(static_cast<uint8_t>(0xf0)) ;
     // [todo] support Search Alarm ROM code too
