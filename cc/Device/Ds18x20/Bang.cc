@@ -23,7 +23,7 @@ constexpr Device::Ds18x20::Bang::Timing<double> Device::Ds18x20::Bang::spec ;
 bool Device::Ds18x20::Bang::init()
 {
     //  t0 t1 t2 t3 t4 t5 t6 t7
-    // ---+     +-----+-----+----...
+    // ---+     +-----+     +----...
     //    |     |     |     |
     //    +-----+     +-----+
     
@@ -32,36 +32,45 @@ bool Device::Ds18x20::Bang::init()
     // ...assumes the configured output level is Low
     // ...note, errors must not be thrown as long as Out or Events enabled
     this->io.sleep(this->timing.rstl) ;
+    auto v = this->intr.status() ;
+    this->intr.disable(v) ;
     this->io.detect(this->busPin,Rpi::Gpio::Event::Fall) ;
-    // ...assumes the event flag is not set; however, somehow it gets
-    // set [todo] so we reset them below
+    // the event status bit gets immediately set (todo: why?)
     this->io.events(this->pinMask) ;
     auto t2 = this->io.recent() ;
     this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->io.time() ;
     // ...if we got suspended, t3 and following time-stamps may lay
     // even behind the end of the Presence-Pulse (if there was any)
-    
-    // rx: wait for HL-edge (start of Presence-Pulse)
-    auto t4 = this->io.waitFor(t3,this->timing.pdhigh.max,
-			       this->pinMask,/*Low*/0) ;
-    auto t5 = this->io.recent() ;
+
+    auto isPresent = 0 != this->io.waitForEvent(t3,
+						this->timing.pdhigh.max,
+						this->pinMask) ;
+    auto t4 = this->io.recent() ;
+    auto t5 = this->io.time() ;
     this->io.detect(this->busPin,Rpi::Gpio::Event::Fall,false) ;
-    auto isPresent = 0 != this->io.events(this->pinMask) ;
+    this->io.events(this->pinMask) ; // reset late events
+    this->intr.enable(v) ;
+
+    if (!isPresent)
+    {
+	std::cerr << "### "
+		  << (t3 - t2)/25 << ' '
+		  << (t4 - t3)/25 << ' '
+		  << (t5 - t4)/25 << '\n'
+	    ;
+    }
     
     if (isPresent)
     {
-	auto timeout = t5 - t3 > this->timing.pdhigh.max ;
-	if (timeout)
-	    // we got suspended and missed the HL-edge in waitFor()
+	if (t4 == t3)
 	    throw Error(Error::Type::Retry,__LINE__) ;
-    
 	if (t5 - t2 < this->timing.pdhigh.min)
 	    throw Error(Error::Type::Timing,__LINE__) ;
 
 	// rx: wait for LH-edge (end of Presence-Pulse)
-	this->io.waitFor(t5,this->timing.pdlow.max,
-			 this->pinMask,/*High*/this->pinMask) ;
+	this->io.waitForLevel(t5,this->timing.pdlow.max,
+			      this->pinMask,/*High*/this->pinMask) ;
 	auto t7 = this->io.recent() ;
 	if (t7 - t4 < this->timing.pdlow.min)
 	    throw Error(Error::Type::Timing,__LINE__) ;
@@ -70,7 +79,7 @@ bool Device::Ds18x20::Bang::init()
 	// because the results may be false positives (due to delays
 	// when recording the time-stamps). in order to get a better
 	// grip we may want to check the gap when recording the time
-	// before and after each edge.
+	// before and after every (!) edge.
     }
     
     // rx: wait for end of Presence-Pulse cycle
@@ -139,7 +148,8 @@ bool Device::Ds18x20::Bang::read()
     // ...this does also cover t3 - t0 > rstl
 
     // rx: wait for LH edge 
-    this->io.waitFor(t1,this->timing.slot.max,this->pinMask,/*High*/this->pinMask) ;
+    this->io.waitForLevel(t1,this->timing.slot.max,
+			  this->pinMask,/*High*/this->pinMask) ;
     auto t5 = this->io.recent() ;
     auto timeout = t5 - t1 >= this->timing.slot.max ;
     if (timeout)

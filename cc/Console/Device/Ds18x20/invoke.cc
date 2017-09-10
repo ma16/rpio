@@ -138,27 +138,28 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto wait = !argL->pop_if("-n") ;
+    auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     
     Bang bang(rpi,pin) ;
 
-    convert(&bang,true) ;
+    convert(&bang,retry) ;
 
     if (wait)
     {
 	unsigned count = 1 ;
 	
-	auto busy = isBusy(&bang,true) ;
+	auto busy = isBusy(&bang,retry) ;
 	while (busy)
 	{
-	    busy = isBusy(&bang,true) ;
+	    busy = isBusy(&bang,retry) ;
 	    ++count ;
 	}
 	// [todo] measure and display the time it takes to finish
 	// (this piece of information might be quite interesting)
 	
 	// this does only word on a single drop bus
-	auto pad = readPad(&bang,true) ;
+	auto pad = readPad(&bang,retry) ;
 	print(pad) ;
 	auto temp = (pad & Bang::Pad(0xffff)).to_ullong() ;
 	auto mode = ((pad >> 37) & Bang::Pad(0x3)).to_ullong() ;
@@ -171,20 +172,22 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     Bang bang(rpi,pin) ;
 
-    auto pad = readPad(&bang,true) ;
+    auto pad = readPad(&bang,retry) ;
     print(pad) ;
 }
 
 static void power(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     Bang bang(rpi,pin) ;
     
-    auto powered = isPowered(&bang,true) ;
+    auto powered = isPowered(&bang,retry) ;
     std::cout << powered << '\n' ;
 }
 
@@ -193,10 +196,11 @@ static void power(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void address(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     Bang bang(rpi,pin) ;
     
-    auto address = ::address(&bang,true) ;
+    auto address = ::address(&bang,retry) ;
     if (address)
     {
 	print(*address) ;
@@ -210,15 +214,20 @@ static void address(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     Bang bang(rpi,pin) ;
 
-    auto address = first(&bang,true) ;
-    while (address)
+    auto address = first(&bang,retry) ;
+    if (!address)
     {
-	print(*address) ;
-	address = next(&bang,*address,true) ;
+	std::cout << "no device present\n" ;
     }
+    else while (address)
+	 {
+	     print(*address) ;
+	     address = next(&bang,*address,retry) ;
+	 }
 }
 
 // ----

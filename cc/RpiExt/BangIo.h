@@ -70,7 +70,25 @@ struct BangIo
 	    this->t = this->counter.clock() ;
     }
     
-    uint32_t waitFor(uint32_t t0,uint32_t span,uint32_t mask,uint32_t cond)
+    uint32_t waitForEvent(uint32_t t0,uint32_t span,uint32_t mask)
+    {
+	do
+	{
+	    arm::dmb() ; // since we got strange values
+	    auto raised = mask & this->gpio.getEvents() ;
+	    if (raised != 0)
+	    {
+		this->gpio.reset(raised) ;
+		return raised ;
+	    }
+	    arm::dmb() ; // since we got strange values
+	    this->t = this->counter.clock() ;
+	}
+	while (this->t - t0 <= span) ;
+	return 0 ;
+    }
+
+    uint32_t waitForLevel(uint32_t t0,uint32_t span,uint32_t mask,uint32_t cond)
     {
 	do
 	{

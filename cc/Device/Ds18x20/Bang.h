@@ -5,6 +5,7 @@
 
 #include <Neat/Bit/Crc.h>
 #include <RpiExt/BangIo.h>
+#include <Rpi/Intr.h>
 #include <bitset>
 #include <boost/optional.hpp>
 
@@ -128,6 +129,7 @@ struct Bang
 	Timing<uint32_t> const& timing = ticks(spec,250e+6))
 
 	: rpi                     (rpi)
+	, intr                    (rpi)
 	, io                      (rpi)
 	, busPin               (busPin)
 	, pinMask(1u << busPin.value())
@@ -147,6 +149,8 @@ private:
     // [todo] make offset range 0..63
     
     Rpi::Peripheral *rpi ;
+    
+    Rpi::Intr intr ;
 
     RpiExt::BangIo io ;
 
