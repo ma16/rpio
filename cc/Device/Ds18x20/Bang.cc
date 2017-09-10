@@ -33,6 +33,7 @@ bool Device::Ds18x20::Bang::init()
     // ...note, errors must not be thrown as long as Out or Events enabled
     this->io.sleep(this->timing.rstl) ;
     auto v = this->intr.status() ;
+    // https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=192908
     this->intr.disable(v) ;
     this->io.detect(this->busPin,Rpi::Gpio::Event::Fall) ;
     // the event status bit gets immediately set (todo: why?)
@@ -52,15 +53,6 @@ bool Device::Ds18x20::Bang::init()
     this->io.events(this->pinMask) ; // reset late events
     this->intr.enable(v) ;
 
-    if (!isPresent)
-    {
-	std::cerr << "### "
-		  << (t3 - t2)/25 << ' '
-		  << (t4 - t3)/25 << ' '
-		  << (t5 - t4)/25 << '\n'
-	    ;
-    }
-    
     if (isPresent)
     {
 	if (t4 == t3)
