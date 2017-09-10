@@ -11,7 +11,7 @@
 //
 // This implementation does neither cover pending interrupts nor FIQ
 // control. It's basically to enable/disable interrupts that are used
-// by (an intering) Raspbian
+// by (an interfering) Raspbian
 //
 // On Pi-2 (Raspbian) it appears that IRQ 52 is enabled to catch 
 //   event detect interrupts. This may freeze the system. So it 
