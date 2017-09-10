@@ -9,9 +9,12 @@
 
 // [todo] command line options: timing and ARM counter frequency
 
+using Bang = Device::Ds18x20::Bang ;
+
+// ----
+
 template<size_t N> static void print(std::bitset<N> const &set)
 {
-    using Bang = Device::Ds18x20::Bang ;
     std::ostringstream os ;
     unsigned v = 0 ;
     for (auto i=N ; i>0 ; )
@@ -39,70 +42,129 @@ template<size_t N> static void print(std::bitset<N> const &set)
 	<< (crc ? "crc:ok" : "crc:failure") << '\n' ;
 }
 
+// ----
+
+static boost::optional<Bang::Address>
+address(Device::Ds18x20::Bang *bang,bool retry)
+{
+  Retry: try { return bang->address() ; }
+    
+    catch(Bang::Error &error)
+    {
+	if (retry && error.type() == Bang::Error::Type::Retry)
+	    goto Retry ;
+	throw ;
+    }
+}
+
+static boost::optional<Bang::Address>
+first(Device::Ds18x20::Bang *bang,bool retry)
+{
+  Retry: try { return bang->first() ; }
+    
+    catch(Bang::Error &error)
+    {
+	if (retry && error.type() == Bang::Error::Type::Retry)
+	    goto Retry ;
+	throw ;
+    }
+}
+
+static boost::optional<Bang::Address>
+next(Device::Ds18x20::Bang *bang,Bang::Address const &address,bool retry)
+{
+  Retry: try { return bang->next(address) ; }
+    
+    catch(Bang::Error &error)
+    {
+	if (retry && error.type() == Bang::Error::Type::Retry)
+	    goto Retry ;
+	throw ;
+    }
+}
+
+// ----
+
+static void convert(Device::Ds18x20::Bang *bang,bool retry)
+{
+  Retry: try { bang->convert() ; }
+    
+    catch(Bang::Error &error)
+    {
+	if (retry && error.type() == Bang::Error::Type::Retry)
+	    goto Retry ;
+	throw ;
+    }
+}
+
+static bool isBusy(Device::Ds18x20::Bang *bang,bool retry)
+{
+  Retry: try { return bang->isBusy() ; }
+    
+    catch(Bang::Error &error)    {
+	if (retry && error.type() == Bang::Error::Type::Retry)
+	    goto Retry ;
+	throw ;
+    }
+}
+
+static bool isPowered(Device::Ds18x20::Bang *bang,bool retry)
+{
+  Retry: try { return bang->isPowered() ; }
+    
+    catch(Bang::Error &error)
+    {
+	if (retry && error.type() == Bang::Error::Type::Retry)
+	    goto Retry ;
+	throw ;
+    }
+}
+
+static Bang::Pad readPad(Device::Ds18x20::Bang *bang,bool retry)
+{
+  Retry: try { return bang->readPad() ; }
+    
+    catch(Bang::Error &error)
+    {
+	if (retry && error.type() == Bang::Error::Type::Retry)
+	    goto Retry ;
+	throw ;
+    }
+}
+
+// ----
+
 static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto wait = !argL->pop_if("-n") ;
     argL->finalize() ;
-    using Bang = Device::Ds18x20::Bang ;
+    
     Bang bang(rpi,pin) ;
 
-  Retry: ;
-    
-    try
-    {
-	bang.convert() ;
-    }
-    catch (Bang::Error &e)
-    {
-	std::cerr << "start conversion error:" << e.what() << '\n' ;
-	goto Retry ;
-    }
+    convert(&bang,true) ;
 
     if (wait)
     {
 	unsigned count = 1 ;
 	
-      Proceed: ;
-	
-	try
+	auto busy = isBusy(&bang,true) ;
+	while (busy)
 	{
-	    auto busy = bang.isBusy() ;
-	    while (busy)
-	    {
-		busy = Bang(rpi,pin).isBusy() ;
-		++count ;
-	    }
-	}
-	catch (Bang::Error &e)
-	{
-	    if (0 == strcmp(e.what(),"reset"))
-	    {
-		std::cerr << "got suspended\n" ;
-		exit(1) ;
-	    }
-	    goto Proceed ;
+	    busy = isBusy(&bang,true) ;
+	    ++count ;
 	}
 	// [todo] measure and display the time it takes to finish
 	// (this piece of information might be quite interesting)
 	
-	try
-	{
-	    // this does only word on a single drop bus
-	    auto pad = bang.readPad() ;
-	    print(pad) ;
-	    auto temp = (pad & Bang::Pad(0xffff)).to_ullong() ;
-	    auto mode = ((pad >> 37) & Bang::Pad(0x3)).to_ullong() ;
-	    auto div = 2u << mode ;
-	    std::cout << static_cast<double>(temp) / div << '\n' ;
-	    // todo: record time
-	}
-	catch (Bang::Error &e)
-	{
-	    std::cerr << "read scratch-pad error:" << e.what() << '\n' ;
-	    exit(1) ;
-	    // todo: repeat
-	}
+	// this does only word on a single drop bus
+	auto pad = readPad(&bang,true) ;
+	print(pad) ;
+	auto temp = (pad & Bang::Pad(0xffff)).to_ullong() ;
+	auto mode = ((pad >> 37) & Bang::Pad(0x3)).to_ullong() ;
+	auto div = 2u << mode ;
+	std::cout << static_cast<double>(temp) / div << '\n' ;
+	// todo: record time
     }
 }
 
@@ -110,108 +172,56 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
-    using Bang = Device::Ds18x20::Bang ;
+    Bang bang(rpi,pin) ;
 
-  Retry:
-    try
-    {
-	auto pad = Bang(rpi,pin).readPad() ;
-	print(pad) ;
-    }
-    catch (Bang::Error &e)
-    {
-	std::cerr << "error:" << e.what() << '\n' ;
-	goto Retry ;
-    }
+    auto pad = readPad(&bang,true) ;
+    print(pad) ;
 }
 
 static void power(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
-    
-    using Bang = Device::Ds18x20::Bang ;
     Bang bang(rpi,pin) ;
-
-  Retry:
     
-    try
-    {
-	auto powered = bang.isPowered() ;
-	std::cout << powered << '\n' ;
-    }
-    catch (Bang::Error &e)
-    {
-	std::cerr << "error:" << e.what() << '\n' ;
-	goto Retry ;
-    }
+    auto powered = isPowered(&bang,true) ;
+    std::cout << powered << '\n' ;
 }
 
-static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+// ----
+
+static void address(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    using Bang = Device::Ds18x20::Bang ;
-  
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
+    Bang bang(rpi,pin) ;
     
-  Retry:
-    try
+    auto address = ::address(&bang,true) ;
+    if (address)
     {
-	auto address = Bang(rpi,pin).address() ;
-	if (address)
-	{
-	    print(*address) ;
-	}
-	else
-	{
-	    std::cout << "no device present\n" ;
-	}
+	print(*address) ;
     }
-    catch (Bang::Error &e)
+    else
     {
-	std::cerr << "error:" << e.what() << '\n' ;
-	goto Retry ;
+	std::cout << "no device present\n" ;
     }
 }
 
 static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    using Bang = Device::Ds18x20::Bang ;
-  
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
     Bang bang(rpi,pin) ;
 
-    auto first = [&bang]
-    {
-      Retry: ;
-      try { return bang.first() ; }
-      catch (Bang::Error &e)
-      {
-	  std::cerr << "error:" << e.what() << '\n' ;
-	  goto Retry ;
-      }
-    } ;
-    
-    auto address = first() ;
-
-    auto next = [&bang](Bang::Address const &address)
-    {
-      Retry: ;
-      try { return bang.next(address) ; }
-      catch (Bang::Error &e)
-      {
-	  std::cerr << "error:" << e.what() << '\n' ;
-	  goto Retry ;
-      }
-    } ;
-
+    auto address = first(&bang,true) ;
     while (address)
     {
 	print(*address) ;
-	address = next(*address) ;
+	address = next(&bang,*address,true) ;
     }
 }
+
+// ----
 
 static void help(Rpi::Peripheral*,Ui::ArgL*)
 {
@@ -225,13 +235,15 @@ static void help(Rpi::Peripheral*,Ui::ArgL*)
 	;
 }
 
+// ----
+
 void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
     {
+	{ "address" , address },
 	{ "convert" , convert },
 	{ "help"    ,    help },
-	{ "rom"     ,     rom },
 	{ "pad"     ,     pad },
 	{ "power"   ,   power },
 	{ "search"  ,  search },
