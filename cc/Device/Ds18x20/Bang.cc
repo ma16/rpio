@@ -191,6 +191,19 @@ bool Device::Ds18x20::Bang::isBusy()
     return !this->read() ;
 }
 
+bool Device::Ds18x20::Bang::isPowered()
+{
+    auto feedback = this->init() ;
+    if (!feedback)
+	throw Error(std::to_string(__LINE__)) ;
+    // ROM-command: Skip-ROM-Code
+    this->write(static_cast<uint8_t>(0xcc)) ;
+    // Function-command: Read-Power-Supply
+    this->write(static_cast<uint8_t>(0xb4)) ;
+    // Read-Time-Slot returns power mode
+    return this->read() ;
+}
+
 // ----
 
 boost::optional<Device::Ds18x20::Bang::Address> Device::Ds18x20::Bang::

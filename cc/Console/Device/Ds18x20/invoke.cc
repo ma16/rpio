@@ -125,6 +125,28 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
 }
 
+static void power(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    argL->finalize() ;
+    
+    using Bang = Device::Ds18x20::Bang ;
+    Bang bang(rpi,pin) ;
+
+  Retry:
+    
+    try
+    {
+	auto powered = bang.isPowered() ;
+	std::cout << powered << '\n' ;
+    }
+    catch (Bang::Error &e)
+    {
+	std::cerr << "error:" << e.what() << '\n' ;
+	goto Retry ;
+    }
+}
+
 static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     using Bang = Device::Ds18x20::Bang ;
@@ -191,25 +213,28 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
 }
 
+static void help(Rpi::Peripheral*,Ui::ArgL*)
+{
+    std::cout
+	<< "arguments: OPTION PIN\n"
+	<< '\n'
+	<< "rom = read 64-bit ROM code\n"
+	<< "pad = read 72-bit scratch pad\n"
+	<< "power = echo 1 if powered; 0 if in parasite power mode\n"
+	<< "... todo ...\n"
+	;
+}
+
 void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    if (argL->empty() || argL->peek() == "help")
+    std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
     {
-	std::cout << "arguments: OPTION PIN\n"
-		  << '\n'
-		  << "rom = read 64-bit ROM code\n"
-		  << "pad = read 72-bit scratch pad\n"
-	    ;
-	return ;
-    }
-
-    std::string arg = argL->pop() ;
-    if (false) ;
-  
-    else if (arg == "convert") convert(rpi,argL) ;
-    else if (arg == "rom") rom(rpi,argL) ;
-    else if (arg == "pad") pad(rpi,argL) ;
-    else if (arg == "search") search(rpi,argL) ;
-  
-    else throw std::runtime_error("not supported option:<"+arg+'>') ;
+	{ "convert" , convert },
+	{ "help"    ,    help },
+	{ "rom"     ,     rom },
+	{ "pad"     ,     pad },
+	{ "power"   ,   power },
+	{ "search"  ,  search },
+    } ;
+    argL->pop(map)(rpi,argL) ;
 }

@@ -64,33 +64,36 @@ struct Bang
     // * busPin.mode=Input (changed between input and output)
     // * busPin.outputLevel = Low (not changed)
 
-    // returns true it at least one device is present
-    bool init() ;
-    // ...subsequent functions will throw if no device is present
+    using Address = std::bitset<64> ; // the "ROM code"
+
+    using Pad = std::bitset<72> ; // the scratch-pad
+    
+    // get device address (single drop bus only)
+    boost::optional<Address> address() ;
 
     // start temperature measurement on all attached devices
     void convert() ;
     // can be followed by isBusy() to wait for completion
 
+    // get address of first device
+    boost::optional<Address> first() ;
+
+    // returns true it at least one device is present
+    bool init() ;
+    // ...subsequent functions will throw if no device is present
+
     // returns true as long as the current operation has not finished
     bool isBusy() ;
     // only usable for convert() and as long as no new operation begins
 
-    using Pad = std::bitset<72> ; // the scratch-pad
-    
-    // read scratch-pad (single drop bus only)
-    Pad readPad() ;
-
-    using Address = std::bitset<64> ; // the "ROM code"
-
-    // get device address (single drop bus only)
-    boost::optional<Address> address() ;
-
-    // get address of first device
-    boost::optional<Address> first() ;
+    // returns true if Vcc is connect; false if in parasite mode
+    bool isPowered() ;
 
     // get address of next device
     boost::optional<Address> next(Address const&) ;
+
+    // read scratch-pad (single drop bus only)
+    Pad readPad() ;
 
     // ....
     
