@@ -260,13 +260,15 @@ static void statusFunctions(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (!argL->empty() && argL->peek() == "help") {
-    std::cout << "arguments: [-e|[-f -v]] [PINS]\n"
+    std::cout << "arguments: [-e | (-f -v)] [PINS]\n"
 	      << '\n'
 	      << "Displays for all (default) or for selected pins:\n"
 	      << "* mode  : i,o,0..5 (see mode's help)\n"
 	      << "* level : the input level (0:low, 1:high)\n"
 	      << '\n'
 	      << "-e: include enabled and detected events\n"
+	      << "-f: presently selected GPIO functions by name\n"
+	      << "-v: available GPIO functions\n"
 	      << std::flush ;
     return ;
   }
