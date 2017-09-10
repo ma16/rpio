@@ -15,11 +15,13 @@ bool Device::Ds18x20::Bang::init()
     // tx: Reset-Pulse
     this->io.mode(this->busPin,Rpi::Gpio::Mode::Out) ;
     // ...assumes the configured output level is Low
-    this->io.detect(this->busPin,Rpi::Gpio::Event::Fall) ;
-    // ...assumes the event flag is not set
+    // ...note, errors must not be thrown as long as Out or Events enabled
     this->io.sleep(this->timing.rstl) ;
+    this->io.detect(this->busPin,Rpi::Gpio::Event::Fall) ;
+    // ...assumes the event flag is not set; however, somehow it gets
+    // set [todo] so we reset them below
+    this->io.events(this->pinMask) ;
     auto t2 = this->io.recent() ;
-    // note, errors must not be thrown if Mode::Out or if Events
     this->io.mode(this->busPin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->io.time() ;
     // ...if we got suspended, t3 and following time-stamps may lay
