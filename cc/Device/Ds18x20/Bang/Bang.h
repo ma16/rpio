@@ -27,7 +27,6 @@
 // bus voltage level and to verify timings. The ARM Counter is used as
 // clock. The client needs to set up the ARM counter.
 
-#include <Neat/Bit/Crc.h>
 #include <Protocol/OneWire/Bang/Signaling.h>
 
 namespace Device { namespace Ds18x20 { namespace Bang {
@@ -55,18 +54,6 @@ struct Bang
     
     Bang(Master *master) : signaling(master) {}
 
-    // ---- ....
-    
-    static uint8_t crc(std::vector<bool> const &v)
-    {
-	return Neat::Bit::Crc::x31(v) ;
-    }
-
-    template<size_t N> static uint8_t crc(std::bitset<N> const &set)
-    {
-	return Neat::Bit::Crc::x31(set) ;
-    }
-    
 private:
 
     using Signaling = Protocol::OneWire::Bang::Signaling ;

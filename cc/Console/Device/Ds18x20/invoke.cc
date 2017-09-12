@@ -3,8 +3,8 @@
 #include "../invoke.h"
 #include <Device/Ds18x20/Bang/Bang.h>
 #include <Protocol/OneWire/Bang/Addressing.h>
+#include <Protocol/OneWire/Bang/crc.h>
 #include <Protocol/OneWire/Bang/Error.h>
-//#include <Posix/base.h>
 #include <Ui/strto.h>
 #include <cstring> // memset
 #include <iomanip>
@@ -40,7 +40,7 @@ template<size_t N> static void print(std::bitset<N> const &set)
 	}
     } // [todo] bitset to array to hex-decimal
     
-    auto crc = 0 == Ds18b20::crc(set) ;
+    auto crc = 0 == Protocol::OneWire::Bang::crc(set) ;
     auto string = set.to_string() ;
     std::reverse(string.begin(),string.end()) ;
     std::cout
