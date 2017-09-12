@@ -29,7 +29,7 @@
 
 #include <Protocol/OneWire/Bang/Signaling.h>
 
-namespace Device { namespace Ds18x20 { namespace Bang {
+namespace Device { namespace Ds18x20 { 
 
 struct Bang
 {
@@ -60,6 +60,6 @@ private:
   
     Signaling signaling ;
 
-} ; } } }
+} ; } }
 
 #endif // INCLUDE_Device_Ds18x20_Bang_h

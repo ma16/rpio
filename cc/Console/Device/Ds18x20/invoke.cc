@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
-#include <Device/Ds18x20/Bang/Bang.h>
+#include <Device/Ds18x20/Bang.h>
 #include <Protocol/OneWire/Bang/Addressing.h>
 #include <Protocol/OneWire/Bang/crc.h>
 #include <Protocol/OneWire/Bang/Error.h>
@@ -11,7 +11,7 @@
 
 // [todo] command line options: timing and ARM counter frequency
 
-using Ds18b20 = Device::Ds18x20::Bang::Bang ;
+using Ds18b20 = Device::Ds18x20::Bang ;
 
 using Error = Protocol::OneWire::Bang::Error ;
 

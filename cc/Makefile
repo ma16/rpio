@@ -58,7 +58,7 @@ LSRC=\
 	Device/Ads1115/Bang/Generator.cc \
 	Device/Ads1115/Bang/Host.cc \
 	Device/Ads1115/Bang/Record.cc \
-	Device/Ds18x20/Bang/Bang_function.cc \
+	Device/Ds18x20/Bang.cc \
 	Device/Max7219/Bang.cc \
 	Device/Max7219/Parser.cc \
 	Device/Mcp3008/Bang.cc \
