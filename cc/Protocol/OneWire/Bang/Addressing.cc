@@ -4,7 +4,7 @@
 #include "Error.h"
 #include <cassert>
 
-using namespace Device::Ds18x20::Bang::OneWire ;
+using namespace Protocol::OneWire::Bang ;
 
 boost::optional<Addressing::Address> Addressing::get()
 {

@@ -2,12 +2,12 @@
 
 #include "Timing.h"
 
-using namespace Device::Ds18x20::Bang ;
+using namespace Protocol::OneWire::Bang ;
 
-constexpr OneWire::Timing::Template<double> OneWire::Timing::spec ;
+constexpr Timing::Template<double> Timing::spec ;
 
-OneWire::Timing::Template<uint32_t>
-OneWire::Timing::xlat(Template<double> const &seconds,double tps)
+Timing::Template<uint32_t>
+Timing::xlat(Template<double> const &seconds,double tps)
 {
     Template<uint32_t> ticks ;
     auto f = [tps](double s) { return static_cast<uint32_t>(s * tps + 0.5) ; } ;

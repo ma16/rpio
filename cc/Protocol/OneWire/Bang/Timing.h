@@ -1,11 +1,11 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef INCLUDE_Device_Ds18x20_Bang_OneWire_Timing_h
-#define INCLUDE_Device_Ds18x20_Bang_OneWire_Timing_h
+#ifndef INCLUDE_Protocol_OneWire_Bang_Timing_h
+#define INCLUDE_Protocol_OneWire_Bang_Timing_h
 
 #include <cstdint>
 
-namespace Device { namespace Ds18x20 { namespace Bang { namespace OneWire {
+namespace Protocol { namespace OneWire { namespace Bang { 
 
 struct Timing
 {
@@ -47,6 +47,6 @@ struct Timing
 
     static Template<uint32_t> xlat(Template<double> const &seconds,double tps) ;
     
-} ; } } } }
+} ; } } }
 
-#endif // INCLUDE_Device_Ds18x20_Bang_OneWire_Timing_h
+#endif // INCLUDE_Protocol_OneWire_Bang_Timing_h

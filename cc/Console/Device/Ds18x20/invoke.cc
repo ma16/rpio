@@ -2,24 +2,24 @@
 
 #include "../invoke.h"
 #include <Device/Ds18x20/Bang/Bang.h>
-#include <Device/Ds18x20/Bang/OneWire/Error.h>
-#include <Device/Ds18x20/Bang/OneWire/Addressing.h>
-#include <Posix/base.h>
+#include <Protocol/OneWire/Bang/Addressing.h>
+#include <Protocol/OneWire/Bang/Error.h>
+//#include <Posix/base.h>
 #include <Ui/strto.h>
 #include <cstring> // memset
 #include <iomanip>
 
 // [todo] command line options: timing and ARM counter frequency
 
-using namespace Device::Ds18x20::Bang ;
+using Ds18b20 = Device::Ds18x20::Bang::Bang ;
 
-using Error = OneWire::Error ;
+using Error = Protocol::OneWire::Bang::Error ;
 
-using Master = OneWire::Master ;
+using Master = Protocol::OneWire::Bang::Master ;
 
-using Addressing = OneWire::Addressing ;
+using Addressing = Protocol::OneWire::Bang::Addressing ;
 
-using Address = Addressing::Address ; // todo OneWire::Address
+using Address = Protocol::OneWire::Bang::Addressing::Address ; // todo OneWire::Address
 
 // ----
 
@@ -40,7 +40,7 @@ template<size_t N> static void print(std::bitset<N> const &set)
 	}
     } // [todo] bitset to array to hex-decimal
     
-    auto crc = 0 == Bang::crc(set) ;
+    auto crc = 0 == Ds18b20::crc(set) ;
     auto string = set.to_string() ;
     std::reverse(string.begin(),string.end()) ;
     std::cout
@@ -93,7 +93,7 @@ next(Master *master,Address const &address,bool retry)
 
 static void convert(Master *master,bool retry)
 {
-  Retry: try { Bang(master).convert() ; }
+  Retry: try { Ds18b20(master).convert() ; }
     
     catch(Error &error)
     {
@@ -105,7 +105,7 @@ static void convert(Master *master,bool retry)
 
 static bool isBusy(Master *master,bool retry)
 {
-  Retry: try { return Bang(master).isBusy() ; }
+  Retry: try { return Ds18b20(master).isBusy() ; }
     
     catch(Error &error)    {
 	if (retry && error.type() == Error::Type::Retry)
@@ -116,7 +116,7 @@ static bool isBusy(Master *master,bool retry)
 
 static bool isPowered(Master *master,bool retry)
 {
-  Retry: try { return Bang(master).isPowered() ; }
+  Retry: try { return Ds18b20(master).isPowered() ; }
     
     catch(Error &error)
     {
@@ -126,9 +126,9 @@ static bool isPowered(Master *master,bool retry)
     }
 }
 
-static Bang::Pad readPad(Master *master,bool retry)
+static Ds18b20::Pad readPad(Master *master,bool retry)
 {
-  Retry: try { return Bang(master).readPad() ; }
+  Retry: try { return Ds18b20(master).readPad() ; }
     
     catch(Error &error)
     {
@@ -167,8 +167,8 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	// this does only word on a single drop bus
 	auto pad = readPad(&master,retry) ;
 	print(pad) ;
-	auto temp = (pad & Bang::Pad(0xffff)).to_ullong() ;
-	auto mode = ((pad >> 37) & Bang::Pad(0x3)).to_ullong() ;
+	auto temp = (pad & Ds18b20::Pad(0xffff)).to_ullong() ;
+	auto mode = ((pad >> 37) & Ds18b20::Pad(0x3)).to_ullong() ;
 	auto div = 2u << mode ;
 	std::cout << static_cast<double>(temp) / div << '\n' ;
 	// todo: record time

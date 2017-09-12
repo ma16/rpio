@@ -26,8 +26,8 @@
 // bus voltage level and to verify timings. The ARM Counter is used as
 // clock. The client needs to set up the ARM counter.
 
-#include "OneWire/Master.h"
 #include <Neat/Bit/Crc.h>
+#include <Protocol/OneWire/Bang/Master.h>
 
 namespace Device { namespace Ds18x20 { namespace Bang {
 
@@ -50,7 +50,9 @@ struct Bang
     // read scratch-pad (single drop bus only)
     Pad readPad() ;
 
-    Bang(OneWire::Master *master) : master(master) {}
+    using Master = Protocol::OneWire::Bang::Master ;
+  
+    Bang(Master *master) : master(master) {}
 
     // ---- ....
     
@@ -66,7 +68,7 @@ struct Bang
     
 private:
 
-    OneWire::Master *master ;
+    Master *master ;
 
 } ; } } }
 

@@ -1,14 +1,14 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef INCLUDE_Device_Ds18x20_Bang_OneWire_Address_h
-#define INCLUDE_Device_Ds18x20_Bang_OneWire_Address_h
+#ifndef INCLUDE_Protocol_OneWire_Bang_Addressing_h
+#define INCLUDE_Protocol_OneWire_Bang_Addressing_h
 
 #include "Master.h"
 
 #include <bitset>
 #include <boost/optional.hpp>
 
-namespace Device { namespace Ds18x20 { namespace Bang { namespace OneWire {
+namespace Protocol { namespace OneWire { namespace Bang { 
 
 struct Addressing
 {
@@ -54,6 +54,6 @@ private:
     // [todo] make offset a number in the range 0..63
     
 
-} ; } } } }
+} ; } } }
 
-#endif // INCLUDE_Device_Ds18x20_Bang_OneWire_Address_h
+#endif // INCLUDE_Protocol_OneWire_Bang_Addressing_h

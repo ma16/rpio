@@ -3,7 +3,7 @@
 #include "Error.h"
 #include "Master.h"
 
-using namespace Device::Ds18x20::Bang::OneWire ;
+using namespace Protocol::OneWire::Bang ;
 
 bool Master::init()
 {

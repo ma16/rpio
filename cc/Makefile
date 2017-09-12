@@ -59,10 +59,6 @@ LSRC=\
 	Device/Ads1115/Bang/Host.cc \
 	Device/Ads1115/Bang/Record.cc \
 	Device/Ds18x20/Bang/Bang_function.cc \
-	Device/Ds18x20/Bang/OneWire/Addressing.cc \
-	Device/Ds18x20/Bang/OneWire/Error.cc \
-	Device/Ds18x20/Bang/OneWire/Master.cc \
-	Device/Ds18x20/Bang/OneWire/Timing.cc \
 	Device/Max7219/Bang.cc \
 	Device/Max7219/Parser.cc \
 	Device/Mcp3008/Bang.cc \
@@ -82,6 +78,10 @@ LSRC=\
 	Posix/MMap.cc \
 	Posix/shm.cc \
 	Posix/Signal.cc \
+	Protocol/OneWire/Bang/Addressing.cc \
+	Protocol/OneWire/Bang/Error.cc \
+	Protocol/OneWire/Bang/Master.cc \
+	Protocol/OneWire/Bang/Timing.cc \
 	Rpi/ArmMem.cc \
 	Rpi/Bus/Alloc.cc \
 	Rpi/Cm.cc \

@@ -2,7 +2,7 @@
 
 #include "Error.h"
 
-using namespace Device::Ds18x20::Bang::OneWire ;
+using namespace Protocol::OneWire::Bang ;
 
 static std::string toStr(Error::Type type,int line)
 {

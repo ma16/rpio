@@ -1,12 +1,12 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef INCLUDE_Device_Ds18x20_Bang_OneWire_Error_h
-#define INCLUDE_Device_Ds18x20_Bang_OneWire_Error_h
+#ifndef INCLUDE_Protocol_OneWire_Bang_Error_h
+#define INCLUDE_Protocol_OneWire_Bang_Error_h
 
 #include <Neat/Error.h>
 #include <Neat/Numerator.h>
 
-namespace Device { namespace Ds18x20 { namespace Bang { namespace OneWire {
+namespace Protocol { namespace OneWire { namespace Bang { 
 
 struct Error : Neat::Error
 {
@@ -25,7 +25,8 @@ struct Error : Neat::Error
 	
 private:
 	
-    Type type_ ; 
-} ; } } } }
+    Type type_ ;
+    
+} ; } } }
 
-#endif // INCLUDE_Device_Ds18x20_Bang_OneWire_Error_h
+#endif // INCLUDE_Protocol_OneWire_Bang_Error_h
