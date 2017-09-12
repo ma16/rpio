@@ -3,7 +3,7 @@
 #ifndef INCLUDE_Protocol_OneWire_Bang_Addressing_h
 #define INCLUDE_Protocol_OneWire_Bang_Addressing_h
 
-#include "Master.h"
+#include "Signaling.h"
 
 #include <bitset>
 #include <boost/optional.hpp>
@@ -23,11 +23,11 @@ struct Addressing
     // get address of next device
     boost::optional<Address> next(Address const&) ;
 
-    Addressing(Master *master) : master(master) {}
+    Addressing(Master *master) : signaling(master) {}
     
 private:    
 
-    Master *master ;
+    Signaling signaling ;
     
     // fill the address beginning at offset by following the low-
     // address-branch (throws on problems)

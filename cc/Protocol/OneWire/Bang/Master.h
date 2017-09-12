@@ -12,14 +12,11 @@ namespace Protocol { namespace OneWire { namespace Bang {
 
 struct Master
 {
-    // reset the bus and return the presence pulse (if any)
-    bool init() ;
-
-    // read time-slot
-    bool read() ;
-
-    // write time-slot
-    void write(bool bit) ;
+    static constexpr auto AlarmSearch = std::bitset<8>(0xec) ;
+    static constexpr auto MatchRom    = std::bitset<8>(0x55) ; 
+    static constexpr auto ReadRom     = std::bitset<8>(0x33) ; 
+    static constexpr auto SearchRom   = std::bitset<8>(0xf0) ; 
+    static constexpr auto SkipRom     = std::bitset<8>(0xcc) ; 
     
     Master(
 	Rpi::Peripheral *rpi,
@@ -33,27 +30,9 @@ struct Master
 	, pinMask(1u << busPin.value())
 	, timing               (timing) {}
 
-    template<size_t N> std::bitset<N> read()
-    {
-	std::bitset<N> set(0) ;
-	for (size_t i=0 ; i<N ; ++i)
-	    set[i] = this->read() ;
-	return set ;
-    }
-    
-    template<size_t N> void write(std::bitset<N> const &set) 
-    {
-	for (size_t i=0 ; i<N ; ++i)
-	    this->write(set[i]) ;
-    }
-    
-    static constexpr auto AlarmSearch = std::bitset<8>(0xec) ;
-    static constexpr auto MatchRom    = std::bitset<8>(0x55) ; 
-    static constexpr auto ReadRom     = std::bitset<8>(0x33) ; 
-    static constexpr auto SearchRom   = std::bitset<8>(0xf0) ; 
-    static constexpr auto SkipRom     = std::bitset<8>(0xcc) ; 
-    
 private:
+
+    friend class Signaling ;
 
     Rpi::Intr intr ;
 

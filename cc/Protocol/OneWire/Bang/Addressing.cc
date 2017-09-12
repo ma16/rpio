@@ -8,19 +8,19 @@ using namespace Protocol::OneWire::Bang ;
 
 boost::optional<Addressing::Address> Addressing::get()
 {
-    auto present = this->master->init() ;
+    auto present = this->signaling.init() ;
     if (!present)
 	return boost::none ;
-    this->master->write(Master::ReadRom) ;
-    return this->master->read<64>() ;
+    this->signaling.write(Master::ReadRom) ;
+    return this->signaling.read<64>() ;
 }
 
 boost::optional<Addressing::Address> Addressing::first()
 {
-    auto present = this->master->init() ;
+    auto present = this->signaling.init() ;
     if (!present)
 	return boost::none ;
-    this->master->write(Master::SearchRom) ;
+    this->signaling.write(Master::SearchRom) ;
     // [todo] support Search Alarm 
     Address address ;
     this->traverse(&address,0) ;
@@ -34,10 +34,10 @@ boost::optional<Addressing::Address> Addressing::next(Address const &prev)
     if (offset == 64)
 	return boost::none ;
     
-    auto present = this->master->init() ;
+    auto present = this->signaling.init() ;
     if (!present)
 	throw Error(Error::Type::NotPresent,__LINE__) ;
-    this->master->write(Master::SearchRom) ;
+    this->signaling.write(Master::SearchRom) ;
     // [todo] support Search Alarm 
 
     this->track(prev,offset) ;
@@ -51,8 +51,8 @@ void Addressing::traverse(Address *address,size_t offset)
 {
     for (auto i=offset ; i<64 ; ++i)
     {
-	auto bit = this->master->read() ;
-	auto inv = this->master->read() ;
+	auto bit = this->signaling.read() ;
+	auto inv = this->signaling.read() ;
 
 	if ((bit == 1) && (inv == 1))
 	    throw Error(Error::Type::Vanished,__LINE__) ;
@@ -60,7 +60,7 @@ void Addressing::traverse(Address *address,size_t offset)
 	// if 0-1: address bit is 1 (for all attached devices)
 	// if 1-0: address bit is 0 (for all attached devices)
 	// if 0-0: attached devices split into 0 and 1 addresses
-	this->master->write(bit) ;
+	this->signaling.write(bit) ;
 	// ...proceed with the lowest address bit (if more than one)
 	
 	(*address)[i] = bit ;
@@ -69,18 +69,18 @@ void Addressing::traverse(Address *address,size_t offset)
 
 unsigned Addressing::descend(Address const &address)
 {
-    auto present = this->master->init() ;
+    auto present = this->signaling.init() ;
     if (!present)
 	throw Error(Error::Type::Vanished,__LINE__) ;
-    this->master->write(Master::SearchRom) ;
+    this->signaling.write(Master::SearchRom) ;
     // [todo] support Search Alarm 
 
     auto branch = 64u ; // default: no new branches found
     
     for (auto i=0u ; i<64 ; ++i)
     {
-	auto bit = this->master->read() ;
-	auto inv = this->master->read() ;
+	auto bit = this->signaling.read() ;
+	auto inv = this->signaling.read() ;
 
 	if ((bit == 1) && (inv == 1))
 	    throw Error(Error::Type::Vanished,__LINE__) ;
@@ -100,7 +100,7 @@ unsigned Addressing::descend(Address const &address)
 	    }
 	}
 
-	this->master->write(address[i]) ;
+	this->signaling.write(address[i]) ;
     }
     return branch ;
 }
@@ -109,8 +109,8 @@ void Addressing::track(Address const &address,size_t nbits)
 {
     for (auto i=0u ; i<nbits ; ++i)
     {
-	auto bit = this->master->read() ;
-	auto inv = this->master->read() ;
+	auto bit = this->signaling.read() ;
+	auto inv = this->signaling.read() ;
 
 	if ((bit == 1) && (inv == 1))
 	    throw Error(Error::Type::Vanished,__LINE__) ;
@@ -119,14 +119,14 @@ void Addressing::track(Address const &address,size_t nbits)
 	    if (address[i] != bit)
 		throw Error(Error::Type::Vanished,__LINE__) ;
 	}
-	this->master->write(address[i]) ;
+	this->signaling.write(address[i]) ;
     }
 }
 
 Addressing::Address Addressing::branch(Address const &address,size_t offset)
 {
-    auto bit = this->master->read() ;
-    auto inv = this->master->read() ;
+    auto bit = this->signaling.read() ;
+    auto inv = this->signaling.read() ;
 
     if ((bit == 1) && (inv == 1))
 	throw Error(Error::Type::Vanished,__LINE__) ;
@@ -137,7 +137,7 @@ Addressing::Address Addressing::branch(Address const &address,size_t offset)
 	assert(address[offset] == 0) ;
 	// otherwise we got a bug in descend()
     }
-    this->master->write(true) ;
+    this->signaling.write(true) ;
 
     auto next = address ;
     next[offset] = 1 ;

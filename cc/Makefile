@@ -81,6 +81,7 @@ LSRC=\
 	Protocol/OneWire/Bang/Addressing.cc \
 	Protocol/OneWire/Bang/Error.cc \
 	Protocol/OneWire/Bang/Master.cc \
+	Protocol/OneWire/Bang/Signaling.cc \
 	Protocol/OneWire/Bang/Timing.cc \
 	Rpi/ArmMem.cc \
 	Rpi/Bus/Alloc.cc \

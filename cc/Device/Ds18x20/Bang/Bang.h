@@ -10,12 +10,13 @@
 // This is a bit-banged implementation. Since we're in userland, the
 // execution may be interrupted or suspended at any time and for any
 // duration. Luckily, the 1-Wire Bus is quite tolerant: A transaction
-// can be suspended for an infinite time in between the transmission
+// can be suspended for an infinite time in-between the transmission
 // of bits as long as the bus is idle (high). So we "only" need to
-// care about thread suspension when we pull the bus Low and when we
+// care about thread suspension when the bus is pulled Low and when we
 // wait for a response. If a suspension was detected (i.e. a given
 // maximum timing was exceeded) then an exception is thrown and the
-// client may retry the complete dialogue.
+// client may retry the dialogue from the beginning (i.e. with the
+// initialization sequence).
 //
 // This implementation can be used on any pin. The pin must be in
 // Input mode. We toggle the mode between Input mode and Output mode
@@ -27,7 +28,7 @@
 // clock. The client needs to set up the ARM counter.
 
 #include <Neat/Bit/Crc.h>
-#include <Protocol/OneWire/Bang/Master.h>
+#include <Protocol/OneWire/Bang/Signaling.h>
 
 namespace Device { namespace Ds18x20 { namespace Bang {
 
@@ -51,8 +52,8 @@ struct Bang
     Pad readPad() ;
 
     using Master = Protocol::OneWire::Bang::Master ;
-  
-    Bang(Master *master) : master(master) {}
+    
+    Bang(Master *master) : signaling(master) {}
 
     // ---- ....
     
@@ -68,7 +69,9 @@ struct Bang
     
 private:
 
-    Master *master ;
+    using Signaling = Protocol::OneWire::Bang::Signaling ;
+  
+    Signaling signaling ;
 
 } ; } } }
 
