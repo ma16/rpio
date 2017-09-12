@@ -6,7 +6,7 @@
 
 using namespace Protocol::OneWire::Bang ;
 
-boost::optional<Addressing::Address> Addressing::get()
+boost::optional<Address> Addressing::get()
 {
     auto present = this->signaling.init() ;
     if (!present)
@@ -15,7 +15,7 @@ boost::optional<Addressing::Address> Addressing::get()
     return this->signaling.read<64>() ;
 }
 
-boost::optional<Addressing::Address> Addressing::first()
+boost::optional<Address> Addressing::first()
 {
     auto present = this->signaling.init() ;
     if (!present)
@@ -27,7 +27,7 @@ boost::optional<Addressing::Address> Addressing::first()
     return address ;
 } 
 
-boost::optional<Addressing::Address> Addressing::next(Address const &prev)
+boost::optional<Address> Addressing::next(Address const &prev)
 {
     auto offset = this->descend(prev) ;
     // [todo] support Search Alarm 
@@ -123,7 +123,7 @@ void Addressing::track(Address const &address,size_t nbits)
     }
 }
 
-Addressing::Address Addressing::branch(Address const &address,size_t offset)
+Address Addressing::branch(Address const &address,size_t offset)
 {
     auto bit = this->signaling.read() ;
     auto inv = this->signaling.read() ;

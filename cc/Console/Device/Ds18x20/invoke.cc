@@ -19,7 +19,7 @@ using Master = Protocol::OneWire::Bang::Master ;
 
 using Addressing = Protocol::OneWire::Bang::Addressing ;
 
-using Address = Protocol::OneWire::Bang::Addressing::Address ; // todo OneWire::Address
+using Address = Protocol::OneWire::Bang::Address ; 
 
 // ----
 
