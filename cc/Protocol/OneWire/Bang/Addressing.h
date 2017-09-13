@@ -15,12 +15,15 @@ struct Addressing
 {
     // get device address (single drop bus only)
     boost::optional<Address> get() ;
+    // ...issues a Read-ROM command
 
     // get address of first device
-    boost::optional<Address> first() ;
+    boost::optional<Address> first(bool alarm=false) ;
+    // ...issues an Alarm/Search-ROM command
 
     // get address of next device
-    boost::optional<Address> next(Address const&) ;
+    boost::optional<Address> next(Address const&,bool alarm=false) ;
+    // ...issues an Alarm/Search-ROM command
 
     Addressing(Master *master) : signaling(master) {}
     
@@ -28,30 +31,20 @@ private:
 
     Signaling signaling ;
     
-    // fill the address beginning at offset by following the low-
-    // address-branch (throws on problems)
-    void traverse(Address*,size_t offset) ;
-    // a search ROM command must be executed before
-
-    // execute a search ROM command and follow the given address
-    // return the offset of lowest branch where address[offset]=0
-    unsigned descend(Address const&) ;
-    // returns 64 if no such offset exists
+    // execute a Search-ROM command and keep track of all branches
+    // while tracing the given address; return the lowest index where
+    // address[index]=0 (another address starts at this branch)
+    unsigned descend(Address const&,bool alarm=false) ;
+    // returns 64 if no such index exists
 
     // track the given address for the first nbits
     void track(Address const&,size_t nbits) ;
-    // a search ROM command must be executed before
+    // a Search-ROM command must have been executed before
 
-    // a search ROM command must have been executed and the address
-    // must have been tracked till the offset.
-    // -> read the next address bit
-    // this bit must be a branch (determined by descend)
-    // -> follow address bit 1
-    // this is then completed by following the low-address-branch 
-    Address branch(Address const&,size_t offset) ;
-    
-    // [todo] make offset a number in the range 0..63
-    
+    // fill the address beginning at offset by tracing the lowest-
+    // address-branch
+    void traverse(Address*,size_t offset) ;
+    // a Search-ROM command must have been executed before
 
 } ; } } }
 

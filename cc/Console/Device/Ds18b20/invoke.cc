@@ -21,152 +21,182 @@ using Addressing = Protocol::OneWire::Bang::Addressing ;
 
 using Address = Protocol::OneWire::Bang::Address ; 
 
-// ----
+// ----[ 1-wire retry-wrappers ]---------------------------------------
 
-template<size_t N> static void print(std::bitset<N> const &set)
+static void handle(Error const &error,bool debug,bool retry)
+{
+    if (error.type() != Error::Type::Retry)
+	throw ;
+    if (!retry)
+	throw ;
+    if (debug)
+	std::cout << error.what() << '\n' ;
+}
+
+static boost::optional<Address>
+address(Master *master,bool debug,bool retry)
+{
+  Retry:
+    try { return Addressing(master).get() ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+static boost::optional<Address>
+first(Master *master,bool alarm,bool debug,bool retry)
+{
+  Retry:
+    try { return Addressing(master).first(alarm) ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+static boost::optional<Address>
+next(Master *master,Address const &address,bool alarm,bool debug,bool retry)
+{
+  Retry:
+    try { return Addressing(master).next(address,alarm) ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+// ----[ DS18B20 retry-wrappers ]--------------------------------------
+
+static void convert(Master *master,bool debug,bool retry)
+{
+  Retry:
+    try { Ds18b20(master).convert() ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+static bool isBusy(Master *master,bool debug,bool retry)
+{
+  Retry:
+    try { return Ds18b20(master).isBusy() ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+static bool isPowered(Master *master,bool debug,bool retry)
+{
+  Retry:
+    try { return Ds18b20(master).isPowered() ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+static Ds18b20::Pad readPad(Master *master,bool debug,bool retry)
+{
+  Retry:
+    try { return Ds18b20(master).readPad() ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+// ----[ format bitset ]-----------------------------------------------
+
+template<size_t N>
+static std::array<uint8_t,(N+7)/8> toByteA(std::bitset<N> const &set)
+{
+    std::array<uint8_t,(N+7)/8> a ;
+    for (size_t i=0 ; 8*i<N ; ++i)
+    {
+	uint8_t b = 0 ;
+	for (size_t j=0 ; 8*i+j<N ; ++j)
+	    b = static_cast<uint8_t>(b | (set[8*i+j] << j)) ;
+	a[i] = b ;
+    }
+    return a ;
+}
+
+template<size_t N>
+static std::string toStr(std::bitset<N> const &set,bool debug)
 {
     std::ostringstream os ;
-    unsigned v = 0 ;
-    for (size_t i=0 ; i<N ; ++i)
+    os << std::hex ;
+    auto bytes = toByteA(set) ;
+    for (auto b: bytes)
+	os << b/16 << b%16 << ' ' ;
+    if (debug)
     {
-	v >>= 1 ;
-	if (set[i])
-	    v |= 0x80 ;
-	
-	if (((i % 8) == 7) || (i == N-1))
-	{
-	    os << std::hex << v/16 << v%16 << ' ' ;
-	    v = 0 ;
-	}
-    } // [todo] bitset to array to hex-decimal
-    
+	auto string = set.to_string() ;
+	std::reverse(string.begin(),string.end()) ;
+	os << string << ' ' ;
+    }
     auto crc = 0 == Protocol::OneWire::Bang::crc(set) ;
-    auto string = set.to_string() ;
-    std::reverse(string.begin(),string.end()) ;
-    std::cout
-	<< os.str() << string << ' '
-	<< (crc ? "crc:ok" : "crc:failure") << '\n' ;
+    os << (crc ? "crc:ok" : "crc:failure") ;
+    return os.str() ;
 }
 
-// ----
+// ----[ 1-wire console commands ]-------------------------------------
 
-static boost::optional<Address>
-address(Master *master,bool retry)
+static void address(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-  Retry: try { return Addressing(master).get() ; }
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto debug = argL->pop_if("-d") ;
+    auto retry = argL->pop_if("-r") ;
+    argL->finalize() ;
     
-    catch(Error &error)
+    Master master(rpi,pin) ;
+    auto address = ::address(&master,debug,retry) ;
+    if (address)
     {
-	if (retry && error.type() == Error::Type::Retry)
-	    goto Retry ;
-	throw ;
+	std::cout << toStr(*address,debug) << '\n' ;
     }
-}
-
-static boost::optional<Address>
-first(Master *master,bool retry)
-{
-  Retry: try { return Addressing(master).first() ; }
-    
-    catch(Error &error)
+    else
     {
-	if (retry && error.type() == Error::Type::Retry)
-	    goto Retry ;
-	throw ;
+	std::cout << "no device present\n" ;
     }
 }
 
-static boost::optional<Address>
-next(Master *master,Address const &address,bool retry)
+static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-  Retry: try { return Addressing(master).next(address) ; }
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto alarm = argL->pop_if("-a") ;
+    auto debug = argL->pop_if("-d") ;
+    auto retry = argL->pop_if("-r") ;
+    argL->finalize() ;
     
-    catch(Error &error)
+    Master master(rpi,pin) ;
+    auto address = first(&master,alarm,debug,retry) ;
+    if (!address)
     {
-	if (retry && error.type() == Error::Type::Retry)
-	    goto Retry ;
-	throw ;
+	std::cout << "no device present\n" ;
     }
-}
-
-// ----
-
-static void convert(Master *master,bool retry)
-{
-  Retry: try { Ds18b20(master).convert() ; }
-    
-    catch(Error &error)
+    else
     {
-	if (retry && error.type() == Error::Type::Retry)
-	    goto Retry ;
-	throw ;
+	while (address)
+	 {
+	     std::cout << toStr(*address,debug) << '\n' ;
+	     address = next(&master,*address,alarm,debug,retry) ;
+	 }
     }
 }
 
-static bool isBusy(Master *master,bool retry)
-{
-  Retry: try { return Ds18b20(master).isBusy() ; }
-    
-    catch(Error &error)    {
-	if (retry && error.type() == Error::Type::Retry)
-	    goto Retry ;
-	throw ;
-    }
-}
-
-static bool isPowered(Master *master,bool retry)
-{
-  Retry: try { return Ds18b20(master).isPowered() ; }
-    
-    catch(Error &error)
-    {
-	if (retry && error.type() == Error::Type::Retry)
-	    goto Retry ;
-	throw ;
-    }
-}
-
-static Ds18b20::Pad readPad(Master *master,bool retry)
-{
-  Retry: try { return Ds18b20(master).readPad() ; }
-    
-    catch(Error &error)
-    {
-	if (retry && error.type() == Error::Type::Retry)
-	    goto Retry ;
-	throw ;
-    }
-}
-
-// ----
+// ----[ DS18B20 console commands ]------------------------------------
 
 static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto wait = !argL->pop_if("-n") ;
+    auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     
     Master master(rpi,pin) ;
 
-    convert(&master,retry) ;
+    convert(&master,debug,retry) ;
 
     if (wait)
     {
 	unsigned count = 1 ;
 	
-	auto busy = isBusy(&master,retry) ;
+	auto busy = isBusy(&master,debug,retry) ;
 	while (busy)
 	{
-	    busy = isBusy(&master,retry) ;
+	    busy = isBusy(&master,debug,retry) ;
 	    ++count ;
 	}
 	// [todo] measure and display the time it takes to finish
 	// (this piece of information might be quite interesting)
 	
 	// this does only word on a single drop bus
-	auto pad = readPad(&master,retry) ;
-	print(pad) ;
+	auto pad = readPad(&master,debug,retry) ;
+	std::cout << toStr(pad,debug) << '\n' ;
 	auto temp = (pad & Ds18b20::Pad(0xffff)).to_ullong() ;
 	auto mode = ((pad >> 37) & Ds18b20::Pad(0x3)).to_ullong() ;
 	auto div = 2u << mode ;
@@ -178,62 +208,25 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     Master master(rpi,pin) ;
 
-    auto pad = readPad(&master,retry) ;
-    print(pad) ;
+    auto pad = readPad(&master,debug,retry) ;
+    std::cout << toStr(pad,debug) << '\n' ;
 }
 
 static void power(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     Master master(rpi,pin) ;
     
-    auto powered = isPowered(&master,retry) ;
+    auto powered = isPowered(&master,debug,retry) ;
     std::cout << powered << '\n' ;
-}
-
-// ----
-
-static void address(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    auto retry = argL->pop_if("-r") ;
-    argL->finalize() ;
-    Master master(rpi,pin) ;
-    
-    auto address = ::address(&master,retry) ;
-    if (address)
-    {
-	print(*address) ;
-    }
-    else
-    {
-	std::cout << "no device present\n" ;
-    }
-}
-
-static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    auto retry = argL->pop_if("-r") ;
-    argL->finalize() ;
-    Master master(rpi,pin) ;
-
-    auto address = first(&master,retry) ;
-    if (!address)
-    {
-	std::cout << "no device present\n" ;
-    }
-    else while (address)
-	 {
-	     print(*address) ;
-	     address = next(&master,*address,retry) ;
-	 }
 }
 
 // ----
