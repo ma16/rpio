@@ -14,8 +14,9 @@ struct Error : Neat::Error
     {
 	NotPresent = 0, // no device found on the bus
 	Retry      = 1, // timing exceeded due to process suspension 
-	Timing     = 2, // timing exceeded by remote device
-	Vanished   = 3, // device vanished while Search-ROM operation
+	Reset      = 2, // timing exceeded (possible Reset-Pulse)
+	Timing     = 3, // timing exceeded by remote device
+	Vanished   = 4, // device vanished while Search-ROM operation
     } ;
   
     using TypeN = Neat::Numerator<Type,Type::Vanished> ;

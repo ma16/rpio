@@ -6,7 +6,8 @@ using namespace Protocol::OneWire::Bang ;
 
 static std::string toStr(Error::Type type,int line)
 {
-    static char const *v[] = { "NotPresent","Retry","Timing","Vanished" } ;
+    static char const *v[] =
+      { "NotPresent","Retry","Reset","Timing","Vanished" } ;
     auto s = v[Error::TypeN(type).n()] ;
     std::ostringstream os ;
     os << "Device:Ds18x20:Bang: " << s << " #" << line ;
