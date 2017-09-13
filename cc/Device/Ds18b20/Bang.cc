@@ -20,12 +20,17 @@ void Bang::convert()
     //   we would need our script to loop
 }
 
-Bang::Pad Bang::readPad()
+Bang::Pad Bang::readPad(boost::optional<Address> const& address)
 {
     auto present = this->signaling.init() ;
     if (!present)
 	throw Error(Error::Type::NotPresent,__LINE__) ;
-    this->signaling.write(Master::SkipRom) ;
+    if (address)
+    {
+	this->signaling.write(Master::MatchRom) ;
+	this->signaling.write(*address) ;
+    }	
+    else this->signaling.write(Master::SkipRom) ;
     // Function-command: Read-Sratch-Pad
     this->signaling.write(std::bitset<8>(0xbe)) ;
     return this->signaling.read<72>() ;

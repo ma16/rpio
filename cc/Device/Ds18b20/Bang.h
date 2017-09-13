@@ -27,12 +27,16 @@
 // bus voltage level and to verify timings. The ARM Counter is used as
 // clock. The client needs to set up the ARM counter.
 
+#include <Protocol/OneWire/Bang/Address.h>
 #include <Protocol/OneWire/Bang/Signaling.h>
+#include <boost/optional.hpp>
 
 namespace Device { namespace Ds18b20 { 
 
 struct Bang
 {
+    using Address = Protocol::OneWire::Bang::Address ;
+  
     using Pad = std::bitset<72> ; // the scratch-pad
     
     // returns true as long as the current operation has not finished
@@ -48,7 +52,7 @@ struct Bang
     // returns true if Vcc is connect; false if in parasite mode
 
     // read scratch-pad (single drop bus only)
-    Pad readPad() ;
+    Pad readPad(boost::optional<Address> const&) ;
 
     using Master = Protocol::OneWire::Bang::Master ;
     
