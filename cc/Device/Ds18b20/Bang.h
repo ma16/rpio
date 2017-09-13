@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef INCLUDE_Device_Ds18x20_Bang_h
-#define INCLUDE_Device_Ds18x20_Bang_h
+#ifndef INCLUDE_Device_Ds18b20_Bang_h
+#define INCLUDE_Device_Ds18b20_Bang_h
 
 // An implementation
 // * for the 1-Wire Bus
@@ -29,7 +29,7 @@
 
 #include <Protocol/OneWire/Bang/Signaling.h>
 
-namespace Device { namespace Ds18x20 { 
+namespace Device { namespace Ds18b20 { 
 
 struct Bang
 {
@@ -62,4 +62,4 @@ private:
 
 } ; } }
 
-#endif // INCLUDE_Device_Ds18x20_Bang_h
+#endif // INCLUDE_Device_Ds18b20_Bang_h

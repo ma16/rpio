@@ -32,7 +32,7 @@ LSRC=\
 	Console/Cm/invoke.cc \
 	Console/Device/invoke.cc \
 	Console/Device/Ads1115/invoke.cc \
-	Console/Device/Ds18x20/invoke.cc \
+	Console/Device/Ds18b20/invoke.cc \
 	Console/Device/Mcp3008/invoke.cc \
 	Console/Device/Max7219/invoke.cc \
 	Console/Device/Ws2812b/invoke.cc \
@@ -58,7 +58,7 @@ LSRC=\
 	Device/Ads1115/Bang/Generator.cc \
 	Device/Ads1115/Bang/Host.cc \
 	Device/Ads1115/Bang/Record.cc \
-	Device/Ds18x20/Bang.cc \
+	Device/Ds18b20/Bang.cc \
 	Device/Max7219/Bang.cc \
 	Device/Max7219/Parser.cc \
 	Device/Mcp3008/Bang.cc \

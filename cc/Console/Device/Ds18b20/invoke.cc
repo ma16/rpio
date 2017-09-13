@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
-#include <Device/Ds18x20/Bang.h>
+#include <Device/Ds18b20/Bang.h>
 #include <Protocol/OneWire/Bang/Addressing.h>
 #include <Protocol/OneWire/Bang/crc.h>
 #include <Protocol/OneWire/Bang/Error.h>
@@ -11,7 +11,7 @@
 
 // [todo] command line options: timing and ARM counter frequency
 
-using Ds18b20 = Device::Ds18x20::Bang ;
+using Ds18b20 = Device::Ds18b20::Bang ;
 
 using Error = Protocol::OneWire::Bang::Error ;
 
@@ -252,7 +252,7 @@ static void help(Rpi::Peripheral*,Ui::ArgL*)
 
 // ----
 
-void Console::Device::Ds18x20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+void Console::Device::Ds18b20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
     {

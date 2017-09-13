@@ -3,7 +3,7 @@
 #include "Bang.h"
 #include <Protocol/OneWire/Bang/Error.h>
 
-using Bang = Device::Ds18x20::Bang ;
+using Bang = Device::Ds18b20::Bang ;
 
 using Error = Protocol::OneWire::Bang::Error ;
 
