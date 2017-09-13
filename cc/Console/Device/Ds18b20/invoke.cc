@@ -6,7 +6,7 @@
 #include <Protocol/OneWire/Bang/crc.h>
 #include <Protocol/OneWire/Bang/Error.h>
 #include <Ui/strto.h>
-#include <cstring> // memset
+#include <chrono>
 #include <iomanip>
 
 // [todo] command line options: timing and ARM counter frequency
@@ -59,10 +59,14 @@ next(Master *master,Address const &address,bool alarm,bool debug,bool retry)
 
 // ----[ DS18B20 retry-wrappers ]--------------------------------------
 
-static void convert(Master *master,bool debug,bool retry)
+static void convert(
+    Master *master,
+    boost::optional<Address> const &address,
+    bool debug,
+    bool retry)
 {
   Retry:
-    try { Ds18b20(master).convert() ; }
+    try { Ds18b20(master).convert(address) ; }
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
@@ -73,10 +77,14 @@ static bool isBusy(Master *master,bool debug,bool retry)
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
-static bool isPowered(Master *master,bool debug,bool retry)
+static bool isPowered(
+    Master *master,
+    boost::optional<Address> const &address,
+    bool debug,
+    bool retry)
 {
   Retry:
-    try { return Ds18b20(master).isPowered() ; }
+    try { return Ds18b20(master).isPowered(address) ; }
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
@@ -88,6 +96,40 @@ static Ds18b20::Pad readPad(
 {
   Retry:
     try { return Ds18b20(master).readPad(address) ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+static void restoreThresholds(
+    Master *master,
+    boost::optional<Address> const &address,
+    bool debug,
+    bool retry)
+{
+  Retry:
+    try { Ds18b20(master).restoreThresholds(address) ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+static void saveThresholds(
+    Master *master,
+    boost::optional<Address> const &address,
+    bool debug,
+    bool retry)
+{
+  Retry:
+    try { Ds18b20(master).saveThresholds(address) ; }
+    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+}
+
+static void writeThresholds(
+    Master *master,
+    uint16_t thr,
+    boost::optional<Address> const &address,
+    bool debug,
+    bool retry)
+{
+  Retry:
+    try { return Ds18b20(master).writeThresholds(thr,address) ; }
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
@@ -230,44 +272,7 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // ----[ DS18B20 console commands ]------------------------------------
 
-static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
-{
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    auto wait = !argL->pop_if("-n") ;
-    auto debug = argL->pop_if("-d") ;
-    auto retry = argL->pop_if("-r") ;
-    argL->finalize() ;
-    
-    Master master(rpi,pin) ;
-
-    convert(&master,debug,retry) ;
-#if 0
-    if (wait)
-    {
-	unsigned count = 1 ;
-	
-	auto busy = isBusy(&master,debug,retry) ;
-	while (busy)
-	{
-	    busy = isBusy(&master,debug,retry) ;
-	    ++count ;
-	}
-	// [todo] measure and display the time it takes to finish
-	// (this piece of information might be quite interesting)
-	
-	// this does only word on a single drop bus
-	auto pad = readPad(&master,debug,retry) ;
-	std::cout << toStr(pad,debug) << '\n' ;
-	auto temp = (pad & Ds18b20::Pad(0xffff)).to_ullong() ;
-	auto mode = ((pad >> 37) & Ds18b20::Pad(0x3)).to_ullong() ;
-	auto div = 2u << mode ;
-	std::cout << static_cast<double>(temp) / div << '\n' ;
-	// todo: record time
-    }
-#endif    
-}
-
-static boost::optional<Address> getAddress(Ui::ArgL *argL)
+static boost::optional<Address> optAddress(Ui::ArgL *argL)
 {
     auto exists = argL->pop_if("-a") ;
     if (!exists)
@@ -278,10 +283,46 @@ static boost::optional<Address> getAddress(Ui::ArgL *argL)
     return set ;
 }
 
+static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto address = optAddress(argL) ;
+    auto debug = argL->pop_if("-d") ;
+    auto retry = argL->pop_if("-r") ;
+    auto wait = argL->pop_if("-w") ;
+    argL->finalize() ;
+    
+    Master master(rpi,pin) ;
+
+    auto t0 = std::chrono::steady_clock::now() ;
+    convert(&master,address,debug,retry) ;
+    if (!wait)
+	return ;
+
+    auto busy = isBusy(&master,debug,retry) ;
+    while (busy)
+	busy = isBusy(&master,debug,retry) ;
+    auto t1 = std::chrono::steady_clock::now() ;
+    auto dt = std::chrono::duration<double>(t1-t0).count() ;
+
+    // reading doesn't work on broadcast and multi-drop bus
+    auto pad = readPad(&master,address,debug,retry) ;
+#if 0    
+    auto temp = (pad & Ds18b20::Pad(0xffff)).to_ullong() ;
+    auto mode = ((pad >> 37) & Ds18b20::Pad(0x3)).to_ullong() ;
+    auto div = 2u << mode ;
+    std::cout << static_cast<double>(temp) / div << '\n' ;
+#endif    
+
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    std::cout << toStr(pad,debug) << " (" << dt << "s)\n" ;
+}
+
 static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    auto address = getAddress(argL) ;
+    auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
@@ -293,13 +334,77 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 static void power(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     Master master(rpi,pin) ;
-    
-    auto powered = isPowered(&master,debug,retry) ;
+    auto powered = isPowered(&master,address,debug,retry) ;
     std::cout << powered << '\n' ;
+}
+
+static void restore(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto address = optAddress(argL) ;
+    auto debug = argL->pop_if("-d") ;
+    auto retry = argL->pop_if("-r") ;
+    auto wait = argL->pop_if("-w") ;
+    argL->finalize() ;
+    
+    Master master(rpi,pin) ;
+
+    auto t0 = std::chrono::steady_clock::now() ;
+    restoreThresholds(&master,address,debug,retry) ;
+    if (!wait)
+	return ;
+    auto busy = isBusy(&master,debug,retry) ;
+    while (busy)
+	busy = isBusy(&master,debug,retry) ;
+    auto t1 = std::chrono::steady_clock::now() ;
+    auto dt = std::chrono::duration<double>(t1-t0).count() ;
+
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    std::cout << dt << "s\n" ;
+}
+
+static void save(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto address = optAddress(argL) ;
+    auto debug = argL->pop_if("-d") ;
+    auto retry = argL->pop_if("-r") ;
+    auto wait = argL->pop_if("-w") ;
+    argL->finalize() ;
+    
+    Master master(rpi,pin) ;
+
+    auto t0 = std::chrono::steady_clock::now() ;
+    saveThresholds(&master,address,debug,retry) ;
+    if (!wait)
+	return ;
+    auto busy = isBusy(&master,debug,retry) ;
+    while (busy)
+	busy = isBusy(&master,debug,retry) ;
+    auto t1 = std::chrono::steady_clock::now() ;
+    auto dt = std::chrono::duration<double>(t1-t0).count() ;
+
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    std::cout << dt << "s\n" ;
+}
+
+static void write(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto address = optAddress(argL) ;
+    auto debug = argL->pop_if("-d") ;
+    auto retry = argL->pop_if("-r") ;
+    auto thr = Ui::strto<uint16_t>(argL->pop()) ;
+    argL->finalize() ;
+    Master master(rpi,pin) ;
+    writeThresholds(&master,thr,address,debug,retry) ;
 }
 
 // ----
@@ -322,12 +427,17 @@ void Console::Device::Ds18b20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
     {
-	{ "address" , address },
-	{ "convert" , convert },
 	{ "help"    ,    help },
+	
+	{ "address" , address },
+	{ "search"  ,  search },
+	
+	{ "convert" , convert },
 	{ "pad"     ,     pad },
 	{ "power"   ,   power },
-	{ "search"  ,  search },
+	{ "restore" , restore },
+	{ "save"    ,    save },
+	{ "write"   ,   write },
     } ;
     argL->pop(map)(rpi,argL) ;
 }

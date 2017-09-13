@@ -45,14 +45,23 @@ struct Bang
     // for operations as convert and copy- and recall scratch-pad
 
     // start temperature measurement (after a skip or match ROM command)
-    void convert() ;
+    void convert(boost::optional<Address> const&) ;
     // can be followed by isBusy() to wait for completion
 
-    bool isPowered() ;
+    bool isPowered(boost::optional<Address> const&) ;
     // returns true if Vcc is connect; false if in parasite mode
 
-    // read scratch-pad (single drop bus only)
+    // read scratch-pad
     Pad readPad(boost::optional<Address> const&) ;
+
+    // restore scratch-pad's thresholds
+    void restoreThresholds(boost::optional<Address> const&) ;
+
+    // save scratch-pad's thresholds
+    void saveThresholds(boost::optional<Address> const&) ;
+
+    // write scratch-pad's thresholds
+    void writeThresholds(uint16_t thr,boost::optional<Address> const&) ;
 
     using Master = Protocol::OneWire::Bang::Master ;
     
