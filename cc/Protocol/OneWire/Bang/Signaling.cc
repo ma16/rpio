@@ -67,6 +67,54 @@ bool Signaling::init()
     return isPresent ;
 }
 
+bool Signaling::read(bool busy)
+{
+    //  t0 t1 t2 t3 t4 t5
+    // ---+     +-----+---
+    //    |     |     |   
+    //    +-----+-----+
+
+    // tx: initiate Read-Time-Slot
+    auto t0 = this->master->io.time() ; 
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::Out) ;
+    auto t1 = this->master->io.time() ; 
+    this->master->io.wait(t1,this->master->timing.rinit) ;
+    // the device keeps holding the wire low in order to "send" a
+    // 0-bit; there is no LH-HL gap as long as the pulse to initiate
+    // the Read-Time-Slot is long enough
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
+    this->master->io.sleep(this->master->timing.rrc) ;
+    auto sample_t3 = 0 != (this->master->mask & this->master->io.levels()) ;
+    auto t3 = this->master->io.time() ; 
+    // ...if we got suspended, t3 and following time-stamps may lay
+    // far behind the end of the 0-bit Pulse (if there was any)
+    if (busy && t3-t0 > this->master->timing.rstl/3) 
+	throw Error(Error::Type::Reset,__LINE__) ;
+    if (t3 - t0 > this->master->timing.rdv) 
+	throw Error(Error::Type::Retry,__LINE__) ;
+    
+    // rx: wait for LH edge 
+    this->master->io.waitForLevel(t1,this->master->timing.slot.max,
+				  this->master->mask,
+				  /*High*/this->master->mask) ;
+    auto t5 = this->master->io.recent() ;
+    auto timeout = t5 - t1 >= this->master->timing.slot.max ;
+    if (timeout)
+	throw Error(Error::Type::Retry,__LINE__) ;
+
+    auto sample_rdv = (t5 - t1) <= this->master->timing.rdv ;
+    if (sample_t3 != sample_rdv)
+	throw Error(Error::Type::Retry,__LINE__) ;
+
+    // minimum recovery time (after LH edge)
+    this->master->io.wait(t5,this->master->timing.rec) ;
+	
+    // rx: wait for end of cycle
+    this->master->io.wait(t1,this->master->timing.slot.min) ;
+
+    return sample_t3 ;
+}
+
 void Signaling::write(bool bit) 
 {
     //  t0 t1 t2 t3
@@ -90,51 +138,4 @@ void Signaling::write(bool bit)
 	
     // rx: wait for end of cycle
     this->master->io.wait(t1,this->master->timing.slot.min) ;
-}
-
-bool Signaling::read()
-{
-    //  t0 t1 t2 t3 t4 t5
-    // ---+     +-----+---
-    //    |     |     |   
-    //    +-----+-----+
-
-    // tx: initiate Read-Time-Slot
-    auto t0 = this->master->io.time() ; 
-    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::Out) ;
-    auto t1 = this->master->io.time() ; 
-    this->master->io.wait(t1,this->master->timing.rinit) ;
-    // the device keeps holding the wire low in order to "send" a
-    // 0-bit; there is no LH-HL gap as long as the pulse to initiate
-    // the Read-Time-Slot is long enough
-    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
-    this->master->io.sleep(this->master->timing.rrc) ;
-    auto sample_t3 = 0 != (this->master->mask & this->master->io.levels()) ;
-    auto t3 = this->master->io.time() ; 
-    // ...if we got suspended, t3 and following time-stamps may lay
-    // far behind the end of the 0-bit Pulse (if there was any)
-    if (t3 - t0 > this->master->timing.rdv) 
-	throw Error(Error::Type::Retry,__LINE__) ;
-    // ...this does also cover t3 - t0 > rstl
-
-    // rx: wait for LH edge 
-    this->master->io.waitForLevel(t1,this->master->timing.slot.max,
-				  this->master->mask,
-				  /*High*/this->master->mask) ;
-    auto t5 = this->master->io.recent() ;
-    auto timeout = t5 - t1 >= this->master->timing.slot.max ;
-    if (timeout)
-	throw Error(Error::Type::Retry,__LINE__) ;
-
-    auto sample_rdv = (t5 - t1) <= this->master->timing.rdv ;
-    if (sample_t3 != sample_rdv)
-	throw Error(Error::Type::Retry,__LINE__) ;
-
-    // minimum recovery time (after LH edge)
-    this->master->io.wait(t5,this->master->timing.rec) ;
-	
-    // rx: wait for end of cycle
-    this->master->io.wait(t1,this->master->timing.slot.min) ;
-
-    return sample_t3 ;
 }

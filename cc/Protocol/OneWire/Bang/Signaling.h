@@ -13,7 +13,7 @@ struct Signaling
     bool init() ;
 
     // read time-slot
-    bool read() ;
+    bool read() { return read(false) ; }
 
     // for convenience
     template<size_t N> std::bitset<N> read()
@@ -24,6 +24,9 @@ struct Signaling
 	return set ;
     }
     
+    // the same as !read(); however throws Retry not if reset
+    bool isBusy() { return !read(true) ; }
+
     // write time-slot
     void write(bool bit) ;
     
@@ -37,6 +40,8 @@ struct Signaling
     Signaling(Master *master) : master(master) {}
 
 private:
+
+    bool read(bool busy) ;
 
     Master *master ;
 
