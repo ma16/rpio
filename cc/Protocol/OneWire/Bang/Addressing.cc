@@ -54,7 +54,18 @@ boost::optional<Address> Addressing::first(bool alarm)
       ? this->signaling.write(Master::AlarmSearch) 
       : this->signaling.write(Master::  SearchRom) ;
     Address address ;
-    this->traverse(&address,0) ;
+    try
+    {
+	this->traverse(&address,0) ;
+    }
+    catch (Error &error)
+    {
+	if (!alarm)
+	    throw ;
+	if (Error::Type::Vanished != error.type())
+	    throw ;
+	return boost::none ;
+    }
     return address ;
 } 
 
