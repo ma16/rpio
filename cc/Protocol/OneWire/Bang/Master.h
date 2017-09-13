@@ -20,15 +20,15 @@ struct Master
     
     Master(
 	Rpi::Peripheral *rpi,
-	Rpi::Pin busPin,
+	Rpi::Pin pin,
 	Timing::Template<uint32_t> const& timing =
 	Timing::xlat(Timing::spec,250e+6)) // [todo]
 
-	: intr                    (rpi)
-	, io                      (rpi)
-	, busPin               (busPin)
-	, pinMask(1u << busPin.value())
-	, timing               (timing) {}
+	: intr              (rpi)
+	, io                (rpi)
+	, pin               (pin)
+	, mask(1u << pin.value())
+	, timing         (timing) {}
 
 private:
 
@@ -38,7 +38,7 @@ private:
 
     RpiExt::BangIo io ;
 
-    Rpi::Pin busPin ; uint32_t pinMask ;
+    Rpi::Pin pin ; uint32_t mask ;
 
     Timing::Template<uint32_t> timing ;
 

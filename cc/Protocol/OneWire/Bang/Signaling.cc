@@ -13,18 +13,18 @@ bool Signaling::init()
     //    +-----+     +-----+
     
     // tx: Reset-Pulse
-    this->master->io.mode(this->master->busPin,Rpi::Gpio::Mode::Out) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::Out) ;
     // ...assumes the configured output level is Low
     // ...note, errors must not be thrown as long as Out or Events enabled
     this->master->io.sleep(this->master->timing.rstl) ;
     auto v = this->master->intr.status() ;
     // https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=192908
     this->master->intr.disable(v) ;
-    this->master->io.detect(this->master->busPin,Rpi::Gpio::Event::Fall) ;
+    this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Fall) ;
     // the event status bit gets immediately set (todo: why?)
-    this->master->io.events(this->master->pinMask) ;
+    this->master->io.events(this->master->mask) ;
     auto t2 = this->master->io.recent() ;
-    this->master->io.mode(this->master->busPin,Rpi::Gpio::Mode::In) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->master->io.time() ;
     // ...if we got suspended, t3 and following time-stamps may lay
     // even behind the end of the Presence-Pulse (if there was any)
@@ -32,11 +32,11 @@ bool Signaling::init()
     auto isPresent = 0 !=
       this->master->io.waitForEvent(t3,
 				    this->master->timing.pdhigh.max,
-				    this->master->pinMask) ;
+				    this->master->mask) ;
     auto t4 = this->master->io.recent() ;
     auto t5 = this->master->io.time() ;
-    this->master->io.detect(this->master->busPin,Rpi::Gpio::Event::Fall,false) ;
-    this->master->io.events(this->master->pinMask) ; // reset late events
+    this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Fall,false) ;
+    this->master->io.events(this->master->mask) ; // reset late events
     this->master->intr.enable(v) ;
 
     if (isPresent)
@@ -48,8 +48,8 @@ bool Signaling::init()
 
 	// rx: wait for LH-edge (end of Presence-Pulse)
 	this->master->io.waitForLevel(t5,this->master->timing.pdlow.max,
-				      this->master->pinMask,
-				      /*High*/this->master->pinMask) ;
+				      this->master->mask,
+				      /*High*/this->master->mask) ;
 	auto t7 = this->master->io.recent() ;
 	if (t7 - t4 < this->master->timing.pdlow.min)
 	    throw Error(Error::Type::Timing,__LINE__) ;
@@ -76,11 +76,11 @@ void Signaling::write(bool bit)
 
     // tx: short or long Bit Pulse
     auto t0 = this->master->io.time() ;
-    this->master->io.mode(this->master->busPin,Rpi::Gpio::Mode::Out) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::Out) ;
     auto t1 = this->master->io.time() ;
     auto range = bit ? this->master->timing.low1 : this->master->timing.low0 ;
     this->master->io.wait(t1,range.min) ; 
-    this->master->io.mode(this->master->busPin,Rpi::Gpio::Mode::In) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->master->io.time() ; 
     if (t3 - t0 > range.max) 
 	throw Error(Error::Type::Retry,__LINE__) ;
@@ -101,15 +101,15 @@ bool Signaling::read()
 
     // tx: initiate Read-Time-Slot
     auto t0 = this->master->io.time() ; 
-    this->master->io.mode(this->master->busPin,Rpi::Gpio::Mode::Out) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::Out) ;
     auto t1 = this->master->io.time() ; 
     this->master->io.wait(t1,this->master->timing.rinit) ;
     // the device keeps holding the wire low in order to "send" a
     // 0-bit; there is no LH-HL gap as long as the pulse to initiate
     // the Read-Time-Slot is long enough
-    this->master->io.mode(this->master->busPin,Rpi::Gpio::Mode::In) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
     this->master->io.sleep(this->master->timing.rrc) ;
-    auto sample_t3 = 0 != (this->master->pinMask & this->master->io.levels()) ;
+    auto sample_t3 = 0 != (this->master->mask & this->master->io.levels()) ;
     auto t3 = this->master->io.time() ; 
     // ...if we got suspended, t3 and following time-stamps may lay
     // far behind the end of the 0-bit Pulse (if there was any)
@@ -119,8 +119,8 @@ bool Signaling::read()
 
     // rx: wait for LH edge 
     this->master->io.waitForLevel(t1,this->master->timing.slot.max,
-				  this->master->pinMask,
-				  /*High*/this->master->pinMask) ;
+				  this->master->mask,
+				  /*High*/this->master->mask) ;
     auto t5 = this->master->io.recent() ;
     auto timeout = t5 - t1 >= this->master->timing.slot.max ;
     if (timeout)
