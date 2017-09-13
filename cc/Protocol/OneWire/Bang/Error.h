@@ -17,6 +17,7 @@ struct Error : Neat::Error
 	Timing     = 2, // timing exceeded by remote device
 	Vanished   = 3, // device vanished while Search-ROM operation
     } ;
+  
     using TypeN = Neat::Numerator<Type,Type::Vanished> ;
 	
     Error(Type type,int line) ;

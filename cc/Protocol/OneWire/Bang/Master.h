@@ -5,8 +5,8 @@
 
 #include "Timing.h"
 #include <bitset>
-#include <RpiExt/BangIo.h>
 #include <Rpi/Intr.h>
+#include <RpiExt/BangIo.h>
 
 namespace Protocol { namespace OneWire { namespace Bang { 
 

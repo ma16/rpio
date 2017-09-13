@@ -40,7 +40,6 @@ private:
 
     Master *master ;
 
-
 } ; } } }
 
 #endif // INCLUDE_Protocol_OneWire_Bang_Signaling_h
