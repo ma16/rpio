@@ -9,8 +9,6 @@
 #include <chrono>
 #include <iomanip>
 
-// [todo] command line options: timing and ARM counter frequency
-
 using Ds18b20 = Device::Ds18b20::Bang ;
 
 using Error = Protocol::OneWire::Bang::Error ;
@@ -397,6 +395,8 @@ static void save(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 static void write(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
+    // [todo] write 3 bytes for DS18B20 instead of 2 (DS18S20)
+    
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
@@ -411,6 +411,7 @@ static void write(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 static void help(Rpi::Peripheral*,Ui::ArgL*)
 {
+    // [todo]
     std::cout
 	<< "arguments: OPTION PIN\n"
 	<< '\n'
@@ -425,6 +426,8 @@ static void help(Rpi::Peripheral*,Ui::ArgL*)
 
 void Console::Device::Ds18b20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
+    // [todo] command line options: timing and ARM counter frequency
+
     std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
     {
 	{ "help"    ,    help },
