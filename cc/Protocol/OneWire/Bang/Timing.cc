@@ -7,33 +7,33 @@ using namespace Protocol::OneWire::Bang ;
 constexpr Timing::Template<double> Timing::spec ;
 
 Timing::Template<uint32_t>
-Timing::xlat(Template<double> const &seconds,double tps)
+Timing::xlat(double f,Template<double> const &seconds)
 {
     Template<uint32_t> ticks ;
-    auto f = [tps](double s) { return static_cast<uint32_t>(s * tps + 0.5) ; } ;
+    auto c = [f](double s) { return static_cast<uint32_t>(s * f + 0.5) ; } ;
     
-    ticks.slot.min = f(seconds.slot.min) ;
-    ticks.slot.max = f(seconds.slot.max) ;
+    ticks.slot.min = c(seconds.slot.min) ;
+    ticks.slot.max = c(seconds.slot.max) ;
 
-    ticks.rec = f(seconds.rec) ;
+    ticks.rec = c(seconds.rec) ;
     
-    ticks.low0.min = f(seconds.low0.min) ;
-    ticks.low0.max = f(seconds.low0.max) ;
+    ticks.low0.min = c(seconds.low0.min) ;
+    ticks.low0.max = c(seconds.low0.max) ;
 
-    ticks.low1.min = f(seconds.low1.min) ;
-    ticks.low1.max = f(seconds.low1.max) ;
+    ticks.low1.min = c(seconds.low1.min) ;
+    ticks.low1.max = c(seconds.low1.max) ;
 
-    ticks.rinit = f(seconds.rinit) ;
-    ticks.rrc   = f(seconds.  rrc) ;
-    ticks.rdv   = f(seconds.  rdv) ;
-    ticks.rsth  = f(seconds. rsth) ;
-    ticks.rstl  = f(seconds. rstl) ;
+    ticks.rinit = c(seconds.rinit) ;
+    ticks.rrc   = c(seconds.  rrc) ;
+    ticks.rdv   = c(seconds.  rdv) ;
+    ticks.rsth  = c(seconds. rsth) ;
+    ticks.rstl  = c(seconds. rstl) ;
     
-    ticks.pdhigh.min = f(seconds.pdhigh.min) ;
-    ticks.pdhigh.max = f(seconds.pdhigh.max) ;
+    ticks.pdhigh.min = c(seconds.pdhigh.min) ;
+    ticks.pdhigh.max = c(seconds.pdhigh.max) ;
 
-    ticks.pdlow.min = f(seconds.pdlow.min) ;
-    ticks.pdlow.max = f(seconds.pdlow.max) ;
+    ticks.pdlow.min = c(seconds.pdlow.min) ;
+    ticks.pdlow.max = c(seconds.pdlow.max) ;
 
     return ticks ;
 }

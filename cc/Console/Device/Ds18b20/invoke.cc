@@ -219,15 +219,13 @@ static std::string toStr(std::bitset<N> const &set,bool debug)
 
 // ----[ 1-wire console commands ]-------------------------------------
 
-static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void rom(OneWire::Master *master,Ui::ArgL *argL)
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     
-    OneWire::Master master(rpi,pin) ;
-    auto address = rom(&master,debug,retry) ;
+    auto address = rom(master,debug,retry) ;
     if (address)
     {
 	std::cout << toStr(*address,debug) << '\n' ;
@@ -238,16 +236,14 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
 }
 
-static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void search(OneWire::Master *master,Ui::ArgL *argL)
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto alarm = argL->pop_if("-a") ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     
-    OneWire::Master master(rpi,pin) ;
-    auto address = first(&master,alarm,debug,retry) ;
+    auto address = first(master,alarm,debug,retry) ;
     if (!address)
     {
 	std::cout << "no device present\n" ;
@@ -257,7 +253,7 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	while (address)
 	 {
 	     std::cout << toStr(*address,debug) << '\n' ;
-	     address = next(&master,*address,alarm,debug,retry) ;
+	     address = next(master,*address,alarm,debug,retry) ;
 	 }
     }
 }
@@ -275,114 +271,94 @@ static boost::optional<OneWire::Address> optAddress(Ui::ArgL *argL)
     return set ;
 }
 
-static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void convert(OneWire::Master *master,Ui::ArgL *argL)
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     auto wait = argL->pop_if("-w") ;
     argL->finalize() ;
     
-    OneWire::Master master(rpi,pin) ;
-
     auto t0 = std::chrono::steady_clock::now() ;
-    convert(&master,address,debug,retry) ;
+    convert(master,address,debug,retry) ;
     if (!wait)
 	return ;
 
-    auto busy = isBusy(&master,debug,retry) ;
+    auto busy = isBusy(master,debug,retry) ;
     while (busy)
-	busy = isBusy(&master,debug,retry) ;
+	busy = isBusy(master,debug,retry) ;
     auto t1 = std::chrono::steady_clock::now() ;
     auto dt = std::chrono::duration<double>(t1-t0).count() ;
 
-    auto pad = readPad(&master,address,debug,retry) ;
+    auto pad = readPad(master,address,debug,retry) ;
     // ...reading doesn't work on broadcast on multi-drop bus
-    std::cout.setf(std::ios::scientific) ;
-    std::cout.precision(2) ;
     std::cout << toStr(pad,debug) << " (" << dt << "s)\n" ;
 }
 
-static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void pad(OneWire::Master *master,Ui::ArgL *argL)
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
-    OneWire::Master master(rpi,pin) ;
-    auto pad = readPad(&master,address,debug,retry) ;
+    auto pad = readPad(master,address,debug,retry) ;
     std::cout << toStr(pad,debug) << '\n' ;
 }
 
-static void power(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void power(OneWire::Master *master,Ui::ArgL *argL)
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
-    OneWire::Master master(rpi,pin) ;
-    auto powered = isPowered(&master,address,debug,retry) ;
+    auto powered = isPowered(master,address,debug,retry) ;
     std::cout << powered << '\n' ;
 }
 
-static void restore(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void restore(OneWire::Master *master,Ui::ArgL *argL)
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     auto wait = argL->pop_if("-w") ;
     argL->finalize() ;
     
-    OneWire::Master master(rpi,pin) ;
-
     auto t0 = std::chrono::steady_clock::now() ;
-    restore(&master,address,debug,retry) ;
+    restore(master,address,debug,retry) ;
     if (!wait)
 	return ;
-    auto busy = isBusy(&master,debug,retry) ;
+    auto busy = isBusy(master,debug,retry) ;
     while (busy)
-	busy = isBusy(&master,debug,retry) ;
+	busy = isBusy(master,debug,retry) ;
     auto t1 = std::chrono::steady_clock::now() ;
     auto dt = std::chrono::duration<double>(t1-t0).count() ;
 
-    std::cout.setf(std::ios::scientific) ;
-    std::cout.precision(2) ;
     std::cout << dt << "s\n" ;
 }
 
-static void save(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void save(OneWire::Master *master,Ui::ArgL *argL)
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     auto wait = argL->pop_if("-w") ;
     argL->finalize() ;
     
-    OneWire::Master master(rpi,pin) ;
-
     auto t0 = std::chrono::steady_clock::now() ;
-    save(&master,address,debug,retry) ;
+    save(master,address,debug,retry) ;
     if (!wait)
 	return ;
-    auto busy = isBusy(&master,debug,retry) ;
+    auto busy = isBusy(master,debug,retry) ;
     while (busy)
-	busy = isBusy(&master,debug,retry) ;
+	busy = isBusy(master,debug,retry) ;
     auto t1 = std::chrono::steady_clock::now() ;
     auto dt = std::chrono::duration<double>(t1-t0).count() ;
 
-    std::cout.setf(std::ios::scientific) ;
-    std::cout.precision(2) ;
     std::cout << dt << "s\n" ;
 }
 
-static void write(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void write(OneWire::Master *master,Ui::ArgL *argL)
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
@@ -390,26 +366,25 @@ static void write(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto tl = Ui::strto<uint8_t>(argL->pop()) ;
     auto cf = Ui::strto<uint8_t>(argL->pop()) ;
     argL->finalize() ;
-    OneWire::Master master(rpi,pin) ;
     auto mod = static_cast<uint32_t>((th<<0) | (tl<<8) | (cf<<16)) ;
-    write(&master,Ds18b20::Mod(mod),address,debug,retry) ;
+    write(master,Ds18b20::Mod(mod),address,debug,retry) ;
 }
 
-// ----
+// ----[ invoke & help ]-----------------------------------------------
 
-static void help(Rpi::Peripheral*,Ui::ArgL*)
+static void help()
 {
     std::cout
-	<< "arguments: COMMAND...\n"
+	<< "arguments: [-f FREQ | -s] PIN COMMAND...\n"
 	<< '\n'
-	<< "convert PIN ADDRESS [-d] [-r] [-w]\n"
-	<< "pad     PIN ADDRESS [-d] [-r]\n"
-	<< "power   PIN ADDRESS [-d] [-r]\n"
-	<< "restore PIN ADDRESS [-d] [-r] [-w]\n"
-	<< "rom     PIN         [-d] [-r]\n"
-	<< "save    PIN ADDRESS [-d] [-r] [-w]\n"
-	<< "search  PIN [-a]    [-d] [-r]\n" 
-	<< "write   PIN ADDRESS [-d] [-r] TH TL CF\n"
+	<< "convert ADDRESS [-d] [-r] [-w]\n"
+	<< "pad     ADDRESS [-d] [-r]\n"
+	<< "power   ADDRESS [-d] [-r]\n"
+	<< "restore ADDRESS [-d] [-r] [-w]\n"
+	<< "rom             [-d] [-r]\n"
+	<< "save    ADDRESS [-d] [-r] [-w]\n"
+	<< "search  [-a]    [-d] [-r]\n" 
+	<< "write   ADDRESS [-d] [-r] TH TL CF\n"
 	<< '\n'
 	<< "convert: Convert-T Function\n"
 	<< "    [-w] wait for completion and then issue 'pad'\n"
@@ -440,10 +415,13 @@ static void help(Rpi::Peripheral*,Ui::ArgL*)
 	<< "Options:\n"
 	<< "[-d] display debug messages\n"
 	<< "[-r] retry if timing wasn't met\n"
+	<< "[-s] omit frequency info message\n"
 	<< '\n'
 	<< "ADDRESS: [-a XX:XX...]\n"
 	<< "    do Match-ROM command instead of Skip-ROM\n"
 	<< "    e.g. -a 28:ff:40:16:c2:16:03:28\n"
+	<< '\n'
+	<< "FREQ: ARM Counter frequency\n"
 	;
 }
 
@@ -451,24 +429,44 @@ static void help(Rpi::Peripheral*,Ui::ArgL*)
 
 void Console::Device::Ds18b20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    // [todo] command line options: timing and ARM counter frequency
-
-    std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
+    if (argL->empty() || argL->peek() == "help")
+	return help() ; 
+    
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    
+    auto f = Rpi::Counter(rpi).frequency() ;
+    if (argL->pop_if("-f"))
     {
-	// diagnostic help message:
-	{ "help"    ,    help },
-	
-	// generic 1-Wire ROM commands:
-	{ "rom"     ,     rom },
-	{ "search"  ,  search },
-	
-	// DS18B12 Function commands:
+	auto g = Ui::strto<double>(argL->pop()) ;
+	if (g/f < 0.95 || 1.05 < g/f)
+	    std::cout << "warning: ARM Counter"
+		      << "frequency given:" << g << ' '
+		      << "but measured:"    << f << '\n' ;
+	f = g ;
+    }
+    else
+    {
+	if (!argL->pop_if("-s"))
+	    std::cout << "measured ARM Counter frequency: " << f << '\n' ;
+    }
+    auto timing = OneWire::Timing::xlat(f) ;
+    // [todo] make timing a command line argument
+    // [todo] clear timing values (use only required ones)
+    
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    OneWire::Master master(rpi,pin,timing) ;
+    
+    std::map<std::string,void(*)(OneWire::Master*,Ui::ArgL*)> map =
+    {
 	{ "convert" , convert },
 	{ "pad"     ,     pad },
 	{ "power"   ,   power },
 	{ "restore" , restore },
+	{ "rom"     ,     rom },
 	{ "save"    ,    save },
+	{ "search"  ,  search },
 	{ "write"   ,   write },
     } ;
-    argL->pop(map)(rpi,argL) ;
+    argL->pop(map)(&master,argL) ;
 }

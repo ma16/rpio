@@ -45,7 +45,8 @@ struct Timing
 	{  60e-6,240e-6 },
     } ;
 
-    static Template<uint32_t> xlat(Template<double> const &seconds,double tps) ;
+    static Template<uint32_t> xlat(
+	double tps,Template<double> const &seconds = spec) ;
     
 } ; } } }
 

@@ -21,8 +21,7 @@ struct Master
     Master(
 	Rpi::Peripheral *rpi,
 	Rpi::Pin pin,
-	Timing::Template<uint32_t> const& timing =
-	Timing::xlat(Timing::spec,250e+6)) // [todo]
+	Timing::Template<uint32_t> const& timing)
 
 	: intr              (rpi)
 	, io                (rpi)
