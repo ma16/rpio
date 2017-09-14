@@ -11,19 +11,13 @@
 
 using Ds18b20 = Device::Ds18b20::Bang ;
 
-using Error = Protocol::OneWire::Bang::Error ;
-
-using Master = Protocol::OneWire::Bang::Master ;
-
-using Addressing = Protocol::OneWire::Bang::Addressing ;
-
-using Address = Protocol::OneWire::Bang::Address ; 
+namespace OneWire = Protocol::OneWire::Bang ;
 
 // ----[ 1-wire retry-wrappers ]---------------------------------------
 
-static void handle(Error const &error,bool debug,bool retry)
+static void handle(OneWire::Error const &error,bool debug,bool retry)
 {
-    if (error.type() != Error::Type::Retry)
+    if (error.type() != OneWire::Error::Type::Retry)
 	throw ;
     if (!retry)
 	throw ;
@@ -31,104 +25,104 @@ static void handle(Error const &error,bool debug,bool retry)
 	std::cout << error.what() << '\n' ;
 }
 
-static boost::optional<Address>
-rom(Master *master,bool debug,bool retry)
+static boost::optional<OneWire::Address>
+rom(OneWire::Master *master,bool debug,bool retry)
 {
   Retry:
-    try { return Addressing(master).rom() ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    try { return OneWire::Addressing(master).rom() ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
-static boost::optional<Address>
-first(Master *master,bool alarm,bool debug,bool retry)
+static boost::optional<OneWire::Address>
+first(OneWire::Master *master,bool alarm,bool debug,bool retry)
 {
   Retry:
-    try { return Addressing(master).first(alarm) ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    try { return OneWire::Addressing(master).first(alarm) ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
-static boost::optional<Address>
-next(Master *master,Address const &address,bool alarm,bool debug,bool retry)
+static boost::optional<OneWire::Address>
+next(OneWire::Master *master,OneWire::Address const &address,bool alarm,bool debug,bool retry)
 {
   Retry:
-    try { return Addressing(master).next(address,alarm) ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    try { return OneWire::Addressing(master).next(address,alarm) ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
 // ----[ DS18B20 retry-wrappers ]--------------------------------------
 
 static void convert(
-    Master *master,
-    boost::optional<Address> const &address,
+    OneWire::Master *master,
+    boost::optional<OneWire::Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
     try { Ds18b20(master).convert(address) ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
-static bool isBusy(Master *master,bool debug,bool retry)
+static bool isBusy(OneWire::Master *master,bool debug,bool retry)
 {
   Retry:
     try { return Ds18b20(master).isBusy() ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
 static bool isPowered(
-    Master *master,
-    boost::optional<Address> const &address,
+    OneWire::Master *master,
+    boost::optional<OneWire::Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
     try { return Ds18b20(master).isPowered(address) ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
 static Ds18b20::Pad readPad(
-    Master *master,
-    boost::optional<Address> const &address,
+    OneWire::Master *master,
+    boost::optional<OneWire::Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
     try { return Ds18b20(master).readPad(address) ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
 static void restore(
-    Master *master,
-    boost::optional<Address> const &address,
+    OneWire::Master *master,
+    boost::optional<OneWire::Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
     try { Ds18b20(master).restore(address) ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
 static void save(
-    Master *master,
-    boost::optional<Address> const &address,
+    OneWire::Master *master,
+    boost::optional<OneWire::Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
     try { Ds18b20(master).save(address) ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
 static void write(
-    Master *master,
+    OneWire::Master *master,
     Ds18b20::Mod mod,
-    boost::optional<Address> const &address,
+    boost::optional<OneWire::Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
     try { return Ds18b20(master).write(mod,address) ; }
-    catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
+    catch(OneWire::Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
 // ----[ format bitset ]-----------------------------------------------
@@ -232,7 +226,7 @@ static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     
-    Master master(rpi,pin) ;
+    OneWire::Master master(rpi,pin) ;
     auto address = rom(&master,debug,retry) ;
     if (address)
     {
@@ -252,7 +246,7 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
     
-    Master master(rpi,pin) ;
+    OneWire::Master master(rpi,pin) ;
     auto address = first(&master,alarm,debug,retry) ;
     if (!address)
     {
@@ -270,7 +264,7 @@ static void search(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // ----[ DS18B20 console commands ]------------------------------------
 
-static boost::optional<Address> optAddress(Ui::ArgL *argL)
+static boost::optional<OneWire::Address> optAddress(Ui::ArgL *argL)
 {
     auto exists = argL->pop_if("-a") ;
     if (!exists)
@@ -290,7 +284,7 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto wait = argL->pop_if("-w") ;
     argL->finalize() ;
     
-    Master master(rpi,pin) ;
+    OneWire::Master master(rpi,pin) ;
 
     auto t0 = std::chrono::steady_clock::now() ;
     convert(&master,address,debug,retry) ;
@@ -303,15 +297,8 @@ static void convert(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto t1 = std::chrono::steady_clock::now() ;
     auto dt = std::chrono::duration<double>(t1-t0).count() ;
 
-    // reading doesn't work on broadcast and multi-drop bus
     auto pad = readPad(&master,address,debug,retry) ;
-#if 0    
-    auto temp = (pad & Ds18b20::Pad(0xffff)).to_ullong() ;
-    auto mode = ((pad >> 37) & Ds18b20::Pad(0x3)).to_ullong() ;
-    auto div = 2u << mode ;
-    std::cout << static_cast<double>(temp) / div << '\n' ;
-#endif    
-
+    // ...reading doesn't work on broadcast on multi-drop bus
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
     std::cout << toStr(pad,debug) << " (" << dt << "s)\n" ;
@@ -324,7 +311,7 @@ static void pad(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
-    Master master(rpi,pin) ;
+    OneWire::Master master(rpi,pin) ;
     auto pad = readPad(&master,address,debug,retry) ;
     std::cout << toStr(pad,debug) << '\n' ;
 }
@@ -336,7 +323,7 @@ static void power(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
     argL->finalize() ;
-    Master master(rpi,pin) ;
+    OneWire::Master master(rpi,pin) ;
     auto powered = isPowered(&master,address,debug,retry) ;
     std::cout << powered << '\n' ;
 }
@@ -350,7 +337,7 @@ static void restore(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto wait = argL->pop_if("-w") ;
     argL->finalize() ;
     
-    Master master(rpi,pin) ;
+    OneWire::Master master(rpi,pin) ;
 
     auto t0 = std::chrono::steady_clock::now() ;
     restore(&master,address,debug,retry) ;
@@ -376,7 +363,7 @@ static void save(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto wait = argL->pop_if("-w") ;
     argL->finalize() ;
     
-    Master master(rpi,pin) ;
+    OneWire::Master master(rpi,pin) ;
 
     auto t0 = std::chrono::steady_clock::now() ;
     save(&master,address,debug,retry) ;
@@ -403,7 +390,7 @@ static void write(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto tl = Ui::strto<uint8_t>(argL->pop()) ;
     auto cf = Ui::strto<uint8_t>(argL->pop()) ;
     argL->finalize() ;
-    Master master(rpi,pin) ;
+    OneWire::Master master(rpi,pin) ;
     auto mod = static_cast<uint32_t>((th<<0) | (tl<<8) | (cf<<16)) ;
     write(&master,Ds18b20::Mod(mod),address,debug,retry) ;
 }
