@@ -38,6 +38,8 @@ struct Bang
     using Address = Protocol::OneWire::Bang::Address ;
   
     using Pad = std::bitset<72> ; // the scratch-pad
+
+    using Mod = std::bitset<24> ; // writable part of the scratch-pad
     
     // returns true as long as the current operation has not finished
     // and as long as no new operation begins
@@ -61,7 +63,7 @@ struct Bang
     void saveThresholds(boost::optional<Address> const&) ;
 
     // write scratch-pad's thresholds
-    void writeThresholds(uint16_t thr,boost::optional<Address> const&) ;
+    void write(Mod mod,boost::optional<Address> const&) ;
 
     using Master = Protocol::OneWire::Bang::Master ;
     

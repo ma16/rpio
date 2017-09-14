@@ -119,15 +119,15 @@ static void saveThresholds(
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
-static void writeThresholds(
+static void write(
     Master *master,
-    uint16_t thr,
+    Ds18b20::Mod mod,
     boost::optional<Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
-    try { return Ds18b20(master).writeThresholds(thr,address) ; }
+    try { return Ds18b20(master).write(mod,address) ; }
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
@@ -395,16 +395,17 @@ static void save(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 static void write(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    // [todo] write 3 bytes for DS18B20 instead of 2 (DS18S20)
-    
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto address = optAddress(argL) ;
     auto debug = argL->pop_if("-d") ;
     auto retry = argL->pop_if("-r") ;
-    auto thr = Ui::strto<uint16_t>(argL->pop()) ;
+    auto th = Ui::strto<uint8_t>(argL->pop()) ;
+    auto tl = Ui::strto<uint8_t>(argL->pop()) ;
+    auto cf = Ui::strto<uint8_t>(argL->pop()) ;
     argL->finalize() ;
     Master master(rpi,pin) ;
-    writeThresholds(&master,thr,address,debug,retry) ;
+    auto mod = static_cast<uint32_t>((th<<0) | (tl<<8) | (cf<<16)) ;
+    write(&master,Ds18b20::Mod(mod),address,debug,retry) ;
 }
 
 // ----

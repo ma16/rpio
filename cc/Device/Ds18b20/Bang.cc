@@ -91,7 +91,7 @@ void Bang::saveThresholds(boost::optional<Address> const &address)
     this->signaling.write(std::bitset<8>(0x48)) ;
 }
 
-void Bang::writeThresholds(uint16_t thr,boost::optional<Address> const &address)
+void Bang::write(Mod mod,boost::optional<Address> const &address)
 {
     auto present = this->signaling.init() ;
     if (!present)
@@ -104,5 +104,5 @@ void Bang::writeThresholds(uint16_t thr,boost::optional<Address> const &address)
     else this->signaling.write(Master::SkipRom) ;
     // Function-command: Write-Sratch-Pad
     this->signaling.write(std::bitset<8>(0x4e)) ;
-    this->signaling.write(std::bitset<16>(thr)) ;
+    this->signaling.write(mod) ;
 }
