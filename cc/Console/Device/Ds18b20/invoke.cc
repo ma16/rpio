@@ -97,25 +97,25 @@ static Ds18b20::Pad readPad(
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
-static void restoreThresholds(
+static void restore(
     Master *master,
     boost::optional<Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
-    try { Ds18b20(master).restoreThresholds(address) ; }
+    try { Ds18b20(master).restore(address) ; }
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
-static void saveThresholds(
+static void save(
     Master *master,
     boost::optional<Address> const &address,
     bool debug,
     bool retry)
 {
   Retry:
-    try { Ds18b20(master).saveThresholds(address) ; }
+    try { Ds18b20(master).save(address) ; }
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
@@ -353,7 +353,7 @@ static void restore(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Master master(rpi,pin) ;
 
     auto t0 = std::chrono::steady_clock::now() ;
-    restoreThresholds(&master,address,debug,retry) ;
+    restore(&master,address,debug,retry) ;
     if (!wait)
 	return ;
     auto busy = isBusy(&master,debug,retry) ;
@@ -379,7 +379,7 @@ static void save(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Master master(rpi,pin) ;
 
     auto t0 = std::chrono::steady_clock::now() ;
-    saveThresholds(&master,address,debug,retry) ;
+    save(&master,address,debug,retry) ;
     if (!wait)
 	return ;
     auto busy = isBusy(&master,debug,retry) ;

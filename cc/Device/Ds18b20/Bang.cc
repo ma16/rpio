@@ -61,7 +61,7 @@ Bang::Pad Bang::readPad(boost::optional<Address> const& address)
     return this->signaling.read<72>() ;
 }
 
-void Bang::restoreThresholds(boost::optional<Address> const &address)
+void Bang::restore(boost::optional<Address> const &address)
 {
     auto present = this->signaling.init() ;
     if (!present)
@@ -76,7 +76,7 @@ void Bang::restoreThresholds(boost::optional<Address> const &address)
     this->signaling.write(std::bitset<8>(0xb8)) ;
 }
 
-void Bang::saveThresholds(boost::optional<Address> const &address)
+void Bang::save(boost::optional<Address> const &address)
 {
     auto present = this->signaling.init() ;
     if (!present)

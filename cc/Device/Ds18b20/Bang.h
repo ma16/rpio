@@ -56,13 +56,13 @@ struct Bang
     // read scratch-pad
     Pad readPad(boost::optional<Address> const&) ;
 
-    // restore scratch-pad's thresholds
-    void restoreThresholds(boost::optional<Address> const&) ;
+    // restore scratch-pad's thresholds and configuration
+    void restore(boost::optional<Address> const&) ;
 
     // save scratch-pad's thresholds
-    void saveThresholds(boost::optional<Address> const&) ;
+    void save(boost::optional<Address> const&) ;
 
-    // write scratch-pad's thresholds
+    // write scratch-pad's thresholds and configuration
     void write(Mod mod,boost::optional<Address> const&) ;
 
     using Master = Protocol::OneWire::Bang::Master ;
