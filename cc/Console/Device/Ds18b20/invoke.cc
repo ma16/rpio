@@ -32,10 +32,10 @@ static void handle(Error const &error,bool debug,bool retry)
 }
 
 static boost::optional<Address>
-address(Master *master,bool debug,bool retry)
+rom(Master *master,bool debug,bool retry)
 {
   Retry:
-    try { return Addressing(master).get() ; }
+    try { return Addressing(master).rom() ; }
     catch(Error &error) { handle(error,debug,retry) ; goto Retry ; }
 }
 
@@ -225,7 +225,7 @@ static std::string toStr(std::bitset<N> const &set,bool debug)
 
 // ----[ 1-wire console commands ]-------------------------------------
 
-static void address(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void rom(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto debug = argL->pop_if("-d") ;
@@ -233,7 +233,7 @@ static void address(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     
     Master master(rpi,pin) ;
-    auto address = ::address(&master,debug,retry) ;
+    auto address = rom(&master,debug,retry) ;
     if (address)
     {
 	std::cout << toStr(*address,debug) << '\n' ;
@@ -412,14 +412,51 @@ static void write(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 static void help(Rpi::Peripheral*,Ui::ArgL*)
 {
-    // [todo]
     std::cout
-	<< "arguments: OPTION PIN\n"
+	<< "arguments: COMMAND...\n"
 	<< '\n'
-	<< "rom = read 64-bit ROM code\n"
-	<< "pad = read 72-bit scratch pad\n"
-	<< "power = echo 1 if powered; 0 if in parasite power mode\n"
-	<< "... todo ...\n"
+	<< "convert PIN ADDRESS [-d] [-r] [-w]\n"
+	<< "pad     PIN ADDRESS [-d] [-r]\n"
+	<< "power   PIN ADDRESS [-d] [-r]\n"
+	<< "restore PIN ADDRESS [-d] [-r] [-w]\n"
+	<< "rom     PIN         [-d] [-r]\n"
+	<< "save    PIN ADDRESS [-d] [-r] [-w]\n"
+	<< "search  PIN [-a]    [-d] [-r]\n" 
+	<< "write   PIN ADDRESS [-d] [-r] TH TL CF\n"
+	<< '\n'
+	<< "convert: Convert-T Function\n"
+	<< "    [-w] wait for completion and then issue 'pad'\n"
+	<< '\n'
+	<< "pad: Read Scratch-Pad Function\n"
+	<< '\n'
+	<< "power: Read Power-Supply Function\n"
+	<< "    echo 1 if Vdd powered\n"
+	<< "         0 if in parasite power-mode\n"
+	<< '\n'
+	<< "restore: Recall E2 Function\n"
+	<< "    [-w] wait for completion\n"
+	<< '\n'
+	<< "rom: Read ROM command\n"
+	<< '\n'
+	<< "save: Copy Scratch-Pad Function\n"
+	<< "    [-w] wait for completion\n"
+	<< '\n'
+	<< "search: Alarm/Search-ROM command\n"
+	<< "    Issues a series of commands to displays all attached devices\n"
+	<< "    [-a] do Alarm-Search command instead of Seach-ROM\n"
+	<< '\n'
+	<< "write: Write Scratch-Pad Function\n"
+	<< "    TH: high temperature threshold (uint8)\n"
+	<< "    TL:  low temperature threshold (uint8)\n"
+	<< "    CF: configuration register (uint8)\n"
+	<< '\n'
+	<< "Options:\n"
+	<< "[-d] display debug messages\n"
+	<< "[-r] retry if timing wasn't met\n"
+	<< '\n'
+	<< "ADDRESS: [-a XX:XX...]\n"
+	<< "    do Match-ROM command instead of Skip-ROM\n"
+	<< "    e.g. -a 28:ff:40:16:c2:16:03:28\n"
 	;
 }
 
@@ -431,11 +468,14 @@ void Console::Device::Ds18b20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
     {
+	// diagnostic help message:
 	{ "help"    ,    help },
 	
-	{ "address" , address },
+	// generic 1-Wire ROM commands:
+	{ "rom"     ,     rom },
 	{ "search"  ,  search },
 	
+	// DS18B12 Function commands:
 	{ "convert" , convert },
 	{ "pad"     ,     pad },
 	{ "power"   ,   power },

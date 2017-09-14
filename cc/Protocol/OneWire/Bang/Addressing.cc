@@ -69,15 +69,6 @@ boost::optional<Address> Addressing::first(bool alarm)
     return address ;
 } 
 
-boost::optional<Address> Addressing::get()
-{
-    auto present = this->signaling.init() ;
-    if (!present)
-	return boost::none ;
-    this->signaling.write(Master::ReadRom) ;
-    return this->signaling.read<64>() ;
-}
-
 boost::optional<Address> Addressing::next(Address const &prev,bool alarm)
 {
     auto offset = this->descend(prev,alarm) ;
@@ -108,6 +99,15 @@ boost::optional<Address> Addressing::next(Address const &prev,bool alarm)
     // tail: trace the lowest-address-branch
     this->traverse(&next,offset+1) ;
     return next ;
+}
+
+boost::optional<Address> Addressing::rom()
+{
+    auto present = this->signaling.init() ;
+    if (!present)
+	return boost::none ;
+    this->signaling.write(Master::ReadRom) ;
+    return this->signaling.read<64>() ;
 }
 
 void Addressing::track(Address const &address,size_t nbits)

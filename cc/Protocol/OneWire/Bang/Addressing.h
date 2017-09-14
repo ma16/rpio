@@ -14,7 +14,7 @@ namespace Protocol { namespace OneWire { namespace Bang {
 struct Addressing
 {
     // get device address (single drop bus only)
-    boost::optional<Address> get() ;
+    boost::optional<Address> rom() ;
     // ...issues a Read-ROM command
 
     // get address of first device
