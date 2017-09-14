@@ -11,42 +11,87 @@ struct Timing
 {
     template<typename T> struct Template
     {
-	struct Range
-	{
-	    T min ;
-	    T max ;
-	} ;
+	// Initialization-Sequence
+	//
+	//              presence-frame
+	//             <-------------->
+	// ---+       +----+......+----+..
+	//    |       |    |      |    .
+	//    +-------+    +------+    ...
+	//      reset  pres. pres.
+	//      pulse  idle  pulse
+	
+	// reset-pulse period
+	T resetPulse_min ;
 
-	Range slot ;   // Time Slot
-	T rec ;        // Minimum Recovery Time
-	Range low0 ;   // Write 0 Low Time
-	Range low1 ;   // Write 1 Low Time
-	T rinit ;      // minimum low time to initiate Read Time Slot
-	T rrc ;        // RC time after releasing the bus to return to High
-	T rdv ;        // Maximum Read Data Valid
-	T rsth ;       // Minimum Reset Time High (Rx/Open Collector)
-	T rstl ;       // Minimum Reset Time Low (Actual Low Time)
-	Range pdhigh ; // Presence-Detect High (period for HL edge)
-	Range pdlow ;  // Presence-Detect Low (period for LH edge)
+	// gap between LH-edge of reset-pulse and HL-edge of presence-pulse
+	T presenceIdle_min ; 
+	T presenceIdle_max ;
+
+	// presence-pulse period
+	T presencePulse_min ;
+	T presencePulse_max ;
+
+	// presence-frame period
+	T presenceFrame_max ; 
+
+	// Read-Time-Slot
+	//
+	//           slot
+	//     <--------------->
+	//        rc       
+	//       >---<  
+	// ---+      +----------+ 1-bit
+	//    |     /.          .
+	//    +----+ .          .
+	//    .init. .          .
+	//    .    . .          .
+	// ---+    . .   +.....+--+ 0-bit
+	//    |    . .   |     |
+	//    +----+-+---+......
+	//     <-------->      >---<
+	//         rdv          rec
+	
+	// time-slot period
+	T slot_min ; T slot_max ;
+	
+        // read-time-slots's Low signal to trigger Slave
+	T init_min ;
+	// ...the Slave must pull the bus Low within this time
+
+	// the maximum Low time that is not considered as Reset-Pulse
+	T init_max ;
+	
+	// RC recovery-time to return to High after releasing the bus
+	T rc_max ; 
+
+	// read-data valid-period (starting at Master's Low trigger)
+	T rdv_min ;
+	// ...the Slave must pull the bus Low for this period to send a 1-bit
+
+	// idle bus period (recover) after time-slot's LH edge
+	T rec_min ;
+	
+	// Write-Time-Slot (actually a single Write-Pulse)
+	//
+	//           slot
+	//     <--------------->
+	// ---+         +-------+..
+	//    |         |       .
+	//    +---------+       ...
+	//     write_0/1
+	
+	// write-0-pulse's Low period
+	T write_0_min ; T write_0_max ;
+
+	// write-1-pulse's Low period
+	T write_1_min ; T write_1_max ;
     } ;
     
-    static constexpr Template<double> spec =
-    {
-	{ 60e-6,120e-6 },
-	1e-6,
-	{ 60e-6,120e-6 },
-	{  1e-6, 15e-6 },
-	1e-6,
-	1e-6,
-	15e-6,
-	480e-6,
-	480e-6,
-	{  15e-6, 60e-6 },
-	{  60e-6,240e-6 },
-    } ;
+    static Template<double> specified() ;
 
     static Template<uint32_t> xlat(
-	double tps,Template<double> const &seconds = spec) ;
+	double f,Template<double> const &seconds = specified()) ;
     
 } ; } } }
 

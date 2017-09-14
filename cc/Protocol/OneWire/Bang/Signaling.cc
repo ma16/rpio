@@ -12,13 +12,13 @@ bool Signaling::init()
     //    |     |     |     |
     //    +-----+     +-----+
     
-    // tx: Reset-Pulse
+    // Reset-Pulse
     this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::Out) ;
     // ...assumes the configured output level is Low
     // ...note, errors must not be thrown as long as Out or Events enabled
-    this->master->io.sleep(this->master->timing.rstl) ;
+    this->master->io.sleep(this->master->timing.resetPulse_min) ;
     auto v = this->master->intr.status() ;
-    // https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=192908
+    // ...https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=192908
     this->master->intr.disable(v) ;
     this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Fall) ;
     // the event status bit gets immediately set (todo: why?)
@@ -30,9 +30,9 @@ bool Signaling::init()
     // even behind the end of the Presence-Pulse (if there was any)
 
     auto isPresent = 0 !=
-      this->master->io.waitForEvent(t3,
-				    this->master->timing.pdhigh.max,
-				    this->master->mask) ;
+	this->master->io.waitForEvent(t3,
+				      this->master->timing.presenceIdle_max,
+				      this->master->mask) ;
     auto t4 = this->master->io.recent() ;
     auto t5 = this->master->io.time() ;
     this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Fall,false) ;
@@ -43,26 +43,21 @@ bool Signaling::init()
     {
 	if (t4 == t3)
 	    throw Error(Error::Type::Retry,__LINE__) ;
-	if (t5 - t2 < this->master->timing.pdhigh.min)
+	if (t5 - t2 < this->master->timing.presenceIdle_min)
 	    throw Error(Error::Type::Timing,__LINE__) ;
 
 	// rx: wait for LH-edge (end of Presence-Pulse)
-	this->master->io.waitForLevel(t5,this->master->timing.pdlow.max,
+	this->master->io.waitForLevel(t5,
+				      this->master->timing.presencePulse_max,
 				      this->master->mask,
 				      /*High*/this->master->mask) ;
 	auto t7 = this->master->io.recent() ;
-	if (t7 - t4 < this->master->timing.pdlow.min)
+	if (t7 - t4 < this->master->timing.presencePulse_min)
 	    throw Error(Error::Type::Timing,__LINE__) ;
-	
-	// note: we don't check against max values at the moment
-	// because the results may be false positives (due to delays
-	// when recording the time-stamps). in order to get a better
-	// grip we may want to check the gap when recording the time
-	// before and after every (!) edge.
     }
     
-    // rx: wait for end of Presence-Pulse cycle
-    this->master->io.wait(t3,this->master->timing.rsth) ;
+    // end of init. sequence
+    this->master->io.wait(t3,this->master->timing.presenceFrame_max) ;
 
     return isPresent ;
 }
@@ -74,44 +69,41 @@ bool Signaling::read(bool busy)
     //    |     |     |   
     //    +-----+-----+
 
-    // tx: initiate Read-Time-Slot
+    // initiate Read-Time-Slot
     auto t0 = this->master->io.time() ; 
     this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::Out) ;
     auto t1 = this->master->io.time() ; 
-    this->master->io.wait(t1,this->master->timing.rinit) ;
+    this->master->io.wait(t1,this->master->timing.init_min) ;
     // the device keeps holding the wire low in order to "send" a
     // 0-bit; there is no LH-HL gap as long as the pulse to initiate
     // the Read-Time-Slot is long enough
     this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
-    this->master->io.sleep(this->master->timing.rrc) ;
+    this->master->io.sleep(this->master->timing.rc_max) ;
     auto sample_t3 = 0 != (this->master->mask & this->master->io.levels()) ;
     auto t3 = this->master->io.time() ; 
     // ...if we got suspended, t3 and following time-stamps may lay
     // far behind the end of the 0-bit Pulse (if there was any)
-    if (busy && t3-t0 > this->master->timing.rstl/3) 
+    if (busy && t3-t0 > this->master->timing.init_max) 
 	throw Error(Error::Type::Reset,__LINE__) ;
-    if (t3 - t0 > this->master->timing.rdv) 
+    if (t3 - t0 > this->master->timing.rdv_min) 
 	throw Error(Error::Type::Retry,__LINE__) ;
     
-    // rx: wait for LH edge 
-    this->master->io.waitForLevel(t1,this->master->timing.slot.max,
+    // wait for LH edge (depending on the time we got a 1-bit or 0-bit)
+    this->master->io.waitForLevel(t1,
+				  this->master->timing.slot_max,
 				  this->master->mask,
 				  /*High*/this->master->mask) ;
     auto t5 = this->master->io.recent() ;
-    auto timeout = t5 - t1 >= this->master->timing.slot.max ;
+    // minimum idle time after LH edge
+    this->master->io.wait(t5,this->master->timing.rec_min) ;
+    auto timeout = t5 - t1 >= this->master->timing.slot_max ;
     if (timeout)
 	throw Error(Error::Type::Retry,__LINE__) ;
-
-    auto sample_rdv = (t5 - t1) <= this->master->timing.rdv ;
+    auto sample_rdv = (t5 - t1) <= this->master->timing.rdv_min ;
     if (sample_t3 != sample_rdv)
 	throw Error(Error::Type::Retry,__LINE__) ;
-
-    // minimum recovery time (after LH edge)
-    this->master->io.wait(t5,this->master->timing.rec) ;
-	
-    // rx: wait for end of cycle
-    this->master->io.wait(t1,this->master->timing.slot.min) ;
-
+    // wait for end of time-slot period
+    this->master->io.wait(t1,this->master->timing.slot_min) ;
     return sample_t3 ;
 }
 
@@ -126,16 +118,17 @@ void Signaling::write(bool bit)
     auto t0 = this->master->io.time() ;
     this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::Out) ;
     auto t1 = this->master->io.time() ;
-    auto range = bit ? this->master->timing.low1 : this->master->timing.low0 ;
-    this->master->io.wait(t1,range.min) ; 
+    auto min = bit
+	? this->master->timing.write_1_min
+	: this->master->timing.write_0_min ;
+    this->master->io.wait(t1,min) ; 
     this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->master->io.time() ; 
-    if (t3 - t0 > range.max) 
+    auto max = bit
+	? this->master->timing.write_1_max
+	: this->master->timing.write_0_max ;
+    if (t3 - t0 > max) 
 	throw Error(Error::Type::Retry,__LINE__) ;
-
-    // minimum recovery time (after LH edge)
-    this->master->io.wait(t3,this->master->timing.rec) ;
-	
-    // rx: wait for end of cycle
-    this->master->io.wait(t1,this->master->timing.slot.min) ;
+    // wait for end of time-slot period
+    this->master->io.wait(t1,this->master->timing.slot_min) ;
 }
