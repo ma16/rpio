@@ -11,15 +11,7 @@ struct Timing
 {
     template<typename T> struct Template
     {
-	// Initialization-Sequence
-	//
-	//              presence-frame
-	//             <-------------->
-	// ---+       +----+......+----+..
-	//    |       |    |      |    .
-	//    +-------+    +------+    ...
-	//      reset  pres. pres.
-	//      pulse  idle  pulse
+	// (1) Initialization-Sequence
 	
 	// reset-pulse period
 	T resetPulse_min ;
@@ -35,22 +27,7 @@ struct Timing
 	// presence-frame period
 	T presenceFrame_max ; 
 
-	// Read-Time-Slot
-	//
-	//           slot
-	//     <--------------->
-	//        rc       
-	//       >---<  
-	// ---+      +----------+ 1-bit
-	//    |     /.          .
-	//    +----+ .          .
-	//    .init. .          .
-	//    .    . .          .
-	// ---+    . .   +.....+--+ 0-bit
-	//    |    . .   |     |
-	//    +----+-+---+......
-	//     <-------->      >---<
-	//         rdv          rec
+	// (2) Read-Time-Slot
 	
 	// time-slot period
 	T slot_min ; T slot_max ;
@@ -72,14 +49,7 @@ struct Timing
 	// idle bus period (recover) after time-slot's LH edge
 	T rec_min ;
 	
-	// Write-Time-Slot (actually a single Write-Pulse)
-	//
-	//           slot
-	//     <--------------->
-	// ---+         +-------+..
-	//    |         |       .
-	//    +---------+       ...
-	//     write_0/1
+	// (3) Write-Time-Slot
 	
 	// write-0-pulse's Low period
 	T write_0_min ; T write_0_max ;
