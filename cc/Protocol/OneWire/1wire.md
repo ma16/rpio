@@ -59,7 +59,7 @@ All the Master learns in this initialization sequence is
 * either there is no Slave attached to the Bus if there is no Presence Pulse
 * or there are one or more Slaves attached to the Bus (at least one).
 
-### Read
+### Read Time-Slot
 
 One bit of data is transmitted within this 60µs to 120µs “Time-Slot“.
 
