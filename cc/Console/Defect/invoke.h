@@ -1,0 +1,14 @@
+// BSD 2-Clause License, see github.com/ma16/rpio
+
+#ifndef INCLUDE_Console_Defect_invoke_h
+#define INCLUDE_Console_Defect_invoke_h
+
+#include <Rpi/Peripheral.h>
+#include <Ui/ArgL.h>
+
+namespace Console { namespace Defect
+{
+    namespace D1 { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
+} }
+
+#endif /* INCLUDE_Console_Dedect_invoke_h */

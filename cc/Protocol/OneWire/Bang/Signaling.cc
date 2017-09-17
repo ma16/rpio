@@ -5,6 +5,12 @@
 
 using namespace Protocol::OneWire::Bang ;
 
+// defect:
+// https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=192908
+#define DEFECT_D1 0
+// don't disable interrupts anymore since the problem does no longer
+// occur.
+
 bool Signaling::init()
 {
     //  t0 t1 t2 t3 t4 t5 t6 t7
@@ -17,11 +23,12 @@ bool Signaling::init()
     // ...assumes the configured output level is Low
     // ...note, errors must not be thrown as long as Out or Events enabled
     this->master->io.sleep(this->master->timing.resetPulse_min) ;
+#if DEFECT_D1    
     auto v = this->master->intr.status() ;
-    // ...https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=192908
     this->master->intr.disable(v) ;
+#endif    
     this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Fall) ;
-    // the event status bit gets immediately set (todo: why?)
+    // the event status bit gets immediately set (why?) so we clear it
     this->master->io.events(this->master->mask) ;
     auto t2 = this->master->io.recent() ;
     this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
@@ -37,8 +44,9 @@ bool Signaling::init()
     auto t5 = this->master->io.time() ;
     this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Fall,false) ;
     this->master->io.events(this->master->mask) ; // reset late events
+#if DEFECT_D1
     this->master->intr.enable(v) ;
-
+#endif
     if (isPresent)
     {
 	if (t4 == t3)

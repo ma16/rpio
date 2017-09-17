@@ -30,6 +30,8 @@ LD=$(CXX) $(LDFLAGS)
 LSRC=\
 	Console/Clock/invoke.cc \
 	Console/Cm/invoke.cc \
+	Console/Defect/invoke.cc \
+	Console/Defect/D1/invoke.cc \
 	Console/Device/invoke.cc \
 	Console/Device/Ads1115/invoke.cc \
 	Console/Device/Ds18b20/invoke.cc \

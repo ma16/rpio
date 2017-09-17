@@ -9,6 +9,7 @@
 namespace Console
 {
     namespace      Clock { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
+    namespace     Defect { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace     Device { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace         Cm { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace        Dma { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
