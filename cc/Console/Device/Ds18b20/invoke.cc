@@ -452,7 +452,6 @@ void Console::Device::Ds18b20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
     auto timing = OneWire::Timing::xlat(f) ;
     // [todo] make timing a command line argument
-    // [todo] clear timing values (use only required ones)
     
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     OneWire::Master master(rpi,pin,timing) ;
