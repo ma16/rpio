@@ -18,6 +18,7 @@ The last line should give you a diagnostic message with the supported options. T
 Notes:
 * At the time of writing, Raspbian installed libbost1.55. The package installation may take a few minutes.
 * Since a 4-core ARM is used, make is executed with 6 threads (-j6). Still, it may take several minutes until make finishes.
+* Master branch and releases prior to 2017/09/21 require GCC 4.8 (g++) or older. That is, GCC 4.9 and newer will fail.
 
 RASPBIAN INSTALLATION
 

@@ -75,7 +75,7 @@ template<typename U,U M> struct Word
 
 	static_assert(Mask == (Mask & Word::Mask),"doesn't match") ;
 	
-	static constexpr auto Digit = Word::Digit::make<Offset>() ;
+	static constexpr auto Digit = Word::Digit::template make<Offset>() ;
 
 	constexpr Bit(Word w) : i(w.i & Mask) {}
 
@@ -107,8 +107,7 @@ template<typename U,U M> struct Word
 
 	using Uint = Neat::uint<Unsigned,Len> ;
 	
-	static constexpr auto Mask =
-	    (~Unsigned(0) << Offset) ^ (~Unsigned(0) << (Offset+Len)) ;
+	static constexpr auto Mask = (~ (~Unsigned(0) << Len) ) << Offset ;
 	
 	static_assert(Mask == (Mask & Word::Mask),"out of range") ;
 
