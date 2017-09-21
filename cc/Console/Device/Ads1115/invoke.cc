@@ -8,6 +8,7 @@
 #include <chrono>
 #include <deque>
 #include <iostream>
+#include <math.h>
 
 using namespace Device::Ads1115 ; // Circuit
 using namespace Bang ; // Config,Record,Generator,Host

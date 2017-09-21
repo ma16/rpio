@@ -5,6 +5,7 @@
 #include <chrono>
 #include <deque>
 #include <iostream>
+#include <math.h>
 
 #include <Device/Mcp3008/Bang.h>
 #include <Device/Mcp3008/Spi0.h>
@@ -313,7 +314,7 @@ static void spi1Sample(Spi1 *host,bool monitor,Ui::ArgL *argL)
 	    std::cout << "("
 		      << std::dec << sample.fetch().value() 
 		      << ','
-		      << std::hex << (~(~0 << 26) & sample.i)
+		      << std::hex << (~(~0u << 26) & sample.i)
 		      << ','
 		      << std::hex << sample.verify().code().value()
 		      << ") " ;

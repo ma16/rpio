@@ -2,6 +2,7 @@
 
 #include "../rpio.h"
 #include "invoke.h"
+#include <iostream>
 
 void Console::Device::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {

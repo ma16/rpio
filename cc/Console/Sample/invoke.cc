@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <vector>
 
 namespace Console { namespace Sample {
 

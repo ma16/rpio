@@ -23,7 +23,6 @@ Posix::MMap::shared_ptr Posix::MMap::make(Fd *fd,Fd::uoff_t offset,size_t length
 Posix::MMap::~MMap()
 {
   auto result = munmap(this->p,this->n) ;
-  if (result != 0)
-    throw Error("unmap():"+strerror(errno)) ;
-  // [todo] throws in d'tor
+  (void)result ;
+  // [todo] log: unmap():strerror(errno) ;
 }

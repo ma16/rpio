@@ -8,6 +8,7 @@
 #include <Ui/strto.h>
 #include <chrono>
 #include <iomanip>
+#include <iostream>
 
 using Ds18b20 = Device::Ds18b20::Bang ;
 

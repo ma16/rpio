@@ -11,6 +11,7 @@
 #include <Posix/base.h> // nanosleep()
 #include <Posix/Signal.h>
 #include <Rpi/Timer.h>
+#include <iostream>
 
 #include <signal.h> // SIGINT
 

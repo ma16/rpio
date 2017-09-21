@@ -10,6 +10,7 @@
 #include <arm/arm.h>
 #include <iomanip>
 #include <iostream>
+#include <vector>
 
 template<uint32_t Mask> static void set(uint32_t *p,Ui::ArgL *argL)
 {

@@ -3,6 +3,7 @@
 #include "Options.h"
 #include <Ui/strto.h>
 #include <fstream>
+#include <iostream>
 
 bool Console::Spi0::Options::diagnostics(Ui::ArgL *argL)
 {

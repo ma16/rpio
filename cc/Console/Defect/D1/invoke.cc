@@ -4,6 +4,7 @@
 #include <Rpi/Gpio.h>
 #include <Rpi/Timer.h>
 #include <Ui/strto.h>
+#include <iostream>
 
 static void recover(Rpi::Gpio *gpio,uint32_t mask)
 {

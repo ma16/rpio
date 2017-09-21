@@ -99,8 +99,7 @@ Posix::Fd::uoff_t Posix::Fd::size()
 Posix::Fd::~Fd()
 {
   auto result = close(i) ;
-  if (result != 0)
-    throw Error("close():"+strerror(errno)) ;
-  // [todo] throws in d'tor
+  (void)result ;
+  // [todo] log:"close():"+strerror(errno)
 }
 

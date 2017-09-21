@@ -29,7 +29,7 @@ static uint64_t phys_info(uint64_t vpno)
   result = read(fd,&info,sizeof(info)) ;
   if (result < 0) 
     throw std::runtime_error("read(/proc/self/pagemap,8):"+Posix::strerror(errno)) ;
-  if (result != sizeof(info))
+  if (Neat::as_unsigned(result) != sizeof(info))
     throw std::runtime_error("read(/proc/self/pagemap,8) != 8") ;
   // ...[note] assumes machine's endianess in /proc/self/pagemap
   result = close(fd) ;
