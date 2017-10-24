@@ -23,6 +23,7 @@ bool Signaling::init()
     // ...assumes the configured output level is Low
     // ...note, errors must not be thrown as long as Out or Events enabled
     this->master->io.sleep(this->master->timing.resetPulse_min) ;
+    // ...[todo] this may be a good time to voluntary suspend the thread
 #if DEFECT_D1    
     auto v = this->master->intr.status() ;
     this->master->intr.disable(v) ;
