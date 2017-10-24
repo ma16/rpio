@@ -22,67 +22,74 @@ Notes:
 
 RASPBIAN INSTALLATION
 
-The following description may be helpful if you install Raspbian for the first time. A (fresh) Raspbian image (2017-04-10) is used. The SD card, which will be used on the Raspberry Pi, is prepared beforehand on a Linux desktop (as /dev/sdX where X is a wildcard for the proper device).
+The following description may be helpful if you install Raspbian for the first time.
 
-Copy Image:
+You may want to invoke raspi-config instead; in order to make these changes and for further setups. If your system is connected to the internet, you may want to consider additional security measures.
 
+(1) Write Image to SD Card:
+
+A (fresh) Raspbian image (2017-04-10) is used. The SD card, which will be used on the Raspberry Pi, is prepared beforehand on a Linux desktop. We use /dev/sdX which is a wildcard for the proper device (e.g. for /dev/sdc).
+
+$ export DEV=/dev/sdX
 $ wget http://downloads.raspberrypi.org/raspbian/images/raspbian-2017-04-10/2017-04-10-raspbian-jessie.zip
-$ unzip -p 2017-04-10-raspbian-jessie.zip | sudo dd of=/dev/sdX bs=4096 status=progress
+$ unzip -p 2017-04-10-raspbian-jessie.zip | sudo dd of=$DEV bs=4096 status=progress
 
-Headless Pi with SSHD (WLAN):
+The write operation may take serveral minutes. For a class 10 SDHC card it took here nine minutes.
+
+(2) Headless Pi with SSHD and WLAN enabled:
 
 $ sudo mkdir -p /media/pi
-$ sudo mount /dev/sdX1 /media/pi
+$ sudo partprobe $DEV
+$ sudo mount ${DEV}1 /media/pi
 $ sudo touch /media/pi/ssh
 $ sudo umount /media/pi
-$ sudo mount /dev/sdX2 /media/pi
-sudo tee -a /media/pi/etc/wpa_supplicant/wpa_supplicant.conf << EOF
+$ sudo mount ${DEV}2 /media/pi
+$ echo "
 network={
     ssid="APN"
     psk="PASSWORD"
-}
-EOF
+}" |\
+sudo tee -a /media/pi/etc/wpa_supplicant/wpa_supplicant.conf 
 $ sudo umount /media/pi
 $ sudo rmdir /media/pi
 
-Where /dev/sdX is the SD card; APN and PASSWORD are the WLAN login details.
+...where APN and PASSWORD are the WLAN login details.
 
-Boot for the first time:
+(3) Boot for the First Time:
 
-The SD card is inserted into a Raspberry Pi-2 (BCM2836) and the Pi is booted up. Beside others, the file system is expanded automatially to cover the full SD card size. It may take a moment.
+Insert the prepared SD card into your Pi (here a Raspberry Pi-2 / BCM2836) and boot it up. The file system gets automatically to cover the full SD card size and the system reboots automatically.
 
-Login if you use the console. Start up a terminal if you use the GUI. Remote connect with ssh if sshd was already set up. The default hostname is raspberrypi, the user is "pi" and the password is "raspberry".
+Login if you use the console. Start up a terminal if you use the GUI. Remote connect with ssh if sshd was already set up. The default hostname is "raspberrypi", the user is "pi" and the password is "raspberry".
 
 E.g.
 $ ssh pi@raspberrypi
 [raspberry]
 
-Change password:
+(4) Set Keyboard Layout:
+
+(5) Change Password:
 
 $ passwd
 [raspberry]
 [new-password]
 [new-password]
 
-In case you need to set up SSH and WLAN (if not already done):
+(*) In case you need to set up SSH (if not already done):
 
 $ sudo /etc/init.d/ssh start
-$ sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf << EOF
-network={
-    ssid="APN"
-    psk="PASSWORD"
-}
-EOF
 
-Change hostname (here: "demopi") to prevent conflicts with other Raspberry Pis (if any):
+(*) Enable SSH w/o password query:
 
-$ echo demopi | sudo tee /etc/hostname
-$ sudo sed -i s/raspberrypi/demopi/ /etc/hosts
+(6) Change hostname (here: "demopi") to prevent conflicts with other Raspberry Pis (if any):
+
+$ export HOST=demopi
+$ echo $HOST | sudo tee /etc/hostname
+$ sudo sed -i s/raspberrypi/$HOST/ /etc/hosts
 $ sudo reboot
 $ ssh pi@demopi
 [new-password]
 
-You may want to invoke raspi-config instead to make these changes and for further setups. If your system is connected to the internet, you may want to consider also additional security measures.
+(7) Set Timezone:
 
 REFERENCE
 

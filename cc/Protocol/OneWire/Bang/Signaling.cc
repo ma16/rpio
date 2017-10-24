@@ -7,7 +7,7 @@ using namespace Protocol::OneWire::Bang ;
 
 // defect:
 // https://www.raspberrypi.org/forums/viewtopic.php?f=66&t=192908
-#define DEFECT_D1 0
+#define DEFECT_D1 1
 // don't disable interrupts anymore since the problem does no longer
 // occur.
 
@@ -28,14 +28,17 @@ bool Signaling::init()
     this->master->intr.disable(v) ;
 #endif    
     this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Fall) ;
-    // the event status bit gets immediately set (why?) so we clear it
+    // [defect] The event status flag gets immediately* raised regardless
+    // whether Fall or AsyncFall is used.
+    // (*) mostly in the immediate query, or the query thereafter;
+    // however not always (not exactly reproducible). Still, with
+    // AsyncFall mostly in the immediate query (and not later).
     this->master->io.events(this->master->mask) ;
     auto t2 = this->master->io.recent() ;
     this->master->io.mode(this->master->pin,Rpi::Gpio::Mode::In) ;
     auto t3 = this->master->io.time() ;
     // ...if we got suspended, t3 and following time-stamps may lay
     // even behind the end of the Presence-Pulse (if there was any)
-
     auto isPresent = 0 !=
 	this->master->io.waitForEvent(t3,
 				      this->master->timing.presenceIdle_max,
