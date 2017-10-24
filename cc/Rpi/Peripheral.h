@@ -79,9 +79,19 @@ private:
 
   using Map = std::map<unsigned,std::shared_ptr<Page>> ;
       
-  size_t base_page ; mutable Map map ;
+  size_t base_page ;
 
-  Peripheral(size_t base_page,Map &&map) : base_page(base_page),map(std::move(map)) {}
+  Posix::Fd::shared_ptr mem ; // file descriptor for "/dev/mem"
+  
+  mutable Map map ;
+
+  Peripheral(size_t base_page,Posix::Fd::shared_ptr mem,Map &&map)
+    
+    : base_page(base_page)
+    , mem            (mem)
+    , map (std::move(map))
+
+  { }
   
 } ; }
 

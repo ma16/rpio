@@ -15,13 +15,12 @@ static bool startup_check()
 
 static volatile auto dummy = startup_check() ;
 
-Rpi::Page::shared_ptr Rpi::Page::load(size_t pno)
+Rpi::Page::shared_ptr Rpi::Page::load(Posix::Fd *fd,size_t pno)
 {
-  auto fd = Posix::Fd::open("/dev/mem",Posix::Fd::Open::RW) ;
   auto bpp = Neat::promote<Posix::Fd::uoff_t::Unsigned>(Page::nbytes) ;
   auto nbytes = Neat::safe_mult(pno,bpp) ;
   auto offset = Posix::Fd::uoff_t::make(nbytes) ;
-  auto mmap = Posix::MMap::make(fd.get(),offset,Page::nbytes,Posix::MMap::Prot::RW,false) ;
+  auto mmap = Posix::MMap::make(fd,offset,Page::nbytes,Posix::MMap::Prot::RW,false) ;
   return Page::shared_ptr(new Page(mmap)) ;
   // note: the mapping persists even though the file gets closed
 }

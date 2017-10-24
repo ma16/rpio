@@ -24,6 +24,9 @@ namespace Posix
     void munlock(void const *p,size_t nbytes) ;
 
     rusage getrusage() ;
+
+    // reset effective id to real one
+    void reset_uid() ;
 } 
 
 #endif // _Posix_base_h_

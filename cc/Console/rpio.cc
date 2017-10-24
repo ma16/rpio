@@ -1,6 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "rpio.h"
+#include <Posix/base.h>
 #include <Ui/strto.h>
 #include <iostream>
 
@@ -58,6 +59,7 @@ int main(int argc,char **argv)
 	}
     
 	auto rpi = Rpi::Peripheral::make(base_addr(&argL)) ;
+	Posix::reset_uid() ;
 
 	using namespace Console ;
 	std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =

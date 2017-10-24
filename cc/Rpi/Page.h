@@ -33,7 +33,7 @@ namespace Rpi
 
     friend class Peripheral ;
 
-    static Page::shared_ptr load(size_t pno) ; 
+    static Page::shared_ptr load(Posix::Fd *fd,size_t pno) ; 
     
     Posix::MMap::shared_ptr mmap ; Page(Posix::MMap::shared_ptr mmap) : mmap(mmap) {}
 

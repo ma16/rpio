@@ -50,16 +50,18 @@ std::shared_ptr<Rpi::Peripheral> Rpi::Peripheral::make(Posix::Fd::uoff_t addr)
   if (0 != (addr.as_unsigned() % Page::nbytes))
     throw Error("Peripheral:base address is not page aligned") ;
   auto base_page = addr.as_unsigned() / Page::nbytes ;
-  auto self = std::shared_ptr<Peripheral>(new Peripheral(base_page,Map())) ;
+  auto mem = Posix::Fd::open("/dev/mem",Posix::Fd::Open::RW) ;
+  auto self = new Peripheral(base_page,mem,Map()) ;
   exists = true ;
-  return self ;
+  return std::shared_ptr<Peripheral>(self) ;
 }
 
 std::shared_ptr<Rpi::Page const> Rpi::Peripheral::page(PNo no) const
 {
   auto i = this->map.find(no.value()) ;
   if (i == this->map.end()) {
-    auto page = Page::load(Neat::make_safe(this->base_page)+no.value()) ;
+    auto ofs = Neat::make_safe(this->base_page)+no.value() ;
+    auto page = Page::load(this->mem.get(),ofs) ;
     i = this->map.insert(std::make_pair(no.value(),page)).first ;
   }
   return i->second ;

@@ -8,6 +8,7 @@
 #include <cstring> // strerror
 #include <limits> // numeric_limits
 #include <sys/mman.h> // mlock() et al.
+#include <sys/types.h> // uid_t
 #include <sstream>
 #include <unistd.h> // sysconf(_SC_PAGE_SIZE)
 
@@ -144,4 +145,16 @@ rusage Posix::getrusage()
     if (result != 0)
 	throw Posix::Error("rusage(RUSAGE_THREAD):"+Posix::strerror(errno)) ;
     return u ;
+}
+
+void Posix::reset_uid()
+{
+    auto uid = getuid() ;
+    auto result = setuid(uid) ;
+    if (result != 0)
+    {
+	std::ostringstream os ;
+	os << "setuid(" << uid << "):" << strerror(errno) ;
+	throw Error(os.str()) ;
+    }
 }
