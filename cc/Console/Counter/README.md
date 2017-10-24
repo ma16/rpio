@@ -1,9 +1,11 @@
 # Free Running ARM Counter
 
+See §14 in the [BCM2835 datasheet](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf).
+
 ## Synopsis
 
 ```
-$ rpio clock help
+$ rpio counter help
 arguments: MODE [help]
 
 MODE : set     # switch on/off and set prescaler
