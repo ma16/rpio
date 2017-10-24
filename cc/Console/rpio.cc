@@ -64,8 +64,8 @@ int main(int argc,char **argv)
 	using namespace Console ;
 	std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
 	{
-	    { "clock",Clock::invoke },
 	    { "cm",Cm::invoke },
+	    { "counter",Counter::invoke },
 	    { "defect",Defect::invoke },
 	    { "device",Device::invoke },
 	    { "dma",Dma::invoke },

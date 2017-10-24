@@ -14,11 +14,13 @@ CFLAGS=\
 	-Wall \
 	-Wconversion \
 	-Wextra \
+	-Wno-maybe-uninitialized \
 	-Wsign-conversion \
 	-Wstrict-aliasing
 
 # -DNDEBUG -flto
-# [note] use -Wno-maybe-uninitialized when placement-new causes warnings
+# [note] use -Wno-maybe-uninitialized because of boost::optional
+# https://stackoverflow.com/questions/21755206/how-to-get-around-gcc-void-b-4-may-be-used-uninitialized-in-this-funct#21756517
 
 LDFLAGS=-pthread -lrt
 # + $(CFLAGS) if -flto is used
@@ -28,8 +30,8 @@ CC=$(CXX) $(INCLUDE) $(CFLAGS)
 LD=$(CXX) $(LDFLAGS)
 
 LSRC=\
-	Console/Clock/invoke.cc \
 	Console/Cm/invoke.cc \
+	Console/Counter/invoke.cc \
 	Console/Defect/invoke.cc \
 	Console/Defect/D1/invoke.cc \
 	Console/Device/invoke.cc \
