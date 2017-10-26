@@ -31,7 +31,7 @@ LD=$(CXX) $(LDFLAGS)
 
 LSRC=\
 	Console/Cm/invoke.cc \
-	Console/Counter/invoke.cc \
+	Console/ArmTimer/invoke.cc \
 	Console/Defect/invoke.cc \
 	Console/Defect/D1/invoke.cc \
 	Console/Device/invoke.cc \
@@ -90,7 +90,7 @@ LSRC=\
 	Rpi/ArmMem.cc \
 	Rpi/Bus/Alloc.cc \
 	Rpi/Cm.cc \
-	Rpi/Counter.cc \
+	Rpi/ArmTimer.cc \
 	Rpi/Dma/Channel.cc \
 	Rpi/Dma/Ti.cc \
 	Rpi/Function.cc \

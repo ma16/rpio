@@ -26,7 +26,7 @@ static void help()
 	<< "If BASE is not given then the peripheral address is derived from\n"
 	<< "the processor's model name (i.e. ARMv6/7/8) in /proc/cpuinfo.\n"
 	<< '\n'
-	<< "MODE | clock       # r/w clock sources\n"
+	<< "MODE | arm-timer   # free running ARM counter\n"
 	<< "     | cm          # clock-manager\n"
 	<< "     | defect      # defect report\n"
 	<< "     | device      # control a certain device\n"
@@ -65,7 +65,7 @@ int main(int argc,char **argv)
 	std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
 	{
 	    { "cm",Cm::invoke },
-	    { "counter",Counter::invoke },
+	    { "arm-timer",ArmTimer::invoke },
 	    { "defect",Defect::invoke },
 	    { "device",Device::invoke },
 	    { "dma",Dma::invoke },

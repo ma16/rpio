@@ -117,7 +117,7 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     auto addr = Ui::strto(argL->pop(),Circuit::Addr()) ;
 
-    auto f = Rpi::Counter(rpi).frequency() ;
+    auto f = Rpi::ArmTimer(rpi).frequency() ;
     if (f < 1e+4)
 	std::cerr << "warning:frequency too small: " << f << "/s\n" ;
     

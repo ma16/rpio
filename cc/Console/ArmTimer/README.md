@@ -1,11 +1,11 @@
-# Free Running ARM Counter
+# Timer (ARM Side)
 
-See §14 in the [BCM2835 datasheet](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf).
+See §14 in the [BCM2835 datasheet](https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf). Only the Free Running ARM Counter is supported here.
 
 ## Synopsis
 
 ```
-$ rpio counter help
+$ rpio arm-timer help
 arguments: MODE [help]
 
 MODE : set     # switch on/off and set prescaler
@@ -14,17 +14,17 @@ MODE : set     # switch on/off and set prescaler
 ```
 
 ```
-$ rpio counter set help
+$ rpio arm-timer set help
 arguments: MODE | DIV | MODE DIV
 
-MODE | off  # disable ARM counter
-     | on   #  enable ARM counter
+MODE | off  # disable counter
+     | on   #  enable counter
 
 DIV = pre-scaler (0..255)
 ```
 
 ```
-$ rpio counter sleep help
+$ rpio arm-timer sleep help
 argument: [-b] TIME
 
   -b: do busy-wait instead of sleeping
@@ -32,15 +32,15 @@ TIME: time to sleep in (fractions of) seconds
 ```
 
 ```
-$ rpio counter status help
+$ rpio arm-timer status help
 no arguments
 ```
 
 ## Examples
 
-The counter is disabled after booting up:
+The arm-timer is disabled after booting up:
 ```
-$ rpio counter status
+$ rpio arm-timer status
 enabled.....off
 prescaler...62
 ticks.......0
@@ -48,15 +48,15 @@ ticks.......0
 
 Enable the counter and set the highest resolution:
 ```
-$ rpio counter set on 0
+$ rpio arm-timer set on 0
 ```
-The resolution is (DIV+1) / 250 MHz = 4ns. Note that the driving clock is fixed to 250 MHz on the Pi-2. However, on the Pi-0 and on the Pi-3, the clock varies between 250 MHz and 400 MHz (depending on the load).
+The resolution of the counter is (DIV+1) / 250 MHz = 4ns. Note that the driving clock is fixed to 250 MHz on the Pi-2. However, on the Pi-0 and on the Pi-3, the clock varies between 250 MHz and 400 MHz (depending on the load).
 
 Example (on a Pi-3):
 ```
-$ rpio counter sleep 1
+$ rpio arm-timer sleep 1
 ticks=250085421 elapsed=1.000e+00s ticks/s=2.500e+08
-$ rpio counter sleep -b 1
+$ rpio arm-timer sleep -b 1
 ticks=390975035 elapsed=1.000e+00s ticks/s=3.910e+08
 ```
 

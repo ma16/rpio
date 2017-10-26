@@ -4,7 +4,7 @@
 #define INCLUDE_RpiExt_BangIo_h
 
 #include <arm/arm.h>
-#include <Rpi/Counter.h>
+#include <Rpi/ArmTimer.h>
 #include <Rpi/Gpio.h>
 
 namespace RpiExt {
@@ -53,21 +53,21 @@ struct BangIo
     {
 	if (span > 0)
 	{
-	    auto t0 = this->t = this->counter.clock() ;
+	    auto t0 = this->t = this->timer.counter().read() ;
 	    while (this->t - t0 < span)
-		this->t = this->counter.clock() ;
+		this->t = this->timer.counter().read() ;
 	}
     }
 
     uint32_t time()
     {
-	return this->t = this->counter.clock() ;
+	return this->t = this->timer.counter().read() ;
     }
 
     void wait(uint32_t t0,uint32_t span)
     {
 	while (this->t - t0 < span) 
-	    this->t = this->counter.clock() ;
+	    this->t = this->timer.counter().read() ;
     }
     
     uint32_t waitForEvent(uint32_t t0,uint32_t span,uint32_t mask)
@@ -82,7 +82,7 @@ struct BangIo
 		return raised ;
 	    }
 	    arm::dmb() ; // since we got strange values
-	    this->t = this->counter.clock() ;
+	    this->t = this->timer.counter().read() ;
 	}
 	while (this->t - t0 <= span) ;
 	return 0 ;
@@ -98,10 +98,10 @@ struct BangIo
 	    if (cond == (l & mask))
 	    {
 		auto tx = this->t ;
-		this->t = this->counter.clock() ;
+		this->t = this->timer.counter().read() ;
 		return tx ;
 	    }
-	    this->t = this->counter.clock() ;
+	    this->t = this->timer.counter().read() ;
 	}
 	while (this->t - t0 <= span) ;
 	return this->t ;
@@ -112,14 +112,14 @@ struct BangIo
     }
 
     BangIo(Rpi::Peripheral *rpi)
-	: counter(Rpi::Counter(rpi))
-	, gpio      (Rpi::Gpio(rpi))
-	, t        (counter.clock())
+	: timer(Rpi::ArmTimer(rpi))
+	, gpio     (Rpi::Gpio(rpi))
+	, t(timer.counter().read())
 	{ }
 
 private:
     
-    Rpi::Counter counter ; Rpi::Gpio gpio ;
+    Rpi::ArmTimer timer ; Rpi::Gpio gpio ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level

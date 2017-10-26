@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../rpio.h"
-#include <Rpi/Counter.h>
+#include <Rpi/ArmTimer.h>
 #include <Ui/strto.h>
 #include <iostream>
 #include <thread> // sleep_for, chrono
@@ -18,19 +18,22 @@ static void set(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    << '\n'
 	    << "DIV = pre-scaler (0..255)\n"
 	    ;
-	// ...[todo] verify DIV range agains actual DIV type
 	return ;
     }
-    auto enable = argL->pop_if({"off","on"}) ;
-    boost::optional<Rpi::Counter::Div> div ;
+    Rpi::ArmTimer timer(rpi) ;
+    auto w = timer.control().read() ;
+    using Control = Rpi::ArmTimer::Control ;
+    
+    auto enabled = argL->pop_if({"off","on"}) ;
+    if (enabled)
+	w %= Control::Enabled::make(*enabled) ;
     if (!argL->empty())
-	div = Ui::strto<Rpi::Counter::Div>(argL->pop()) ;
+    {
+	auto divider = Ui::strto(argL->pop(),Control::Divider::Uint()) ;
+	w %= Control::Divider(divider) ;
+    }
     argL->finalize() ;
-    Rpi::Counter counter(rpi) ;
-    if (div) 
-	counter.prescale(*div) ;
-    if (enable)
-	counter.enable(*enable != 0) ;
+    timer.control().write(w) ; 
 }
 
 static void sleep(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -49,8 +52,8 @@ static void sleep(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // ...[todo] this should only accept unsigned values
     argL->finalize() ;
   
-    Rpi::Counter counter(rpi) ;
-    auto c0 = counter.clock() ;
+    Rpi::ArmTimer timer(rpi) ;
+    auto c0 = timer.counter().read() ;
     auto s0 = std::chrono::steady_clock::now() ;
 
     if (busy)
@@ -68,7 +71,7 @@ static void sleep(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::this_thread::sleep_for(std::chrono::nanoseconds(ns)) ;
     }
     
-    auto dc = counter.clock() - c0 ;
+    auto dc = timer.counter().read() - c0 ;
     // ...[todo] the counter might have wrapped around
     auto ds = std::chrono::steady_clock::now() - s0 ;
     // ...this value can be misleading
@@ -92,15 +95,19 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	return ;
     }
     argL->finalize() ;
-    Rpi::Counter counter(rpi) ;
+    Rpi::ArmTimer timer(rpi) ;
+    auto w = timer.control().read() ;
+    auto enabled = Rpi::ArmTimer::Control::Enabled(w) ;
+    auto divider = Rpi::ArmTimer::Control::Divider(w) ;
+    
     std::cout
-	<< "enabled....." << (counter.enabled() ? "on" : "off") << '\n'
-	<< "prescaler..." << std::to_string(counter.prescaler()) << '\n'
-	<< "ticks......." << counter.clock() << '\n'
+	<< "enabled....." << (enabled.raised() ? "on" : "off") << '\n'
+	<< "prescaler..." << std::to_string(divider.count()) << '\n'
+	<< "ticks......." << timer.counter().read() << '\n'
 	;
 }
 
-void Console::Counter::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+void Console::ArmTimer::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     { 

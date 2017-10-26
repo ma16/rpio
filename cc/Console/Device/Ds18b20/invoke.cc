@@ -436,7 +436,7 @@ void Console::Device::Ds18b20::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
     
-    auto f = Rpi::Counter(rpi).frequency() ;
+    auto f = Rpi::ArmTimer(rpi).frequency() ;
     if (argL->pop_if("-f"))
     {
 	auto g = Ui::strto<double>(argL->pop()) ;

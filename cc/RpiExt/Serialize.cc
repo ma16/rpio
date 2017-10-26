@@ -4,11 +4,11 @@
 
 bool RpiExt::Serialize::send(uint32_t *t0,Edge const &edge)
 {
-    auto t1 = this->counter.clock() ;
+    auto t1 = this->timer.counter().read() ;
     while (t1 - (*t0) < edge.t_min)
-	t1 = this->counter.clock() ;
+	t1 = this->timer.counter().read() ;
     this->gpio.setOutput(edge.pins,edge.output) ;
-    auto t2 = this->counter.clock() ;
+    auto t2 = this->timer.counter().read() ;
     auto success = t2 - (*t0) <= edge.t_max ;
     (*t0) = t2 ;
     return success ;
@@ -18,7 +18,7 @@ bool RpiExt::Serialize::send(std::vector<Edge> const &v)
 {
     auto success = true ;
     auto p = v.cbegin() ;
-    auto t = this->counter.clock() ;
+    auto t = this->timer.counter().read() ;
     while (success && (p != v.end()))
     {
 	success = this->send(&t,*p++) ;

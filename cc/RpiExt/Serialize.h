@@ -36,7 +36,7 @@
 #ifndef INCLUDE_RpiExt_Serialize_h
 #define INCLUDE_RpiExt_Serialize_h
 
-#include <Rpi/Counter.h>
+#include <Rpi/ArmTimer.h>
 #include <Rpi/Gpio.h>
 #include <vector>
 
@@ -56,13 +56,13 @@ struct Serialize
 	: output(output),pins(pins),t_min(t_min),t_max(t_max) {}
     } ;
 
-    Serialize(Rpi::Gpio gpio,Rpi::Counter counter) : gpio(gpio),counter(counter) {}
+    Serialize(Rpi::Gpio gpio,Rpi::ArmTimer timer) : gpio(gpio),timer(timer) {}
 
     bool send(std::vector<Edge> const &v) ;
   
 private:
 
-    Rpi::Gpio gpio ; Rpi::Counter counter ;
+    Rpi::Gpio gpio ; Rpi::ArmTimer timer ;
 
     bool send(uint32_t *t0,Edge const &edge) ;
     

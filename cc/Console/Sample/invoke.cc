@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../rpio.h"
-#include <Rpi/Counter.h>
+#include <Rpi/ArmTimer.h>
 #include <Rpi/Gpio.h>
 #include <Ui/strto.h>
 #include <chrono>
@@ -168,31 +168,31 @@ static void pulseInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     
     Rpi::Gpio gpio(rpi) ;
-    Rpi::Counter counter(rpi) ;
+    Rpi::ArmTimer timer(rpi) ;
     auto mask = 1u << pin.value() ;
     
-    auto t0 = counter.clock() ;
+    auto t0 = timer.counter().read() ;
     gpio.enable(mask,Rpi::Gpio::Event::Rise,true) ;
     gpio.reset(mask) ;
     while (0 == (gpio.getEvents() & mask))
-	t0 = counter.clock() ;
-    auto t1 = counter.clock() ;
+	t0 = timer.counter().read() ;
+    auto t1 = timer.counter().read() ;
     gpio.enable(mask,Rpi::Gpio::Event::Rise,false) ;
 
     auto t2 = t1 ;
     gpio.enable(mask,Rpi::Gpio::Event::Fall,true) ;
     gpio.reset(mask) ;
     while (0 == (gpio.getEvents() & mask))
-	t2 = counter.clock() ;
-    auto t3 = counter.clock() ;
+	t2 = timer.counter().read() ;
+    auto t3 = timer.counter().read() ;
     gpio.enable(mask,Rpi::Gpio::Event::Fall,false) ;
 
     auto t4 = t3 ;
     gpio.enable(mask,Rpi::Gpio::Event::Rise,true) ;
     gpio.reset(mask) ;
     while (0 == (gpio.getEvents() & mask))
-	t4 = counter.clock() ;
-    auto t5 = counter.clock() ;
+	t4 = timer.counter().read() ;
+    auto t5 = timer.counter().read() ;
     gpio.enable(mask,Rpi::Gpio::Event::Rise,false) ;
 
     std::cout <<       0 << '+' << (t1-t0) << ' '
@@ -216,19 +216,19 @@ static void watchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   argL->finalize() ;
   
   Rpi::Gpio gpio(rpi) ;
-  Rpi::Counter counter(rpi) ;
+  Rpi::ArmTimer timer(rpi) ;
   std::vector<Record> v(0x10000) ; v.resize(0) ;
   
-  auto t0 = counter.clock() ;
+  auto t0 = timer.counter().read() ;
   auto levels = pins & gpio.getLevels() ;
-  auto t1 = counter.clock() ;
+  auto t1 = timer.counter().read() ;
   v.push_back(Record(0,t1-t0,levels)) ;
   
   for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-    auto ti = counter.clock() ;
+    auto ti = timer.counter().read() ;
     auto next = pins & gpio.getLevels() ;
     if (levels != next) {
-      auto tj = counter.clock() ;
+      auto tj = timer.counter().read() ;
       levels = next ;
       v.push_back(Record(ti-t0,tj-ti,levels)) ;
       t0 = ti ;

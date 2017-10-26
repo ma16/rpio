@@ -9,7 +9,7 @@
 #include <thread> // this_thread::sleep_for
 #include <Neat/cast.h>
 #include <Neat/stream.h>
-#include <Rpi/Counter.h>
+#include <Rpi/ArmTimer.h>
 #include <RpiExt/Dma/Control.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>
@@ -350,7 +350,7 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     // DMA: take time t0 (DMA transfer just started)
     auto t0 = allocator->allocate(sizeof(uint32_t)) ;
-    cb.add(Rpi::Dma::Ti::Word(),Rpi::Counter::Address,t0.get()) ;
+    cb.add(Rpi::Dma::Ti::Word(),Rpi::ArmTimer::Counter::Address,t0.get()) ;
 
     // DMA: (user) data tail-block (did not fit into FIFO buffer)
     auto rest = (data.size() - head) * 4 ;
@@ -367,7 +367,7 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
     // DMA: take time t1 (when DMA transfer was completed)
     auto t1 = allocator->allocate(sizeof(uint32_t)) ;
-    cb.add(Rpi::Dma::Ti::Word(),Rpi::Counter::Address,t1.get()) ;
+    cb.add(Rpi::Dma::Ti::Word(),Rpi::ArmTimer::Counter::Address,t1.get()) ;
     
     // execute actual DMA transfer
     channel.setup(cb.address(),cs) ;

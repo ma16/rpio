@@ -81,13 +81,13 @@ static std::vector<RpiExt::Serialize::Edge> make(
 static void bang(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     Rpi::Gpio gpio(rpi) ;
-    Rpi::Counter counter(rpi) ;
+    Rpi::ArmTimer timer(rpi) ;
     
     auto nleds = Ui::strto<unsigned>(argL->pop()) ;
     auto   grb = Ui::strto<unsigned>(argL->pop()) ;
   
     auto timing = getBang(argL) ;
-    auto freq = counter.frequency() ;
+    auto freq = timer.frequency() ;
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto max_retries = Ui::strto<uint64_t>(argL->option("-r","1")) ;
     auto debug = argL->pop_if("-d") ;
@@ -105,7 +105,7 @@ static void bang(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << Device::Ws2812b::Circuit::toStr(ticks)  << '\n' ;
     }
   
-    RpiExt::Serialize host(gpio,counter) ;
+    RpiExt::Serialize host(gpio,timer) ;
     std::vector<RpiExt::Serialize::Edge> v =
 	make(nleds,grb,(1u<<pin.value()),ticks) ;
   

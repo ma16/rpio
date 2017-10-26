@@ -5,7 +5,7 @@
 // hide as many details of the Raspberry Pi as possible). Actually,
 // this is more like a "script" generator for bit-banging.
 //
-// The ARM counter is used as time-reference.
+// The Free Running ARM Counter is used as time-reference.
 //
 // The client is responsible for setup (i.e. ARM counter and
 // possibly GPIO input/output mode).
@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <deque>
 #include <vector>
-#include <Rpi/Counter.h>
+#include <Rpi/ArmTimer.h>
 #include <Rpi/Gpio.h>
 
 namespace RpiExt {
@@ -275,9 +275,9 @@ struct Bang
     } ;
 
     Bang(Rpi::Peripheral *rpi) :
-      counter(Rpi::Counter(rpi)),
+      timer(Rpi::ArmTimer(rpi)),
       gpio(Rpi::Gpio(rpi)),
-      t(counter.clock())
+	t(timer.counter().read())
     {}
 
     void execute(Command const &c)
@@ -446,7 +446,7 @@ struct Bang
   
 private:
 
-    Rpi::Counter counter ; Rpi::Gpio gpio ;
+    Rpi::ArmTimer timer ; Rpi::Gpio gpio ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level
@@ -507,7 +507,7 @@ private:
 
     void time(Command::Time const &c)
     {
-	(*c.ticks) = this->t = this->counter.clock() ;
+	(*c.ticks) = this->t = this->timer.counter().read() ;
     }
 
     void recent(Command::Recent const &c)
@@ -519,16 +519,16 @@ private:
     {
 	if (c.span > 0)
 	{
-	    auto t0 = this->t = this->counter.clock() ;
+	    auto t0 = this->t = this->timer.counter().read() ;
 	    while (this->t - t0 < c.span)
-		this->t = this->counter.clock() ;
+		this->t = this->timer.counter().read() ;
 	}
     }
 
     void wait(Command::Wait const &c)
     {
 	while (this->t - (*c.t0) < c.span) 
-	    this->t = this->counter.clock() ;
+	    this->t = this->timer.counter().read() ;
     }
     
     void waitFor(Command::WaitFor const &c)
@@ -539,10 +539,10 @@ private:
 	    if (c.cond == (this->l & c.mask))
 	    {
 		(*c.t1) = this->t ;
-		this->t = this->counter.clock() ;
+		this->t = this->timer.counter().read() ;
 		return ;
 	    }
-	    this->t = this->counter.clock() ;
+	    this->t = this->timer.counter().read() ;
 	}
 	while (this->t - (*c.t0) <= c.span) ;
     }
