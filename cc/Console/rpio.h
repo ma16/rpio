@@ -8,21 +8,12 @@
 
 namespace Console
 {
-    namespace         Cm { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace   ArmTimer { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace     Defect { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace     Device { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace        Dma { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace       Gpio { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace       Intr { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace       Mbox { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
+    namespace Peripheral { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace       Poke { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace        Pwm { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace        Shm { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace     Sample { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace       Spi0 { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace       Spi1 { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
-    namespace   SpiSlave { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
     namespace Throughput { void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) ; }
 }
 

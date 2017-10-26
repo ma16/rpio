@@ -30,8 +30,6 @@ CC=$(CXX) $(INCLUDE) $(CFLAGS)
 LD=$(CXX) $(LDFLAGS)
 
 LSRC=\
-	Console/Cm/invoke.cc \
-	Console/ArmTimer/invoke.cc \
 	Console/Defect/invoke.cc \
 	Console/Defect/D1/invoke.cc \
 	Console/Device/invoke.cc \
@@ -40,23 +38,26 @@ LSRC=\
 	Console/Device/Mcp3008/invoke.cc \
 	Console/Device/Max7219/invoke.cc \
 	Console/Device/Ws2812b/invoke.cc \
-	Console/Dma/invoke.cc \
-	Console/Gpio/invoke.cc \
-	Console/Intr/invoke.cc \
-	Console/Mbox/invoke.cc \
+	Console/Peripheral/invoke.cc \
+	Console/Peripheral/ArmTimer/invoke.cc \
+	Console/Peripheral/Cm/invoke.cc \
+	Console/Peripheral/Dma/invoke.cc \
+	Console/Peripheral/Gpio/invoke.cc \
+	Console/Peripheral/Intr/invoke.cc \
+	Console/Peripheral/Mbox/invoke.cc \
+	Console/Peripheral/Pwm/invoke.cc \
+	Console/Peripheral/Spi0/Dma.cc \
+	Console/Peripheral/Spi0/Dump.cc \
+	Console/Peripheral/Spi0/invoke.cc \
+	Console/Peripheral/Spi0/Layout.cc \
+	Console/Peripheral/Spi0/Mosi.cc \
+	Console/Peripheral/Spi0/Options.cc \
+	Console/Peripheral/Spi0/Watch.cc \
+	Console/Peripheral/Spi1/invoke.cc \
+	Console/Peripheral/SpiSlave/invoke.cc \
 	Console/Poke/invoke.cc \
-	Console/Pwm/invoke.cc \
 	Console/Sample/invoke.cc \
 	Console/Shm/invoke.cc \
-	Console/Spi0/Dma.cc \
-	Console/Spi0/Dump.cc \
-	Console/Spi0/invoke.cc \
-	Console/Spi0/Layout.cc \
-	Console/Spi0/Mosi.cc \
-	Console/Spi0/Options.cc \
-	Console/Spi0/Watch.cc \
-	Console/Spi1/invoke.cc \
-	Console/SpiSlave/invoke.cc \
 	Console/Throughput/Buffer.cc \
 	Console/Throughput/invoke.cc \
 	Device/Ads1115/Bang/Generator.cc \

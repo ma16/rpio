@@ -26,21 +26,12 @@ static void help()
 	<< "If BASE is not given then the peripheral address is derived from\n"
 	<< "the processor's model name (i.e. ARMv6/7/8) in /proc/cpuinfo.\n"
 	<< '\n'
-	<< "MODE | arm-timer   # free running ARM counter\n"
-	<< "     | cm          # clock-manager\n"
-	<< "     | defect      # defect report\n"
-	<< "     | device      # control a certain device\n"
-	<< "     | dma         # DMA setup and tests\n"
-	<< "     | gpio        # r/w GPIO\n"
-	<< "     | intr        # enable/disable ARM and GPU interrupts\n"
-	<< "     | mbox        # Mailbox access\n"
+	<< "MODE : defect      # defect report\n"
+	<< "     | device      # control a remote device\n"
+	<< "     | peripheral  # peripheral's access\n"
 	<< "     | poke        # r/w any word in peripheral address space\n"
-	<< "     | pwm         # PWM setup\n"
 	<< "     | sample      # sample data\n"
 	<< "     | shm         # shared memory control (POSIX IPC)\n"
-	<< "     | spi0        # serial peripheral interface (controller #0)\n"
-	<< "     | spi1        # serial peripheral interface (controller #1)\n"
-	<< "     | spi-slave   # serial peripheral interface (slave)\n"
 	<< "     | throughput  # i/o and memory performance tests\n"
 	<< '\n'
 	<< "Use the keyword help for additional information.\n"
@@ -64,21 +55,12 @@ int main(int argc,char **argv)
 	using namespace Console ;
 	std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
 	{
-	    { "cm",Cm::invoke },
-	    { "arm-timer",ArmTimer::invoke },
 	    { "defect",Defect::invoke },
 	    { "device",Device::invoke },
-	    { "dma",Dma::invoke },
-	    { "gpio",Gpio::invoke },
-	    { "intr",Intr::invoke },
-	    { "mbox",Mbox::invoke },
 	    { "poke",Poke::invoke },
-	    { "pwm",Pwm::invoke },
+	    { "peripheral",Peripheral::invoke },
 	    { "sample",Sample::invoke },
 	    { "shm",Shm::invoke },
-	    { "spi0",Spi0::invoke },
-	    { "spi1",Spi1::invoke },
-	    { "spi-slave",SpiSlave::invoke },
 	    { "throughput",Throughput::invoke },
 	} ;
 	argL.pop(map)(rpi.get(),&argL) ;
