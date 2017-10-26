@@ -1,16 +1,16 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
-#include <Rpi/Gpio.h>
+#include <Rpi/GpioOld.h>
 #include <Rpi/Timer.h>
 #include <Ui/strto.h>
 #include <iostream>
 
-static void recover(Rpi::Gpio *gpio,uint32_t mask)
+static void recover(Rpi::GpioOld *gpio,uint32_t mask)
 {
-    gpio->enable(mask,Rpi::Gpio::Event::Fall,false) ;
-    gpio->setOutput(mask,Rpi::Gpio::Output::Lo) ;
-    gpio->setMode(mask,Rpi::Gpio::Mode::In) ;
+    gpio->enable(mask,Rpi::GpioOld::Event::Fall,false) ;
+    gpio->setOutput(mask,Rpi::GpioOld::Output::Lo) ;
+    gpio->setMode(mask,Rpi::GpioOld::Mode::In) ;
 }
 
 static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -19,19 +19,19 @@ static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto span = Ui::strto<uint32_t>(argL->pop()) ;
     argL->finalize() ;
     
-    Rpi::Gpio gpio(rpi) ;
+    Rpi::GpioOld gpio(rpi) ;
     Rpi::Timer timer(rpi) ;
     auto mask = 1u << pin.value() ;
     recover(&gpio,mask) ;
     
-    gpio.setMode(mask,Rpi::Gpio::Mode::Out) ;
-    gpio.enable(mask,Rpi::Gpio::Event::Fall,true) ;
+    gpio.setMode(mask,Rpi::GpioOld::Mode::Out) ;
+    gpio.enable(mask,Rpi::GpioOld::Event::Fall,true) ;
     gpio.reset(mask) ;
 
     auto t0 = timer.cLo() ;
-    gpio.setMode(mask,Rpi::Gpio::Mode::In) ;
-    gpio.setMode(mask,Rpi::Gpio::Mode::Out) ;
-    gpio.setMode(mask,Rpi::Gpio::Mode::In) ;
+    gpio.setMode(mask,Rpi::GpioOld::Mode::In) ;
+    gpio.setMode(mask,Rpi::GpioOld::Mode::Out) ;
+    gpio.setMode(mask,Rpi::GpioOld::Mode::In) ;
     auto t1 = timer.cLo() ;
     
     if (0 == (gpio.getEvents() & mask))

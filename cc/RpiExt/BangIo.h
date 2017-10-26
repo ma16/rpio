@@ -5,13 +5,13 @@
 
 #include <arm/arm.h>
 #include <Rpi/ArmTimer.h>
-#include <Rpi/Gpio.h>
+#include <Rpi/GpioOld.h>
 
 namespace RpiExt {
 
 struct BangIo
 {
-    void detect(Rpi::Pin pin,Rpi::Gpio::Event event,bool enable=true)
+    void detect(Rpi::Pin pin,Rpi::GpioOld::Event event,bool enable=true)
     {
 	this->gpio.enable(pin,event,enable) ;
     }
@@ -29,7 +29,7 @@ struct BangIo
 	return this->gpio.getLevels() ;
     }
 
-    void mode(Rpi::Pin pin,Rpi::Gpio::Mode mode)
+    void mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode)
     {
 	this->gpio.setMode(pin,mode) ;
     }
@@ -41,12 +41,12 @@ struct BangIo
 
     void reset(uint32_t pins)
     {
-	this->gpio.setOutput<Rpi::Gpio::Output::Lo>(pins) ;
+	this->gpio.setOutput<Rpi::GpioOld::Output::Lo>(pins) ;
     }
     
     void set(uint32_t pins)
     {
-	this->gpio.setOutput<Rpi::Gpio::Output::Hi>(pins) ;
+	this->gpio.setOutput<Rpi::GpioOld::Output::Hi>(pins) ;
     }
 
     void sleep(uint32_t span)
@@ -113,13 +113,13 @@ struct BangIo
 
     BangIo(Rpi::Peripheral *rpi)
 	: timer(Rpi::ArmTimer(rpi))
-	, gpio     (Rpi::Gpio(rpi))
+	, gpio     (Rpi::GpioOld(rpi))
 	, t(timer.counter().read())
 	{ }
 
 private:
     
-    Rpi::ArmTimer timer ; Rpi::Gpio gpio ;
+    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level

@@ -35,8 +35,8 @@ static std::vector<RpiExt::Serialize::Edge> make(
     size_t nleds,uint32_t grb,uint32_t pins,
     Device::Ws2812b::Circuit::Ticks const &ticks)
 {
-    auto const Lo = Rpi::Gpio::Output::Lo ;
-    auto const Hi = Rpi::Gpio::Output::Hi ;
+    auto const Lo = Rpi::GpioOld::Output::Lo ;
+    auto const Hi = Rpi::GpioOld::Output::Hi ;
 
     using Edge = RpiExt::Serialize::Edge ;
     std::deque<Edge> q ;
@@ -80,7 +80,7 @@ static std::vector<RpiExt::Serialize::Edge> make(
 
 static void bang(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    Rpi::Gpio gpio(rpi) ;
+    Rpi::GpioOld gpio(rpi) ;
     Rpi::ArmTimer timer(rpi) ;
     
     auto nleds = Ui::strto<unsigned>(argL->pop()) ;

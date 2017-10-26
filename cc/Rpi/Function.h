@@ -10,7 +10,7 @@
 // www.raspberrypi.org/documentation/hardware/computemodule/RPI-CM-DATASHEET-V1_0.pdf
 // --------------------------------------------------------------------
 
-#include "Gpio.h"
+#include "GpioOld.h"
 #include <vector>
 
 namespace Rpi { namespace Function
@@ -58,7 +58,7 @@ namespace Rpi { namespace Function
 
   using TypeN = Neat::Numerator<Type,Type::Arm_Tms> ;
 
-  struct Record { Type type ; Pin pin ; Gpio::Mode mode ; } ;
+  struct Record { Type type ; Pin pin ; GpioOld::Mode mode ; } ;
 
   char const* name(Type type) ;
   

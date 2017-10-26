@@ -1,9 +1,9 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#include "Gpio.h"
+#include "GpioOld.h"
 #include "Error.h"
 
-Rpi::Gpio::Mode Rpi::Gpio::getMode(Pin pin) const
+Rpi::GpioOld::Mode Rpi::GpioOld::getMode(Pin pin) const
 {
   auto i = Page::Index::make(0x0u + pin.value()/10u) ; // GPFSEL0..GPFSEL5
   auto bits = this->page->at(i) ; // 10 pins per register
@@ -12,7 +12,7 @@ Rpi::Gpio::Mode Rpi::Gpio::getMode(Pin pin) const
   return ModeN::make(bits & 7u).e() ;
 }
 
-void Rpi::Gpio::setMode(Pin pin,Mode mode)
+void Rpi::GpioOld::setMode(Pin pin,Mode mode)
 {
   auto i = Page::Index::make(0x0u + pin.value()/10u) ; // GPFSEL0..GPFSEL5
   auto bits = this->page->at(i) ; // 10 pins per register
@@ -22,7 +22,7 @@ void Rpi::Gpio::setMode(Pin pin,Mode mode)
   this->page->at(i) = bits ;
 }
 
-void Rpi::Gpio::setMode(uint32_t set,Mode mode)
+void Rpi::GpioOld::setMode(uint32_t set,Mode mode)
 {
   auto i = Pin::first() ; 
   do {
@@ -32,7 +32,7 @@ void Rpi::Gpio::setMode(uint32_t set,Mode mode)
   } while (i.next()) ;
 }
 
-uint32_t Rpi::Gpio::rmw(uint32_t volatile &r,uint32_t set,bool on)
+uint32_t Rpi::GpioOld::rmw(uint32_t volatile &r,uint32_t set,bool on)
 {
   auto prev = r ;
   auto next = prev & ~set ; 
@@ -43,7 +43,7 @@ uint32_t Rpi::Gpio::rmw(uint32_t volatile &r,uint32_t set,bool on)
   return prev ;
 }
 
-void Rpi::Gpio::setPull(uint32_t set,Pull how)
+void Rpi::GpioOld::setPull(uint32_t set,Pull how)
 {
   auto &GPPUD     = this->page->at<0x94/4>() ; 
   auto &GPPUDCLK0 = this->page->at<0x98/4>() ;

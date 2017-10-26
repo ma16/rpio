@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Rpi_Gpio_h_
-#define _Rpi_Gpio_h_
+#ifndef _Rpi_GpioOld_h_
+#define _Rpi_GpioOld_h_
 
 // --------------------------------------------------------------------
 // BCM2835 ARM Peripherals: Chapter 6: General Purpose I/O (GPIO)
@@ -11,9 +11,9 @@
 #include "Pin.h"
 #include <Neat/Numerator.h>
 
-namespace Rpi { struct Gpio 
+namespace Rpi { struct GpioOld 
 {
-  Gpio(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x200>())) {}
+  GpioOld(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x200>())) {}
   
   // ----[ Mode ]----------------------------------------------------
 
@@ -128,4 +128,4 @@ private:
   
 } ; }
 
-#endif // _Rpi_Gpio_h_
+#endif // _Rpi_GpioOld_h_

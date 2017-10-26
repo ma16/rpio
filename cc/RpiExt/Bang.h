@@ -18,7 +18,7 @@
 #include <deque>
 #include <vector>
 #include <Rpi/ArmTimer.h>
-#include <Rpi/Gpio.h>
+#include <Rpi/GpioOld.h>
 
 namespace RpiExt {
 
@@ -94,8 +94,8 @@ struct Bang
 	    friend Command ;
 	    friend Bang ;
 	    Rpi::Pin pin ;
-	    Rpi::Gpio::Mode mode ;
-	    Mode(Rpi::Pin pin,Rpi::Gpio::Mode mode) : pin(pin), mode(mode) {}
+	    Rpi::GpioOld::Mode mode ;
+	    Mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode) : pin(pin), mode(mode) {}
 	} ;
 	    
 	class Recent
@@ -228,7 +228,7 @@ struct Bang
 	    return Command(Choice::Levels,Levels(pins)) ;
 	}
 
-	static Command mode(Rpi::Pin pin,Rpi::Gpio::Mode mode)
+	static Command mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode)
 	{
 	    return Command(Choice::Mode,Mode(pin,mode)) ;
 	}
@@ -276,7 +276,7 @@ struct Bang
 
     Bang(Rpi::Peripheral *rpi) :
       timer(Rpi::ArmTimer(rpi)),
-      gpio(Rpi::Gpio(rpi)),
+      gpio(Rpi::GpioOld(rpi)),
 	t(timer.counter().read())
     {}
 
@@ -380,17 +380,17 @@ struct Bang
 	void low(Rpi::Pin pin)
 	{
 	    q.push_back(Command::reset(1u<<pin.value())) ; // [todo] drop
-	    q.push_back(Command::mode(pin,Rpi::Gpio::Mode::Out)) ;
+	    q.push_back(Command::mode(pin,Rpi::GpioOld::Mode::Out)) ;
 	}
 
-	void mode(Rpi::Pin pin,Rpi::Gpio::Mode mode)
+	void mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode)
 	{
 	    q.push_back(Command::mode(pin,mode)) ;
 	}
 
 	void off(Rpi::Pin pin)
 	{
-	    q.push_back(Command::mode(pin,Rpi::Gpio::Mode::In)) ;
+	    q.push_back(Command::mode(pin,Rpi::GpioOld::Mode::In)) ;
 	}
 
 	void recent(uint32_t *ticks)
@@ -446,7 +446,7 @@ struct Bang
   
 private:
 
-    Rpi::ArmTimer timer ; Rpi::Gpio gpio ;
+    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level
@@ -497,12 +497,12 @@ private:
 
     void reset(Command::Reset const &c)
     {
-	this->gpio.setOutput<Rpi::Gpio::Output::Lo>(c.pins) ;
+	this->gpio.setOutput<Rpi::GpioOld::Output::Lo>(c.pins) ;
     }
     
     void set(Command::Set const &c)
     {
-	this->gpio.setOutput<Rpi::Gpio::Output::Hi>(c.pins) ;
+	this->gpio.setOutput<Rpi::GpioOld::Output::Hi>(c.pins) ;
     }
 
     void time(Command::Time const &c)

@@ -95,7 +95,7 @@ LSRC=\
 	Rpi/Dma/Channel.cc \
 	Rpi/Dma/Ti.cc \
 	Rpi/Function.cc \
-	Rpi/Gpio.cc \
+	Rpi/GpioOld.cc \
 	Rpi/Mbox/Interface.cc \
 	Rpi/Mbox/Message.cc \
 	Rpi/Mbox/Memory.cc \

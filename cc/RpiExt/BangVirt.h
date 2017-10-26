@@ -26,17 +26,17 @@
 #include <deque>
 #include <vector>
 #include <Rpi/Counter.h>
-#include <Rpi/Gpio.h>
+#include <Rpi/GpioOld.h>
 
 namespace RpiExt {
 
 struct Bang
 {
-    Rpi::Counter counter ; Rpi::Gpio gpio ; uint32_t t ;
+    Rpi::Counter counter ; Rpi::GpioOld gpio ; uint32_t t ;
 
     Bang(Rpi::Peripheral *rpi) :
 	counter(Rpi::Counter(rpi)),
-	gpio      (Rpi::Gpio(rpi)),
+	gpio      (Rpi::GpioOld(rpi)),
 	t        (counter.clock())
 	{}
 
@@ -60,8 +60,8 @@ struct Bang
     struct Mode : Command
     {
 	Rpi::Pin pin ;
-	Rpi::Gpio::Mode mode ;
-	Mode(Rpi::Pin pin,Rpi::Gpio::Mode mode) : pin(pin), mode(mode) {}
+	Rpi::GpioOld::Mode mode ;
+	Mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode) : pin(pin), mode(mode) {}
 	void invoke(Bang *bang) override
 	{
 	    bang->gpio.setMode(this->pin,this->mode) ;
@@ -84,7 +84,7 @@ struct Bang
 	Reset(uint32_t pins) : pins(pins) {}
 	void invoke(Bang *bang) override
 	{
-	    bang->gpio.setOutput<Rpi::Gpio::Output::Lo>(this->pins) ;
+	    bang->gpio.setOutput<Rpi::GpioOld::Output::Lo>(this->pins) ;
 	}
     } ;
 	    
@@ -94,7 +94,7 @@ struct Bang
 	Set(uint32_t pins) : pins(pins) {}
 	void invoke(Bang *bang) override
 	{
-	    bang->gpio.setOutput<Rpi::Gpio::Output::Hi>(this->pins) ;
+	    bang->gpio.setOutput<Rpi::GpioOld::Output::Hi>(this->pins) ;
 	}
     } ;
 	    
@@ -162,17 +162,17 @@ struct Bang
 
 	void low(Rpi::Pin pin)
 	{
-	    this->push<Mode>(pin,Rpi::Gpio::Mode::Out) ;
+	    this->push<Mode>(pin,Rpi::GpioOld::Mode::Out) ;
 	}
 
-	void mode(Rpi::Pin pin,Rpi::Gpio::Mode mode)
+	void mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode)
 	{
 	    this->push<Mode>(pin,mode) ;
 	}
 
 	void off(Rpi::Pin pin)
 	{
-	    this->push<Mode>(pin,Rpi::Gpio::Mode::In) ;
+	    this->push<Mode>(pin,Rpi::GpioOld::Mode::In) ;
 	}
 
 	void recent(uint32_t *ticks)

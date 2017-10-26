@@ -2,7 +2,7 @@
 
 #include "../invoke.h"
 #include <Rpi/Function.h>
-#include <Rpi/Gpio.h>
+#include <Rpi/GpioOld.h>
 #include <Ui/strto.h>
 #include <iomanip>
 #include <iostream>
@@ -91,14 +91,14 @@ static void enableInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto type = argL->pop({"rise","fall","high","low","async-rise","async-fall","any"}) ;
   auto on = !argL->pop_if("off") ;
   argL->finalize() ;
-  Rpi::Gpio gpio(rpi) ;
+  Rpi::GpioOld gpio(rpi) ;
   if (type == 6) {
-    auto event = Rpi::Gpio::EventN::first() ;
+    auto event = Rpi::GpioOld::EventN::first() ;
     do gpio.enable(pins,event.e(),on) ;
     while (event.next()) ;
   }
   else {
-    auto event = Rpi::Gpio::EventN::make(type).e() ;
+    auto event = Rpi::GpioOld::EventN::make(type).e() ;
     gpio.enable(pins,event,on) ;
   }
 }
@@ -121,9 +121,9 @@ static void modeInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
   auto pins = getPins(argL) ;
   auto i = argL->pop({"i","o","5","4","0","1","2","3"}) ;
-  auto mode = Rpi::Gpio::ModeN::make(i).e() ;
+  auto mode = Rpi::GpioOld::ModeN::make(i).e() ;
   argL->finalize() ;
-  Rpi::Gpio gpio(rpi) ;
+  Rpi::GpioOld gpio(rpi) ;
   gpio.setMode(pins,mode) ;
 }
 
@@ -139,9 +139,9 @@ static void outputInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
   auto pins = getPins(argL) ;
   auto i = argL->pop({"hi","lo"}) ;
-  auto output = Rpi::Gpio::OutputN::make(i).e() ;
+  auto output = Rpi::GpioOld::OutputN::make(i).e() ;
   argL->finalize() ;
-  Rpi::Gpio gpio(rpi) ;
+  Rpi::GpioOld gpio(rpi) ;
   gpio.setOutput(pins,output) ;
 }
 
@@ -158,9 +158,9 @@ static void pullInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
   auto pins = getPins(argL) ;
   auto i = argL->pop({"off","down","up"}) ;
-  auto pull = Rpi::Gpio::PullN::make(i).e() ;
+  auto pull = Rpi::GpioOld::PullN::make(i).e() ;
   argL->finalize() ;
-  Rpi::Gpio gpio(rpi) ;
+  Rpi::GpioOld gpio(rpi) ;
   gpio.setPull(pins,pull) ; 
 }
     
@@ -174,7 +174,7 @@ static void resetInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   if (!argL->empty())
     pins = getPins(argL) ;
   argL->finalize() ;
-  Rpi::Gpio gpio(rpi) ;
+  Rpi::GpioOld gpio(rpi) ;
   gpio.reset(pins) ;
 }
 
@@ -184,7 +184,7 @@ static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   if (!argL->empty())
     pins = getPins(argL) ;
   argL->finalize() ;
-  Rpi::Gpio gpio(rpi) ;
+  Rpi::GpioOld gpio(rpi) ;
   std::cout << mkhdr(pins) << '\n'
 	    << mksep(pins) << '\n' ;
   auto i = Rpi::Pin::first() ;
@@ -193,7 +193,7 @@ static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
       continue ;
     static const char m[] = { 'i','o','5','4','0','1','2','3' } ;
     auto mode = gpio.getMode(i) ;
-    std::cout << m[Rpi::Gpio::ModeN(mode).n()] << ' ' ;
+    std::cout << m[Rpi::GpioOld::ModeN(mode).n()] << ' ' ;
   } while (i.next()) ;
   std::cout << "mode\n" 
 	    << mkstr(pins,gpio.getLevels()) << "level\n" 
@@ -207,15 +207,15 @@ static void statusEvents(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   if (!argL->empty())
     pins = getPins(argL) ;
   argL->finalize() ;
-  Rpi::Gpio gpio(rpi) ;
+  Rpi::GpioOld gpio(rpi) ;
   std::cout << mkhdr(pins) << '\n'
 	    << mksep(pins) << '\n' 
-	    << mkstr(pins,gpio.enable(0,Rpi::Gpio::Event::     Rise,true)) << "rise\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::Gpio::Event::     Fall,true)) << "fall\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::Gpio::Event::     High,true)) << "high\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::Gpio::Event::      Low,true)) << "low\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::Gpio::Event::AsyncRise,true)) << "async-rise\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::Gpio::Event::AsyncFall,true)) << "async-fall\n" ;
+	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::     Rise,true)) << "rise\n"
+	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::     Fall,true)) << "fall\n"
+	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::     High,true)) << "high\n"
+	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::      Low,true)) << "low\n"
+	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::AsyncRise,true)) << "async-rise\n"
+	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::AsyncFall,true)) << "async-fall\n" ;
   std::cout << std::flush ;
 }
 
@@ -226,7 +226,7 @@ static void statusFunctions(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   if (!argL->empty())
     pins = getPins(argL) ;
   argL->finalize() ;
-  Rpi::Gpio gpio(rpi) ;
+  Rpi::GpioOld gpio(rpi) ;
   auto pin = Rpi::Pin::first() ;
   do {
     if (0 == (pins & (1u << pin.value())))
@@ -234,11 +234,11 @@ static void statusFunctions(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto mode = gpio.getMode(pin) ;
     static char const m[] = { 'i','o','5','4','0','1','2','3' } ;
     std::cout << std::setw(2) << pin.value() << ' ' 
-	      << m[Rpi::Gpio::ModeN(mode).n()] ;
-    if (mode == Rpi::Gpio::Mode::In) {
+	      << m[Rpi::GpioOld::ModeN(mode).n()] ;
+    if (mode == Rpi::GpioOld::Mode::In) {
       std::cout << " (Input)" ;
     }
-    else if (mode == Rpi::Gpio::Mode::Out) {
+    else if (mode == Rpi::GpioOld::Mode::Out) {
       std::cout << " (Output)" ;
     }
     else {
@@ -250,7 +250,7 @@ static void statusFunctions(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (verbose) {
       for (auto const &r : Rpi::Function::records()) 
 	if (r.pin.value() == pin.value())
-	  std::cout << ' ' << m[Rpi::Gpio::ModeN(r.mode).n()] << ':' << Rpi::Function::name(r.type) ;
+	  std::cout << ' ' << m[Rpi::GpioOld::ModeN(r.mode).n()] << ':' << Rpi::Function::name(r.type) ;
     }
     std::cout << '\n' ;
   }

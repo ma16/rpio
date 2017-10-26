@@ -4,7 +4,7 @@
 
 std::vector<Rpi::Function::Record> const& Rpi::Function::records() 
 {
-  using Mode = Gpio::Mode ;
+  using Mode = GpioOld::Mode ;
   
   static std::vector<Record> recordV = {
   
