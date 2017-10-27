@@ -71,15 +71,6 @@ namespace Rpi { struct GpioOld
     reset(1u<<pin.value()) ;
   }
 
-  // ----[ Pull ]----------------------------------------------------
-
-  enum class Pull : unsigned char { Off=0,Down=1,Up=2 } ;
-
-  using PullN = Neat::Numerator<Pull,Pull::Up> ;
-    
-  void setPull(uint32_t set,Pull how) ;
-  void setPull(Pin      pin,Pull how) ;
-
 private:
 
   std::shared_ptr<Page> page ;

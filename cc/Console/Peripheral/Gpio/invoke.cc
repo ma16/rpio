@@ -4,6 +4,7 @@
 #include <Rpi/GpioOld.h>
 #include <Rpi/Gpio/Function.h>
 #include <Rpi/Gpio/Output.h>
+#include <Rpi/Gpio/Pull.h>
 #include <Ui/strto.h>
 #include <iomanip>
 #include <iostream>
@@ -159,10 +160,10 @@ static void pullInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
   auto pins = getPins(argL) ;
   auto i = argL->pop({"off","down","up"}) ;
-  auto pull = Rpi::GpioOld::PullN::make(i).e() ;
+  auto mode = Rpi::Gpio::Pull::ModeEnum::make(i).e() ;
+  // ...[todo] dangerous since the since off/down/up may change
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
-  gpio.setPull(pins,pull) ; 
+  Rpi::Gpio::Pull(rpi).set(pins,mode) ; 
 }
     
 static void resetInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)

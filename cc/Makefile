@@ -98,6 +98,7 @@ LSRC=\
 	Rpi/GpioOld.cc \
 	Rpi/Gpio/Function.cc \
 	Rpi/Gpio/Output.cc \
+	Rpi/Gpio/Pull.cc \
 	Rpi/Mbox/Interface.cc \
 	Rpi/Mbox/Message.cc \
 	Rpi/Mbox/Memory.cc \
