@@ -19,6 +19,7 @@
 // --------------------------------------------------------------------
 
 #include <Neat/Enum.h>
+#include <cstdint>
 
 namespace Rpi { namespace Bus { struct Coherency
 {

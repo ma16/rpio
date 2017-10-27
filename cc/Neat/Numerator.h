@@ -59,6 +59,9 @@ namespace Neat
       throw Error(os.str()) ;
     }
 
+    static Numerator coset(Domain i) { return Numerator(i%(max+1)) ; }
+    // [todo] max+1 == 0
+				       
     // ---- access ----
     
     constexpr Enum e() const { return static_cast<Enum>(i) ; }

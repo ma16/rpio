@@ -2,6 +2,7 @@
 
 #include "Channel.h"
 #include <iomanip> // setw
+#include <sstream>
 
 void Rpi::Dma::Channel::setup(Bus::Address cb,Cs cs)
 {

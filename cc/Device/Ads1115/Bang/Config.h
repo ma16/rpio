@@ -5,6 +5,7 @@
 
 #include "../Circuit.h"
 #include <Rpi/Pin.h>
+#include <cstdint>
 
 namespace Device { namespace Ads1115 { namespace Bang {
 

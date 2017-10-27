@@ -4,49 +4,65 @@
 // An unsigned integer value in the range 0..max
 // --------------------------------------------------------------------
 
-#ifndef _Neat_Enum_h_
-#define _Neat_Enum_h_
+#ifndef INCLUDE_Neat_Enum_h
+#define INCLUDE_Neat_Enum_h
 
-#include "Error.h"
 #include <limits>
-#include <sstream> 
+#include <type_traits>
 
-namespace Neat
+namespace Neat {
+
+void Enum_throw(unsigned long long max,unsigned long long i) ;
+
+template<typename D,D M> constexpr bool Enum_isTight()
 {
-  template<typename D,D M> struct Enum
-  {
-    using Domain = D ;
+    static_assert(std::is_integral<D>::value,"") ;
+    static_assert(std::is_unsigned<D>::value,"") ;
+    static_assert(M <= std::numeric_limits<D>::max(),"") ;
+    return M == std::numeric_limits<D>::max() ;
+}
+
+template<typename D,D M,bool Tight=Enum_isTight<D,M>()> struct Enum ;
+
+template<typename D,D M> struct Enum<D,M,false>
+{
+    using Domain = D ; static Domain const max = M ;
+
+    static_assert(max < std::numeric_limits<Domain>::max(),"") ;
     
-    static_assert(std::is_integral<Domain>::value,"integral type required") ;
-    static_assert(std::is_unsigned<Domain>::value,"unsigned type required") ;
-
-    static Domain const max = M ;
-
     bool operator==(Enum e) const { return i == e.i ; }
 
-    // ---- c'tor ----
+    // ---- construct ----
     
     constexpr Enum() : i(0) {}
 
-    template<Domain N> constexpr Enum(Enum<D,N> e) : i(e.value()) { static_assert(N<=M,"out of range") ; }
+    template<Domain M2> constexpr Enum(Enum<D,M2> e)
+    : i(e.value()) { static_assert(M2<=max,"out of range") ; }
 
     // ---- make ----
     
-    template<Domain i> constexpr static Enum make() 
-    { static_assert(i<=max,"out of range") ; return Enum(i) ; }
+    template<Domain i>
+    constexpr static Enum make() { static_assert(i<=max,"") ; return Enum(i) ; }
 
-    template<typename T> static Enum make(T i)
+    /*
+    template<typename T=Enum> static typename std::enable_if< tight(),T>::type
+    coset(Domain i) { return Enum(i % (max+1)) ; }
+    
+    template<typename T=Enum> static typename std::enable_if<!tight(),T>::type
+    coset(Domain i) { return Enum(i % (max+1)) ; }
+    */
+
+    static Enum coset(Domain i) { return Enum(i % (max+1)) ; }
+    
+    static Enum make(Domain i)
     {
-      static_assert(std::is_integral<T>::value,"integral type required") ;
-      static_assert(std::is_unsigned<T>::value,"unsigned type required") ;
-      if (i <= max)
-	return Enum(static_cast<Domain>(i)) ;
-      // [todo] stuff below shouldn't be in the header
-      std::ostringstream os ;
-      os << "Enum:" << std::to_string(i) << " out of range (0," << std::to_string(max) << ')' ;
-      // ...to_string() promotes if domain=char
-      throw Error(os.str()) ;
+	if (i > max)
+	    Enum_throw(max,i) ; 
+	return Enum(i) ;
     }
+
+    template<typename D2>
+    static Enum make(D2 i) { return Enum(Enum<D2,max>::make(i)) ; }
 
     // ---- access ----
     
@@ -60,15 +76,61 @@ namespace Neat
 
     // ---- verify ----
     
-    template<Domain i> constexpr static void static_check() 
-    { static_assert(i<=max,"out of range") ; }
+    template<Domain i>
+    constexpr static void static_check() { static_assert(i<=max,"") ; }
     
   private:
 
-    constexpr Enum(Domain i) : i(i) {}
+    Domain i ; constexpr Enum(Domain i) : i(i) {}
+} ;
 
-    Domain i ;
-  } ;
+template<typename D,D M> struct Enum<D,M,true>
+{
+    using Domain = D ; static Domain const max = M ;
+
+    static_assert(max == std::numeric_limits<Domain>::max(),"") ;
+    
+    bool operator==(Enum e) const { return i == e.i ; }
+
+    // ---- construct ----
+    
+    constexpr Enum() : i(0) {}
+
+    template<Domain M2> constexpr Enum(Enum<D,M2> e)
+    : i(e.value()) { static_assert(M2<=max,"out of range") ; }
+
+    // ---- make ----
+    
+    template<Domain i>
+    constexpr static Enum make() { return Enum(i) ; }
+
+    static Enum coset(Domain i) { return Enum(i) ; }
+    
+    static Enum make(Domain i) { return Enum(i) ; }
+
+    template<typename D2>
+    static Enum make(D2 i) { return Enum(Enum<D2,max>::make(i)) ; }
+
+    // ---- access ----
+    
+    constexpr Domain value() const { return i ; }
+
+    // ---- iterate ----
+    
+    static Enum first() { return 0 ; } 
+
+    bool next() { if (i == max) return false ; ++i ; return true ; }
+
+    // ---- verify ----
+    
+    template<Domain i>
+    constexpr static void static_check() { }
+    
+  private:
+
+    Domain i ; constexpr Enum(Domain i) : i(i) {}
+} ;
+    
 }
 
-#endif // _Neat_Enum_h_
+#endif // INCLUDE_Neat_Enum_h

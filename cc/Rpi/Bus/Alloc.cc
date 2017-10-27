@@ -2,6 +2,7 @@
 
 #include "Alloc.h"
 #include <Posix/base.h>
+#include <sstream>
 
 Rpi::Bus::Alloc Rpi::Bus::Alloc::reserve(size_t nbytes)
 {

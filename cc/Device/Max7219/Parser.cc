@@ -1,7 +1,8 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "Parser.h"
-#include <cstring> // index
+#include <cstring> // index()
+#include <sstream>
 
 void Device::Max7219::Parser::throw_error(std::string const &s)
 {
