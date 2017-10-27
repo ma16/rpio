@@ -80,35 +80,6 @@ namespace Rpi { struct GpioOld
   void setPull(uint32_t set,Pull how) ;
   void setPull(Pin      pin,Pull how) ;
 
-  // ----[ Output ]--------------------------------------------------
-
-  enum class Output : unsigned char { Hi=0,Lo=1 } ;
-
-  using OutputN = Neat::Numerator<Output,Output::Lo> ;
-
-  template<Output O> void setOutput(uint32_t set)
-  {
-    page->at<(0x1c+OutputN(O).n()*0xc)/4>() = set ; // 0x1c:GPSET0 ; 0x28:GPCLR0
-  }
-    
-  template<Output O> void setOutput(Pin pin)
-  {
-    setOutput<O>(1u << pin.value()) ;
-  }
-    
-  void setOutput(uint32_t set,Output o)
-  {
-    switch (o) {
-    case Output::Hi: setOutput<Output::Hi>(set) ; break ;
-    case Output::Lo: setOutput<Output::Lo>(set) ; break ;
-    }
-  }
-    
-  void setOutput(Pin pin,Output o)
-  {
-    setOutput(1u << pin.value(),o) ;
-  }
-
 private:
 
   std::shared_ptr<Page> page ;

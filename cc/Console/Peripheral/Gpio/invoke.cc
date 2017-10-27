@@ -3,6 +3,7 @@
 #include "../invoke.h"
 #include <Rpi/GpioOld.h>
 #include <Rpi/Gpio/Function.h>
+#include <Rpi/Gpio/Output.h>
 #include <Ui/strto.h>
 #include <iomanip>
 #include <iostream>
@@ -138,10 +139,11 @@ static void outputInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
   auto pins = getPins(argL) ;
   auto i = argL->pop({"hi","lo"}) ;
-  auto output = Rpi::GpioOld::OutputN::make(i).e() ;
+  //auto output = Rpi::Gpio::Output::LevelEnum::make(i).e() ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
-  gpio.setOutput(pins,output) ;
+  i == 0
+    ? Rpi::Gpio::Output(rpi).raise().write(pins) 
+    : Rpi::Gpio::Output(rpi).clear().write(pins) ;
 }
 
 static void pullInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)

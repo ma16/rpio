@@ -37,7 +37,7 @@
 #define INCLUDE_RpiExt_Serialize_h
 
 #include <Rpi/ArmTimer.h>
-#include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Output.h>
 #include <vector>
 
 namespace RpiExt { 
@@ -46,23 +46,24 @@ struct Serialize
 {
     struct Edge
     {
-	Rpi::GpioOld::Output output ;
+	Rpi::Gpio::Output::Level level ;
 	uint32_t pins ;
 	uint32_t t_min ;
 	uint32_t t_max ;
 	Edge(uint32_t pins,
 	     uint32_t t_min,uint32_t t_max,
-	     Rpi::GpioOld::Output output)
-	: output(output),pins(pins),t_min(t_min),t_max(t_max) {}
+	     Rpi::Gpio::Output::Level level)
+	: level(level),pins(pins),t_min(t_min),t_max(t_max) {}
     } ;
 
-    Serialize(Rpi::GpioOld gpio,Rpi::ArmTimer timer) : gpio(gpio),timer(timer) {}
+    Serialize(Rpi::Gpio::Output output,Rpi::ArmTimer timer)
+    : output(output),timer(timer) {}
 
     bool send(std::vector<Edge> const &v) ;
   
 private:
 
-    Rpi::GpioOld gpio ; Rpi::ArmTimer timer ;
+    Rpi::Gpio::Output output ; Rpi::ArmTimer timer ;
 
     bool send(uint32_t *t0,Edge const &edge) ;
     

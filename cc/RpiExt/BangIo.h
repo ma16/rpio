@@ -7,6 +7,7 @@
 #include <Rpi/ArmTimer.h>
 #include <Rpi/GpioOld.h>
 #include <Rpi/Gpio/Function.h>
+#include <Rpi/Gpio/Output.h>
 
 namespace RpiExt {
 
@@ -42,12 +43,12 @@ struct BangIo
 
     void reset(uint32_t pins)
     {
-	this->gpio.setOutput<Rpi::GpioOld::Output::Lo>(pins) ;
+	this->output.clear().write(pins) ;
     }
     
     void set(uint32_t pins)
     {
-	this->gpio.setOutput<Rpi::GpioOld::Output::Hi>(pins) ;
+	this->output.raise().write(pins) ;
     }
 
     void sleep(uint32_t span)
@@ -116,12 +117,15 @@ struct BangIo
 	: timer         (Rpi::ArmTimer(rpi))
 	, gpio           (Rpi::GpioOld(rpi))
 	, function(Rpi::Gpio::Function(rpi))
+	, output    (Rpi::Gpio::Output(rpi))
 	, t         (timer.counter().read())
 	{ }
 
 private:
     
-    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ; Rpi::Gpio::Function function ;
+    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
+
+    Rpi::Gpio::Function function ; Rpi::Gpio::Output output ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level
