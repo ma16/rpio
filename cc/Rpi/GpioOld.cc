@@ -3,35 +3,6 @@
 #include "GpioOld.h"
 #include "Error.h"
 
-Rpi::GpioOld::Mode Rpi::GpioOld::getMode(Pin pin) const
-{
-  auto i = Page::Index::make(0x0u + pin.value()/10u) ; // GPFSEL0..GPFSEL5
-  auto bits = this->page->at(i) ; // 10 pins per register
-  auto r = 3u * (pin.value()%10u) ; // 3 bits for each pin
-  bits >>= r ;
-  return ModeN::make(bits & 7u).e() ;
-}
-
-void Rpi::GpioOld::setMode(Pin pin,Mode mode)
-{
-  auto i = Page::Index::make(0x0u + pin.value()/10u) ; // GPFSEL0..GPFSEL5
-  auto bits = this->page->at(i) ; // 10 pins per register
-  auto r = 3u * (pin.value()%10u) ; // 3 bits for each pin
-  bits &= ~(7u << r) ; 
-  bits |= (static_cast<uint32_t>(ModeN(mode).n()) << r) ;
-  this->page->at(i) = bits ;
-}
-
-void Rpi::GpioOld::setMode(uint32_t set,Mode mode)
-{
-  auto i = Pin::first() ; 
-  do {
-    if (0 == (set & (1u << i.value())))
-      continue ;
-    this->setMode(i,mode) ;
-  } while (i.next()) ;
-}
-
 uint32_t Rpi::GpioOld::rmw(uint32_t volatile &r,uint32_t set,bool on)
 {
   auto prev = r ;

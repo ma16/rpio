@@ -1,8 +1,8 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
-#include <Rpi/Function.h>
 #include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Function.h>
 #include <Ui/strto.h>
 #include <iomanip>
 #include <iostream>
@@ -121,10 +121,9 @@ static void modeInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
   auto pins = getPins(argL) ;
   auto i = argL->pop({"i","o","5","4","0","1","2","3"}) ;
-  auto mode = Rpi::GpioOld::ModeN::make(i).e() ;
+  auto mode = Rpi::Gpio::Function::ModeEnum::make(i).e() ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
-  gpio.setMode(pins,mode) ;
+  Rpi::Gpio::Function(rpi).set(pins,mode) ;
 }
 
 static void outputInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -192,8 +191,8 @@ static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (0 == (pins & (1u << i.value())))
       continue ;
     static const char m[] = { 'i','o','5','4','0','1','2','3' } ;
-    auto mode = gpio.getMode(i) ;
-    std::cout << m[Rpi::GpioOld::ModeN(mode).n()] << ' ' ;
+    auto mode = Rpi::Gpio::Function(rpi).get(i) ;
+    std::cout << m[Rpi::Gpio::Function::ModeEnum(mode).n()] << ' ' ;
   } while (i.next()) ;
   std::cout << "mode\n" 
 	    << mkstr(pins,gpio.getLevels()) << "level\n" 
@@ -226,31 +225,32 @@ static void statusFunctions(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   if (!argL->empty())
     pins = getPins(argL) ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
+  Rpi::Gpio::Function function(rpi) ;
   auto pin = Rpi::Pin::first() ;
   do {
     if (0 == (pins & (1u << pin.value())))
       continue ;
-    auto mode = gpio.getMode(pin) ;
+    auto mode = function.get(pin) ;
     static char const m[] = { 'i','o','5','4','0','1','2','3' } ;
     std::cout << std::setw(2) << pin.value() << ' ' 
-	      << m[Rpi::GpioOld::ModeN(mode).n()] ;
-    if (mode == Rpi::GpioOld::Mode::In) {
+	      << m[Rpi::Gpio::Function::ModeEnum(mode).n()] ;
+    if (mode == Rpi::Gpio::Function::Mode::In) {
       std::cout << " (Input)" ;
     }
-    else if (mode == Rpi::GpioOld::Mode::Out) {
+    else if (mode == Rpi::Gpio::Function::Mode::Out) {
       std::cout << " (Output)" ;
     }
     else {
-      for (auto const &r : Rpi::Function::records()) {
+      for (auto const &r : Rpi::Gpio::Function::records()) {
 	if ((r.pin.value() == pin.value()) && (mode == r.mode))
-	  std::cout << " (" << Rpi::Function::name(r.type) << ')' ;
+	  std::cout << " (" << Rpi::Gpio::Function::name(r.type) << ')' ;
       }
     }
     if (verbose) {
-      for (auto const &r : Rpi::Function::records()) 
+      for (auto const &r : Rpi::Gpio::Function::records()) 
 	if (r.pin.value() == pin.value())
-	  std::cout << ' ' << m[Rpi::GpioOld::ModeN(r.mode).n()] << ':' << Rpi::Function::name(r.type) ;
+	  std::cout << ' ' << m[Rpi::Gpio::Function::ModeEnum(r.mode).n()]
+		    << ':' << Rpi::Gpio::Function::name(r.type) ;
     }
     std::cout << '\n' ;
   }

@@ -6,6 +6,7 @@
 #include <arm/arm.h>
 #include <Rpi/ArmTimer.h>
 #include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Function.h>
 
 namespace RpiExt {
 
@@ -29,9 +30,9 @@ struct BangIo
 	return this->gpio.getLevels() ;
     }
 
-    void mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode)
+    void mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode)
     {
-	this->gpio.setMode(pin,mode) ;
+	this->function.set(pin,mode) ;
     }
 
     uint32_t recent() const
@@ -112,14 +113,15 @@ struct BangIo
     }
 
     BangIo(Rpi::Peripheral *rpi)
-	: timer(Rpi::ArmTimer(rpi))
-	, gpio     (Rpi::GpioOld(rpi))
-	, t(timer.counter().read())
+	: timer         (Rpi::ArmTimer(rpi))
+	, gpio           (Rpi::GpioOld(rpi))
+	, function(Rpi::Gpio::Function(rpi))
+	, t         (timer.counter().read())
 	{ }
 
 private:
     
-    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
+    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ; Rpi::Gpio::Function function ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level

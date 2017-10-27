@@ -14,17 +14,6 @@
 namespace Rpi { struct GpioOld 
 {
   GpioOld(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x200>())) {}
-  
-  // ----[ Mode ]----------------------------------------------------
-
-  enum class Mode : unsigned char { In=0,Out=1,Alt5=2,Alt4=3,Alt0=4,Alt1=5,Alt2=6,Alt3=7 } ;
-
-  using ModeN = Neat::Numerator<Mode,Mode::Alt3> ;
-    
-  Mode getMode(Pin pin) const ;
-    
-  void setMode(uint32_t set,Mode mode) ;
-  void setMode(Pin      pin,Mode mode) ;
 
   // ----[ Level ]---------------------------------------------------
     

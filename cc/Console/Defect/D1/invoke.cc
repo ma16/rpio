@@ -2,6 +2,7 @@
 
 #include "../invoke.h"
 #include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Function.h>
 #include <Rpi/Timer.h>
 #include <Ui/strto.h>
 #include <iostream>
@@ -10,7 +11,11 @@ static void recover(Rpi::GpioOld *gpio,uint32_t mask)
 {
     gpio->enable(mask,Rpi::GpioOld::Event::Fall,false) ;
     gpio->setOutput(mask,Rpi::GpioOld::Output::Lo) ;
-    gpio->setMode(mask,Rpi::GpioOld::Mode::In) ;
+}
+
+static void recover(Rpi::Gpio::Function *function,Rpi::Pin pin)
+{
+  function->set(pin,Rpi::Gpio::Function::Mode::In) ;
 }
 
 static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -20,25 +25,29 @@ static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     
     Rpi::GpioOld gpio(rpi) ;
+    Rpi::Gpio::Function function(rpi) ;
     Rpi::Timer timer(rpi) ;
     auto mask = 1u << pin.value() ;
     recover(&gpio,mask) ;
+    recover(&function,pin) ;
     
-    gpio.setMode(mask,Rpi::GpioOld::Mode::Out) ;
+    function.set(pin,Rpi::Gpio::Function::Mode::Out) ;
     gpio.enable(mask,Rpi::GpioOld::Event::Fall,true) ;
     gpio.reset(mask) ;
 
     auto t0 = timer.cLo() ;
-    gpio.setMode(mask,Rpi::GpioOld::Mode::In) ;
-    gpio.setMode(mask,Rpi::GpioOld::Mode::Out) ;
-    gpio.setMode(mask,Rpi::GpioOld::Mode::In) ;
+    function.set(pin,Rpi::Gpio::Function::Mode:: In) ;
+    function.set(pin,Rpi::Gpio::Function::Mode::Out) ;
+    function.set(pin,Rpi::Gpio::Function::Mode:: In) ;
     auto t1 = timer.cLo() ;
     
     if (0 == (gpio.getEvents() & mask))
     {
 	std::cout << "error: no event detected or already cleared "
 		  << "(" << (t1-t0) << "us)\n" ;
-	return recover(&gpio,mask) ;
+	recover(&gpio,mask) ;
+	recover(&function,pin) ;
+	return ;
     }
 
     while (0 != (gpio.getEvents() & mask))
@@ -47,13 +56,16 @@ static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	if (t1 - t0 > span)
 	{
 	    std::cout << "defect not reproduced (" << (t1-t0) << "us)\n" ;
-	    return recover(&gpio,mask) ;
+	    recover(&gpio,mask) ;
+	    recover(&function,pin) ;
+	    return ;
 	}
     }
 
     auto t2 = timer.cLo() ;
     std::cout << "defect reproduced (" << (t1-t0) << '+' << (t2-t1) << "us)\n" ;
     recover(&gpio,mask) ;
+    recover(&function,pin) ;
 }
 
 static void help()

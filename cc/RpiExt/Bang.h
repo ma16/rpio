@@ -19,6 +19,7 @@
 #include <vector>
 #include <Rpi/ArmTimer.h>
 #include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Function.h>
 
 namespace RpiExt {
 
@@ -94,8 +95,8 @@ struct Bang
 	    friend Command ;
 	    friend Bang ;
 	    Rpi::Pin pin ;
-	    Rpi::GpioOld::Mode mode ;
-	    Mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode) : pin(pin), mode(mode) {}
+	    Rpi::Gpio::Function::Mode mode ;
+	  Mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode) : pin(pin), mode(mode) {}
 	} ;
 	    
 	class Recent
@@ -228,7 +229,7 @@ struct Bang
 	    return Command(Choice::Levels,Levels(pins)) ;
 	}
 
-	static Command mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode)
+	static Command mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode)
 	{
 	    return Command(Choice::Mode,Mode(pin,mode)) ;
 	}
@@ -274,10 +275,11 @@ struct Bang
 	
     } ;
 
-    Bang(Rpi::Peripheral *rpi) :
-      timer(Rpi::ArmTimer(rpi)),
-      gpio(Rpi::GpioOld(rpi)),
-	t(timer.counter().read())
+    Bang(Rpi::Peripheral *rpi)
+    : timer         (Rpi::ArmTimer(rpi))
+    , gpio           (Rpi::GpioOld(rpi))
+    , function(Rpi::Gpio::Function(rpi))
+    , t         (timer.counter().read())
     {}
 
     void execute(Command const &c)
@@ -380,17 +382,17 @@ struct Bang
 	void low(Rpi::Pin pin)
 	{
 	    q.push_back(Command::reset(1u<<pin.value())) ; // [todo] drop
-	    q.push_back(Command::mode(pin,Rpi::GpioOld::Mode::Out)) ;
+	    q.push_back(Command::mode(pin,Rpi::Gpio::Function::Mode::Out)) ;
 	}
 
-	void mode(Rpi::Pin pin,Rpi::GpioOld::Mode mode)
+	void mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode)
 	{
 	    q.push_back(Command::mode(pin,mode)) ;
 	}
 
 	void off(Rpi::Pin pin)
 	{
-	    q.push_back(Command::mode(pin,Rpi::GpioOld::Mode::In)) ;
+	    q.push_back(Command::mode(pin,Rpi::Gpio::Function::Mode::In)) ;
 	}
 
 	void recent(uint32_t *ticks)
@@ -446,7 +448,7 @@ struct Bang
   
 private:
 
-    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
+    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ; Rpi::Gpio::Function function ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level
@@ -492,7 +494,7 @@ private:
 
     void mode(Command::Mode const &c)
     {
-	this->gpio.setMode(c.pin,c.mode) ;
+	this->function.set(c.pin,c.mode) ;
     }
 
     void reset(Command::Reset const &c)

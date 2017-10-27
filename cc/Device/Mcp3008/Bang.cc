@@ -14,11 +14,11 @@ Device::Mcp3008::Bang::Bang(
     Timing const &timing)
     : rpi(rpi),pins(Pins(csPin,clkPin,dinPin,doutPin)),timing(timing)
 {
-    Rpi::GpioOld gpio(this->rpi) ;    
-    gpio.setMode(  csPin,Rpi::GpioOld::Mode::Out) ;
-    gpio.setMode( clkPin,Rpi::GpioOld::Mode::Out) ;
-    gpio.setMode( dinPin,Rpi::GpioOld::Mode::Out) ;
-    gpio.setMode(doutPin,Rpi::GpioOld::Mode:: In) ;
+    Rpi::Gpio::Function function(this->rpi) ;    
+    function.set(  csPin,Rpi::Gpio::Function::Mode::Out) ;
+    function.set( clkPin,Rpi::Gpio::Function::Mode::Out) ;
+    function.set( dinPin,Rpi::Gpio::Function::Mode::Out) ;
+    function.set(doutPin,Rpi::Gpio::Function::Mode:: In) ;
 }
 
 Device::Mcp3008::Circuit::Sample

@@ -11,9 +11,11 @@
 #include "../Pin.h" // [todo] should be in Gpio
 #include "../Register.h"
 #include <Neat/Numerator.h>
-// [todo] merge with Gpio::Function
+#include <vector>
 
-namespace Rpi { namespace Gpio { struct Function
+namespace Rpi { namespace Gpio {
+
+struct Function
 {
     static constexpr auto PNo = Peripheral::PNo::make<0x200>() ;
     
@@ -125,18 +127,72 @@ namespace Rpi { namespace Gpio { struct Function
     Bank4 bank4() { return Bank4(&page->at<Bank4::Offset/4>()) ; }
     Bank5 bank5() { return Bank5(&page->at<Bank5::Offset/4>()) ; }
     
-    enum class Type : unsigned
+    enum class Mode : unsigned
     { In=0,Out=1,Alt5=2,Alt4=3,Alt0=4,Alt1=5,Alt2=6,Alt3=7 } ;
 
-    using Numerator = Neat::Numerator<Type,Type::Alt3> ;
+    using ModeEnum = Neat::Numerator<Mode,Mode::Alt3> ;
 
+    Mode get(Pin pin) const ;
+    void set(Pin pin,Mode mode) ;
 
+    void set(uint32_t set,Mode mode) ;
+    // ...the current implementation is slow
+    // ...[todo] make set a type
+
+    enum class Type : unsigned
+    { 
+	// 2x Broadcom Serial Controller (Master)
+	Bsc0_Sda,Bsc0_Scl,
+	Bsc1_Sda,Bsc1_Scl,
+      
+	// 1x Broadcom Serial Controller (Slave)
+	BscS_Sda,BscS_Scl,
+      
+	// 3x General Purpose Clock
+	Cp0,
+	Cp1,
+	Cp2,
+
+	// 1x Serial Peripheral Interface ("Full")
+	Spi0_Ce1,Spi0_Ce0,Spi0_Miso,Spi0_Mosi,Spi0_Sclk,
+
+	// 2x Serial Peripheral Interface ("Lite")
+	Spi1_Ce2,Spi1_Ce1,Spi1_Ce0,Spi1_Miso,Spi1_Mosi,Spi1_Sclk,
+	Spi2_Ce2,Spi2_Ce1,Spi2_Ce0,Spi2_Miso,Spi2_Mosi,Spi2_Sclk,
+  
+	// 1x Serial Peripheral Interface (Slave)
+	BscS_Mosi,BscS_Slck,BscS_Miso,BscS_Ce,
+  
+	// 2x Pulse Width Modulation
+	Pwm0,
+	Pwm1,
+
+	// 2x Universal Asynchronous Receiver Transmitter
+	Uart0_Txd,Uart0_Rxd,Uart0_Cts,Uart0_Rts,
+	Uart1_Txd,Uart1_Rxd,Uart1_Cts,Uart1_Rts,
+
+	// 1x Pulse Code Modulation
+	Pcm_Clk,Pcm_Fs,Pcm_Din,Pcm_Dout,
+  
+	// 1x Secondary Memory
+	Mem_Sa0,Mem_Sa1,Mem_Sa2,Mem_Sa3,Mem_Sa4,Mem_Sa5,
+	Mem_Soe,Mem_Swe, 
+	Mem_Sd0, Mem_Sd1, Mem_Sd2, Mem_Sd3, Mem_Sd4, Mem_Sd5, Mem_Sd6, Mem_Sd7,
+	Mem_Sd8, Mem_Sd9,Mem_Sd10,Mem_Sd11,Mem_Sd12,Mem_Sd13,Mem_Sd14,Mem_Sd15,
+	Mem_Sd16,Mem_Sd17,
+  
+	// 1x ARM
+	Arm_Trst,Arm_Rtck,Arm_Tdo,Arm_Tck,Arm_Tdi,Arm_Tms,
+    } ;
+
+    using TypeEnum = Neat::Numerator<Type,Type::Arm_Tms> ;
+
+    struct Record { Type type ; Pin pin ; Mode mode ; } ;
+
+    static char const* name(Type type) ;
+  
+    static std::vector<Record> const& records() ;
     
-    Type get(Pin pin) const ;
-    void set(Pin pin,Type mode) ;
-
-    void set(uint32_t set,Type mode) ;
-
 private:
 
     std::shared_ptr<Page> page ;

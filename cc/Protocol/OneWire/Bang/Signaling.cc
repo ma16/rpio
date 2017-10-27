@@ -19,7 +19,7 @@ bool Signaling::init()
     //    +-----+     +-----+
     
     // Reset-Pulse
-    this->master->io.mode(this->master->pin,Rpi::GpioOld::Mode::Out) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Function::Mode::Out) ;
     // ...assumes the configured output level is Low
     // ...note, errors must not be thrown as long as Out or Events enabled
     this->master->io.sleep(this->master->timing.resetPulse_min) ;
@@ -36,7 +36,7 @@ bool Signaling::init()
     // AsyncFall mostly in the immediate query (and not later).
     this->master->io.events(this->master->mask) ;
     auto t2 = this->master->io.recent() ;
-    this->master->io.mode(this->master->pin,Rpi::GpioOld::Mode::In) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Function::Mode::In) ;
     auto t3 = this->master->io.time() ;
     // ...if we got suspended, t3 and following time-stamps may lay
     // even behind the end of the Presence-Pulse (if there was any)
@@ -83,13 +83,13 @@ bool Signaling::read(bool busy)
 
     // initiate Read-Time-Slot
     auto t0 = this->master->io.time() ; 
-    this->master->io.mode(this->master->pin,Rpi::GpioOld::Mode::Out) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Function::Mode::Out) ;
     auto t1 = this->master->io.time() ; 
     this->master->io.wait(t1,this->master->timing.init_min) ;
     // the device keeps holding the wire low in order to "send" a
     // 0-bit; there is no LH-HL gap as long as the pulse to initiate
     // the Read-Time-Slot is long enough
-    this->master->io.mode(this->master->pin,Rpi::GpioOld::Mode::In) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Function::Mode::In) ;
     this->master->io.sleep(this->master->timing.rc_max) ;
     auto sample_t3 = 0 != (this->master->mask & this->master->io.levels()) ;
     auto t3 = this->master->io.time() ; 
@@ -128,13 +128,13 @@ void Signaling::write(bool bit)
 
     // tx: short or long Bit Pulse
     auto t0 = this->master->io.time() ;
-    this->master->io.mode(this->master->pin,Rpi::GpioOld::Mode::Out) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Function::Mode::Out) ;
     auto t1 = this->master->io.time() ;
     auto min = bit
 	? this->master->timing.write_1_min
 	: this->master->timing.write_0_min ;
     this->master->io.wait(t1,min) ; 
-    this->master->io.mode(this->master->pin,Rpi::GpioOld::Mode::In) ;
+    this->master->io.mode(this->master->pin,Rpi::Gpio::Function::Mode::In) ;
     auto t3 = this->master->io.time() ; 
     auto max = bit
 	? this->master->timing.write_1_max

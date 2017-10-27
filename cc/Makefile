@@ -95,7 +95,6 @@ LSRC=\
 	Rpi/ArmTimer.cc \
 	Rpi/Dma/Channel.cc \
 	Rpi/Dma/Ti.cc \
-	Rpi/Function.cc \
 	Rpi/GpioOld.cc \
 	Rpi/Gpio/Function.cc \
 	Rpi/Mbox/Interface.cc \
