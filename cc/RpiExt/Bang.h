@@ -20,6 +20,7 @@
 #include <Rpi/ArmTimer.h>
 #include <Rpi/GpioOld.h>
 #include <Rpi/Gpio/Function.h>
+#include <Rpi/Gpio/Input.h>
 #include <Rpi/Gpio/Output.h>
 
 namespace RpiExt {
@@ -280,7 +281,8 @@ struct Bang
     : timer         (Rpi::ArmTimer(rpi))
     , gpio           (Rpi::GpioOld(rpi))
     , function(Rpi::Gpio::Function(rpi))
-    , output    (Rpi::Gpio::Output(rpi))
+    , input   (Rpi::Gpio::   Input(rpi))
+    , output  (Rpi::Gpio::  Output(rpi))
     , t         (timer.counter().read())
     {}
 
@@ -452,7 +454,9 @@ private:
 
     Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
 
-    Rpi::Gpio::Function function ; Rpi::Gpio::Output output ;
+    Rpi::Gpio::Function function ;
+    Rpi::Gpio::Input       input ;
+    Rpi::Gpio::Output     output ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level
@@ -493,7 +497,7 @@ private:
 
     void levels(Command::Levels const &c)
     {
-	(*c.pins) = this->gpio.getLevels() ;
+	(*c.pins) = this->input.bank0().read() ;
     }
 
     void mode(Command::Mode const &c)
@@ -541,7 +545,7 @@ private:
     {
 	do
 	{
-	    this->l = this->gpio.getLevels() ;
+	    this->l = this->input.bank0().read() ;
 	    if (c.cond == (this->l & c.mask))
 	    {
 		(*c.t1) = this->t ;

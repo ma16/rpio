@@ -3,6 +3,7 @@
 #include "../invoke.h"
 #include <Rpi/GpioOld.h>
 #include <Rpi/Gpio/Function.h>
+#include <Rpi/Gpio/Input.h>
 #include <Rpi/Gpio/Output.h>
 #include <Rpi/Gpio/Pull.h>
 #include <Ui/strto.h>
@@ -187,6 +188,7 @@ static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     pins = getPins(argL) ;
   argL->finalize() ;
   Rpi::GpioOld gpio(rpi) ;
+  Rpi::Gpio::Input input(rpi) ;
   std::cout << mkhdr(pins) << '\n'
 	    << mksep(pins) << '\n' ;
   auto i = Rpi::Pin::first() ;
@@ -198,7 +200,7 @@ static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     std::cout << m[Rpi::Gpio::Function::ModeEnum(mode).n()] << ' ' ;
   } while (i.next()) ;
   std::cout << "mode\n" 
-	    << mkstr(pins,gpio.getLevels()) << "level\n" 
+	    << mkstr(pins,input.bank0().read()) << "level\n" 
 	    << mkstr(pins,gpio.getEvents()) << "event\n" ;
   std::cout << std::flush ;
 }

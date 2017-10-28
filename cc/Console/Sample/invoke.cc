@@ -3,6 +3,7 @@
 #include "../rpio.h"
 #include <Rpi/ArmTimer.h>
 #include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Input.h>
 #include <Ui/strto.h>
 #include <chrono>
 #include <iomanip>
@@ -128,21 +129,21 @@ static void dutyInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
   auto dry = argL->pop_if("-d") ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
+  Rpi::Gpio::Input input(rpi) ;
   auto mask = 1u << pin.value() ;
   decltype(nsamples) nchanges = 0 ;
   decltype(nsamples) nhis = 0 ;
-  auto level = mask & gpio.getLevels() ;
+  auto level = mask & input.bank0().read() ;
   auto t0 = std::chrono::steady_clock::now() ;
   if (dry) {
     for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      level ^= mask & gpio.getLevels() ; 
+      level ^= mask & input.bank0().read() ;
     }
     auto volatile x = level ; (void)x ;
   }
   else {
     for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      auto next = mask & gpio.getLevels() ;
+      auto next = mask & input.bank0().read() ;
       if (next != level) {
 	level = next ;
 	++nchanges ;
@@ -215,18 +216,18 @@ static void watchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
   argL->finalize() ;
   
-  Rpi::GpioOld gpio(rpi) ;
+  Rpi::Gpio::Input input(rpi) ;
   Rpi::ArmTimer timer(rpi) ;
   std::vector<Record> v(0x10000) ; v.resize(0) ;
   
   auto t0 = timer.counter().read() ;
-  auto levels = pins & gpio.getLevels() ;
+  auto levels = pins & input.bank0().read() ;
   auto t1 = timer.counter().read() ;
   v.push_back(Record(0,t1-t0,levels)) ;
   
   for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
     auto ti = timer.counter().read() ;
-    auto next = pins & gpio.getLevels() ;
+    auto next = pins & input.bank0().read() ;
     if (levels != next) {
       auto tj = timer.counter().read() ;
       levels = next ;

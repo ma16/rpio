@@ -15,18 +15,6 @@ namespace Rpi { struct GpioOld
 {
   GpioOld(Peripheral *p) : page(p->page(Peripheral::PNo::make<0x200>())) {}
 
-  // ----[ Level ]---------------------------------------------------
-    
-  uint32_t getLevels() const
-  {
-    return page->at<0x34/4>() ; /* GPLEV0 */
-  } 
-
-  bool getLevel(Pin pin) const
-  {
-    return 0 != ((1u<<pin.value()) & getLevels()) ;
-  }
-
   // ----[ Event ]---------------------------------------------------
 
   enum class Event : unsigned { Rise=0,Fall=1,High=2,Low=3,AsyncRise=4,AsyncFall=5 } ;

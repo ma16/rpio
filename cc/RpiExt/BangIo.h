@@ -7,6 +7,7 @@
 #include <Rpi/ArmTimer.h>
 #include <Rpi/GpioOld.h>
 #include <Rpi/Gpio/Function.h>
+#include <Rpi/Gpio/Input.h>
 #include <Rpi/Gpio/Output.h>
 
 namespace RpiExt {
@@ -28,7 +29,7 @@ struct BangIo
 
     uint32_t levels()
     {
-	return this->gpio.getLevels() ;
+	return this->input.bank0().read() ;
     }
 
     void mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode)
@@ -95,7 +96,7 @@ struct BangIo
 	do
 	{
 	    arm::dmb() ; // since we got strange values
-	    this->l = this->gpio.getLevels() ;
+	    this->l = this->input.bank0().read() ;
 	    arm::dmb() ; // since we got strange values
 	    if (cond == (l & mask))
 	    {
@@ -117,6 +118,7 @@ struct BangIo
 	: timer         (Rpi::ArmTimer(rpi))
 	, gpio           (Rpi::GpioOld(rpi))
 	, function(Rpi::Gpio::Function(rpi))
+	, input      (Rpi::Gpio::Input(rpi))
 	, output    (Rpi::Gpio::Output(rpi))
 	, t         (timer.counter().read())
 	{ }
@@ -125,7 +127,9 @@ private:
     
     Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
 
-    Rpi::Gpio::Function function ; Rpi::Gpio::Output output ;
+    Rpi::Gpio::Function function ;
+    Rpi::Gpio::Input input ;
+    Rpi::Gpio::Output output ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level
