@@ -2,7 +2,7 @@
 
 #include "../rpio.h"
 #include <Rpi/ArmTimer.h>
-#include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Input.h>
 #include <Ui/strto.h>
 #include <chrono>
@@ -86,25 +86,25 @@ static void countInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
   auto dry = argL->pop_if("-d") ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
+  Rpi::Gpio::Event event(rpi) ;
   auto mask = 1u << pin.value() ;
   decltype(nsamples) nevents = 0 ;
   decltype(nsamples) nsubseq = 0 ;
   auto t0 = std::chrono::steady_clock::now() ;
   if (dry) {
     for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      auto event = mask & gpio.getEvents() ;
-      if (event)
-	gpio.reset(event) ;
+      auto w = mask & event.status0().read() ;
+      if (w != 0)
+	event.status0().write(w) ;
     }
   }
   else {
     auto active = false ;
-    gpio.reset(mask) ;
+    event.status0().write(mask) ;
     for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      auto event = mask & gpio.getEvents() ;
-      if (event) {
-	gpio.reset(event) ;
+      auto w = mask & event.status0().read() ;
+      if (w != 0) {
+	event.status0().write(w) ;
 	++nevents ;
 	if (active) ++nsubseq ;
 	else active = true ;
@@ -168,33 +168,28 @@ static void pulseInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
     
-    Rpi::GpioOld gpio(rpi) ;
+    Rpi::Gpio::Event event(rpi) ;
     Rpi::ArmTimer timer(rpi) ;
     auto mask = 1u << pin.value() ;
+
+    auto invoke = [&](Rpi::Gpio::Event::Type type,uint32_t *t0,uint32_t *t1)
+    {
+	event.enable(mask,type,true) ;
+	event.status0().write(mask) ;
+	while (0 == (mask & event.status0().read()))
+	    (*t0) = timer.counter().read() ;
+	(*t1) = timer.counter().read() ;
+	event.enable(mask,type,true) ;
+    } ;
+
+    auto t0=timer.counter().read() ; decltype(t0) t1 ;
+    invoke(Rpi::Gpio::Event::Type::Rise,&t0,&t1) ;
     
-    auto t0 = timer.counter().read() ;
-    gpio.enable(mask,Rpi::GpioOld::Event::Rise,true) ;
-    gpio.reset(mask) ;
-    while (0 == (gpio.getEvents() & mask))
-	t0 = timer.counter().read() ;
-    auto t1 = timer.counter().read() ;
-    gpio.enable(mask,Rpi::GpioOld::Event::Rise,false) ;
+    auto t2 = t1 ; decltype(t2) t3 ;
+    invoke(Rpi::Gpio::Event::Type::Fall,&t2,&t3) ;
 
-    auto t2 = t1 ;
-    gpio.enable(mask,Rpi::GpioOld::Event::Fall,true) ;
-    gpio.reset(mask) ;
-    while (0 == (gpio.getEvents() & mask))
-	t2 = timer.counter().read() ;
-    auto t3 = timer.counter().read() ;
-    gpio.enable(mask,Rpi::GpioOld::Event::Fall,false) ;
-
-    auto t4 = t3 ;
-    gpio.enable(mask,Rpi::GpioOld::Event::Rise,true) ;
-    gpio.reset(mask) ;
-    while (0 == (gpio.getEvents() & mask))
-	t4 = timer.counter().read() ;
-    auto t5 = timer.counter().read() ;
-    gpio.enable(mask,Rpi::GpioOld::Event::Rise,false) ;
+    auto t4 = t3 ; decltype(t4) t5 ;
+    invoke(Rpi::Gpio::Event::Type::Rise,&t4,&t5) ;
 
     std::cout <<       0 << '+' << (t1-t0) << ' '
 	      << (t2-t0) << '+' << (t3-t2) << ' '

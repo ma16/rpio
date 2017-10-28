@@ -5,7 +5,7 @@
 
 #include <arm/arm.h>
 #include <Rpi/ArmTimer.h>
-#include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Function.h>
 #include <Rpi/Gpio/Input.h>
 #include <Rpi/Gpio/Output.h>
@@ -14,16 +14,17 @@ namespace RpiExt {
 
 struct BangIo
 {
-    void detect(Rpi::Pin pin,Rpi::GpioOld::Event event,bool enable=true)
+    void detect(Rpi::Pin pin,Rpi::Gpio::Event::Type event,bool enable=true)
     {
-	this->gpio.enable(pin,event,enable) ;
+	this->event.enable(pin,event,enable) ;
+	// [todo] better mask instead of pin
     }
 
     uint32_t events(uint32_t mask)
     {
-	auto raised = mask & this->gpio.getEvents() ;
+	auto raised = mask & this->event.status0().read() ;
 	if (raised != 0)
-	    this->gpio.reset(raised) ;
+	    this->event.status0().write(raised) ;
 	return raised ;
     }
 
@@ -78,10 +79,10 @@ struct BangIo
 	do
 	{
 	    arm::dmb() ; // since we got strange values
-	    auto raised = mask & this->gpio.getEvents() ;
+	    auto raised = mask & this->event.status0().read() ;
 	    if (raised != 0)
 	    {
-		this->gpio.reset(raised) ;
+		this->event.status0().write(raised) ;
 		return raised ;
 	    }
 	    arm::dmb() ; // since we got strange values
@@ -116,7 +117,7 @@ struct BangIo
 
     BangIo(Rpi::Peripheral *rpi)
 	: timer         (Rpi::ArmTimer(rpi))
-	, gpio           (Rpi::GpioOld(rpi))
+	, event      (Rpi::Gpio::Event(rpi))
 	, function(Rpi::Gpio::Function(rpi))
 	, input      (Rpi::Gpio::Input(rpi))
 	, output    (Rpi::Gpio::Output(rpi))
@@ -125,11 +126,12 @@ struct BangIo
 
 private:
     
-    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
+    Rpi::ArmTimer timer ;
 
+    Rpi::Gpio::Event       event ;
     Rpi::Gpio::Function function ;
-    Rpi::Gpio::Input input ;
-    Rpi::Gpio::Output output ;
+    Rpi::Gpio::Input       input ;
+    Rpi::Gpio::Output     output ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level

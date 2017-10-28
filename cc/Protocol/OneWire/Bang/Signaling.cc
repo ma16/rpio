@@ -28,7 +28,7 @@ bool Signaling::init()
     auto v = this->master->intr.status() ;
     this->master->intr.disable(v) ;
 #endif    
-    this->master->io.detect(this->master->pin,Rpi::GpioOld::Event::Fall) ;
+    this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Type::Fall) ;
     // [defect] The event status flag gets immediately* raised regardless
     // whether Fall or AsyncFall is used.
     // (*) mostly in the immediate query, or the query thereafter;
@@ -46,7 +46,7 @@ bool Signaling::init()
 				      this->master->mask) ;
     auto t4 = this->master->io.recent() ;
     auto t5 = this->master->io.time() ;
-    this->master->io.detect(this->master->pin,Rpi::GpioOld::Event::Fall,false) ;
+    this->master->io.detect(this->master->pin,Rpi::Gpio::Event::Type::Fall,false) ;
     this->master->io.events(this->master->mask) ; // reset late events
 #if DEFECT_D1
     this->master->intr.enable(v) ;

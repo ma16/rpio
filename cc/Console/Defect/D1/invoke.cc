@@ -1,17 +1,12 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
-#include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Function.h>
 #include <Rpi/Gpio/Output.h>
 #include <Rpi/Timer.h>
 #include <Ui/strto.h>
 #include <iostream>
-
-static void recover(Rpi::GpioOld *gpio,uint32_t mask)
-{
-    gpio->enable(mask,Rpi::GpioOld::Event::Fall,false) ;
-}
 
 static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
@@ -19,53 +14,48 @@ static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto span = Ui::strto<uint32_t>(argL->pop()) ;
     argL->finalize() ;
     
-    Rpi::GpioOld gpio(rpi) ;
+    Rpi::Gpio::Event       event(rpi) ;
     Rpi::Gpio::Function function(rpi) ;
-    Rpi::Gpio::Output output(rpi) ;
-    Rpi::Timer timer(rpi) ;
+    Rpi::Gpio::Output     output(rpi) ;
+    Rpi::Timer             timer(rpi) ;
+    
     auto mask = 1u << pin.value() ;
-    recover(&gpio,mask) ;
-    output.raise().write(mask) ;
-    function.set(pin,Rpi::Gpio::Function::Mode::In) ;
-    
-    function.set(pin,Rpi::Gpio::Function::Mode::Out) ;
-    gpio.enable(mask,Rpi::GpioOld::Event::Fall,true) ;
-    gpio.reset(mask) ;
 
-    auto t0 = timer.cLo() ;
-    function.set(pin,Rpi::Gpio::Function::Mode:: In) ;
-    function.set(pin,Rpi::Gpio::Function::Mode::Out) ;
-    function.set(pin,Rpi::Gpio::Function::Mode:: In) ;
-    auto t1 = timer.cLo() ;
+    // setup: mode=In output=Low event=AsyncFall status=Clear
+    function.set(pin,Rpi::Gpio::Function::Mode::In) ;
+    output.clear().write(mask) ;
+    event.asyncFall0().write(mask | event.fall0().read()) ;
+    event.status0().write(mask) ;
     
-    if (0 == (gpio.getEvents() & mask))
+    // precondition: pin must have been pulled to High by resistor!
+    
+    auto t0 = timer.cLo() ;
+    // create Low pulse on pin thru GPIO mode switch
+    function.set(pin,Rpi::Gpio::Function::Mode::Out) ;
+    function.set(pin,Rpi::Gpio::Function::Mode::In) ;
+    event.fall0().write(mask | event.fall0().read()) ;
+    auto t1 = timer.cLo() ;
+
+    if (0 == (event.status0().read() & mask))
     {
 	std::cout << "error: no event detected or already cleared "
 		  << "(" << (t1-t0) << "us)\n" ;
-	recover(&gpio,mask) ;
-	output.clear().write(mask) ;
-	function.set(pin,Rpi::Gpio::Function::Mode::In) ;
 	return ;
     }
 
-    while (0 != (gpio.getEvents() & mask))
+    while (0 != (event.status0().read() & mask))
     {
 	t1 = timer.cLo() ;
 	if (t1 - t0 > span)
 	{
+	    // problem: event detect status flag got cleared
 	    std::cout << "defect not reproduced (" << (t1-t0) << "us)\n" ;
-	    recover(&gpio,mask) ;
-	    output.clear().write(mask) ;
-	    function.set(pin,Rpi::Gpio::Function::Mode::In) ;
 	    return ;
 	}
     }
 
     auto t2 = timer.cLo() ;
     std::cout << "defect reproduced (" << (t1-t0) << '+' << (t2-t1) << "us)\n" ;
-    recover(&gpio,mask) ;
-    output.clear().write(mask) ;
-    function.set(pin,Rpi::Gpio::Function::Mode::In) ;
 }
 
 static void help()

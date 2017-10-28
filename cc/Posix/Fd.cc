@@ -92,7 +92,7 @@ Posix::Fd::uoff_t Posix::Fd::size()
   auto beg = this->lseek(0,Lseek::Current) ;
   auto end = this->lseek(0,Lseek::End) ;
   auto pos = this->lseek(beg.as_signed(),Lseek::Begin) ;
-  assert(pos.as_unsigned() == beg.as_unsigned()) ;
+  assert(pos.as_unsigned() == beg.as_unsigned()) ; (void)pos ;
   return end ;
 }
 

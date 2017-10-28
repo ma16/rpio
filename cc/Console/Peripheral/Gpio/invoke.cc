@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
-#include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Function.h>
 #include <Rpi/Gpio/Input.h>
 #include <Rpi/Gpio/Output.h>
@@ -91,18 +91,20 @@ static void enableInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     return ;
   }
   auto pins = getPins(argL) ;
-  auto type = argL->pop({"rise","fall","high","low","async-rise","async-fall","any"}) ;
+  auto mode = argL->pop({"rise","fall","high","low","async-rise","async-fall","any"}) ;
   auto on = !argL->pop_if("off") ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
-  if (type == 6) {
-    auto event = Rpi::GpioOld::EventN::first() ;
-    do gpio.enable(pins,event.e(),on) ;
-    while (event.next()) ;
+  Rpi::Gpio::Event event(rpi) ;
+  if (mode == 6) {
+    auto type = Rpi::Gpio::Event::TypeEnum::first() ;
+    // ...[todo] an iterator would be nice
+    do event.enable(pins,type.e(),on) ;
+    while (type.next()) ;
   }
   else {
-    auto event = Rpi::GpioOld::EventN::make(type).e() ;
-    gpio.enable(pins,event,on) ;
+    auto type = Rpi::Gpio::Event::TypeEnum::make(mode).e() ;
+    // ...[todo] dangerous if Type order changes
+    event.enable(pins,type,on) ;
   }
 }
 
@@ -177,8 +179,7 @@ static void resetInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   if (!argL->empty())
     pins = getPins(argL) ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
-  gpio.reset(pins) ;
+  Rpi::Gpio::Event(rpi).status0().write(pins) ;
 }
 
 static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -187,7 +188,7 @@ static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   if (!argL->empty())
     pins = getPins(argL) ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
+  Rpi::Gpio::Event event(rpi) ;
   Rpi::Gpio::Input input(rpi) ;
   std::cout << mkhdr(pins) << '\n'
 	    << mksep(pins) << '\n' ;
@@ -200,9 +201,8 @@ static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     std::cout << m[Rpi::Gpio::Function::ModeEnum(mode).n()] << ' ' ;
   } while (i.next()) ;
   std::cout << "mode\n" 
-	    << mkstr(pins,input.bank0().read()) << "level\n" 
-	    << mkstr(pins,gpio.getEvents()) << "event\n" ;
-  std::cout << std::flush ;
+	    << mkstr(pins,input.  bank0().read()) << "level\n" 
+	    << mkstr(pins,event.status0().read()) << "event\n" ;
 }
 
 static void statusEvents(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -211,16 +211,16 @@ static void statusEvents(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   if (!argL->empty())
     pins = getPins(argL) ;
   argL->finalize() ;
-  Rpi::GpioOld gpio(rpi) ;
+  Rpi::Gpio::Event event(rpi) ;
   std::cout << mkhdr(pins) << '\n'
 	    << mksep(pins) << '\n' 
-	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::     Rise,true)) << "rise\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::     Fall,true)) << "fall\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::     High,true)) << "high\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::      Low,true)) << "low\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::AsyncRise,true)) << "async-rise\n"
-	    << mkstr(pins,gpio.enable(0,Rpi::GpioOld::Event::AsyncFall,true)) << "async-fall\n" ;
-  std::cout << std::flush ;
+	    << mkstr(pins,event.     rise0().read()) << "rise\n"
+	    << mkstr(pins,event.     fall0().read()) << "fall\n"
+	    << mkstr(pins,event.     high0().read()) << "high\n"
+	    << mkstr(pins,event.      low0().read()) << "low\n"
+	    << mkstr(pins,event.asyncRise0().read()) << "async-rise\n"
+	    << mkstr(pins,event.asyncFall0().read()) << "async-fall\n"
+    ;
 }
 
 static void statusFunctions(Rpi::Peripheral *rpi,Ui::ArgL *argL)

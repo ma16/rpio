@@ -25,6 +25,7 @@ struct Output
     
     using Raise = Register::Word<Address+0x01c> ;
     using Clear = Register::Word<Address+0x028> ;
+    // [todo] raise0/1 clear0/1
     
     Raise raise() { return Raise(&page->at<Raise::Offset/4>()) ; }
     Clear clear() { return Clear(&page->at<Clear::Offset/4>()) ; }

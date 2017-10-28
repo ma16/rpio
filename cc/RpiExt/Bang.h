@@ -18,7 +18,7 @@
 #include <deque>
 #include <vector>
 #include <Rpi/ArmTimer.h>
-#include <Rpi/GpioOld.h>
+#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Function.h>
 #include <Rpi/Gpio/Input.h>
 #include <Rpi/Gpio/Output.h>
@@ -279,7 +279,7 @@ struct Bang
 
     Bang(Rpi::Peripheral *rpi)
     : timer         (Rpi::ArmTimer(rpi))
-    , gpio           (Rpi::GpioOld(rpi))
+    , event      (Rpi::Gpio::Event(rpi))
     , function(Rpi::Gpio::Function(rpi))
     , input   (Rpi::Gpio::   Input(rpi))
     , output  (Rpi::Gpio::  Output(rpi))
@@ -452,8 +452,9 @@ struct Bang
   
 private:
 
-    Rpi::ArmTimer timer ; Rpi::GpioOld gpio ;
+    Rpi::ArmTimer timer ; 
 
+    Rpi::Gpio::Event       event ;
     Rpi::Gpio::Function function ;
     Rpi::Gpio::Input       input ;
     Rpi::Gpio::Output     output ;

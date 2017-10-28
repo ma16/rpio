@@ -129,7 +129,7 @@ struct VcRange : Rpi::Bus::Memory
 	return Rpi::Bus::Memory::shared_ptr(new VcRange(addr,nbytes)) ;
     }
   
-    virtual void* virt() override { assert(false) ; }
+  virtual void* virt() override { assert(false) ; abort() ; }
 
     virtual std::pair<Rpi::Bus::Address,size_t> phys(size_t ofs) override
     {

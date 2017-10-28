@@ -2,7 +2,6 @@
 
 #include "../invoke.h"
 #include <Rpi/Cm.h>
-#include <Rpi/GpioOld.h>
 #include <Ui/strto.h>
 #include <iomanip>
 #include <iostream>
@@ -141,7 +140,7 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	return ;
     }
     argL->finalize() ;
-    Rpi::Cm cm(rpi) ; Rpi::GpioOld gpio(rpi) ;
+    Rpi::Cm cm(rpi) ; 
 
     std::cout << "alias on busy flip kill src div:i div:f mash\n" 
 	      << "--------------------------------------------\n" ;
