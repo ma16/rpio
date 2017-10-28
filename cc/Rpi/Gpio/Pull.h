@@ -46,8 +46,6 @@ struct Pull
     
     void set(uint32_t set,Mode mode) ;
     // ...[todo] make set a type
-    
-    //void set(Pin      pin,Pull how) ;
 
 private:
     
