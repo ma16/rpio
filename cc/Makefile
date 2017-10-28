@@ -5,6 +5,7 @@ CXX=g++
 INCLUDE=
 
 CFLAGS=\
+	-DNDEBUG \
 	-fno-strict-aliasing \
 	-g \
 	-I. \
@@ -18,12 +19,11 @@ CFLAGS=\
 	-Wsign-conversion \
 	-Wstrict-aliasing
 
-# -DNDEBUG -flto
-# [note] use -Wno-maybe-uninitialized because of boost::optional
-# https://stackoverflow.com/questions/21755206/how-to-get-around-gcc-void-b-4-may-be-used-uninitialized-in-this-funct#21756517
+# -flto: doesn't work on ARM
+# -Wno-maybe-uninitialized: boost::optional throws
+# -Wzero-as-null-pointer-constant: boost::none throws
 
-LDFLAGS=-pthread -lrt
-# + $(CFLAGS) if -flto is used
+LDFLAGS=-lrt -pthread
 
 CC=$(CXX) $(INCLUDE) $(CFLAGS)
 
