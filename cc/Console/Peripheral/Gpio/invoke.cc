@@ -96,29 +96,34 @@ static void enableInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
     auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
     
-    auto rise      = gpio.at<Rpi::Register::Gpio::Event::     Rise0>() ;
-    auto fall      = gpio.at<Rpi::Register::Gpio::Event::     Fall0>() ;
-    auto high      = gpio.at<Rpi::Register::Gpio::Event::     High0>() ;
-    auto low       = gpio.at<Rpi::Register::Gpio::Event::      Low0>() ;
-    auto asyncRise = gpio.at<Rpi::Register::Gpio::Event::AsyncRise0>() ;
-    auto asyncFall = gpio.at<Rpi::Register::Gpio::Event::AsyncFall0>() ;
+    auto rise      = gpio.at<Rpi::Register::Gpio::Event::     Rise0>().value() ;
+    auto fall      = gpio.at<Rpi::Register::Gpio::Event::     Fall0>().value() ;
+    auto high      = gpio.at<Rpi::Register::Gpio::Event::     High0>().value() ;
+    auto low       = gpio.at<Rpi::Register::Gpio::Event::      Low0>().value() ;
+    auto asyncRise = gpio.at<Rpi::Register::Gpio::Event::AsyncRise0>().value() ;
+    auto asyncFall = gpio.at<Rpi::Register::Gpio::Event::AsyncFall0>().value() ;
+
+    auto set = [pins,on](uint32_t volatile *p)
+    {
+	if (on) (*p) |=  pins ;
+	else    (*p) &= ~pins ;
+    } ;
     
     switch (mode)
     {
-    case 0: rise      .set(pins,on) ; break ;
-    case 1: fall      .set(pins,on) ; break ;
-    case 2: high      .set(pins,on) ; break ;
-    case 3: low       .set(pins,on) ; break ;
-    case 4: asyncRise .set(pins,on) ; break ;
-    case 5: asyncFall .set(pins,on) ; break ;
+    case 0: set(rise) ; break ;
+    case 1: set(fall) ; break ;
+    case 2: set(high) ; break ;
+    case 3: set(low) ; break ;
+    case 4: set(asyncRise) ; break ;
+    case 5: set(asyncFall) ; break ;
     case 6:
-	rise      .set(pins,on) ;
-	fall      .set(pins,on) ;
-	high      .set(pins,on) ;
-	low       .set(pins,on) ;
-	asyncRise .set(pins,on) ;
-	asyncFall .set(pins,on) ;
-	break ;
+	set(rise) ;
+	set(fall) ;
+	set(high) ;
+	set(low) ;
+	set(asyncRise) ; 
+	set(asyncFall) ; 
     }
 }
 
@@ -165,9 +170,10 @@ static void outputInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto pins = getPins(argL) ;
   auto i = argL->pop({"hi","lo"}) ;
   argL->finalize() ;
-  i == 0
-      ? rpi->at<Rpi::Register::Gpio::Output::Raise0>().poke(pins) 
-      : rpi->at<Rpi::Register::Gpio::Output::Clear0>().poke(pins) ;
+  auto p = (i == 0)
+      ? rpi->at<Rpi::Register::Gpio::Output::Raise0>().value() 
+      : rpi->at<Rpi::Register::Gpio::Output::Clear0>().value() ;
+  (*p) = pins ;
 }
 
 static void pullInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -205,13 +211,12 @@ static void resetInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     if (!argL->empty())
 	pins = getPins(argL) ;
     argL->finalize() ;
-    auto status = rpi->at<Rpi::Register::Gpio::Event::Status0>() ;
-    status.poke(pins) ;
+    auto status = rpi->at<Rpi::Register::Gpio::Event::Status0>().value() ;
+    (*status) = pins ;
 }
 
 static void statusDefault(Rpi::Peripheral *rpi,uint32_t pins)
 {
-    auto status = rpi->at<Rpi::Register::Gpio::Event::Status0>() ;
     std::cout << mkhdr(pins) << '\n'
 	      << mksep(pins) << '\n' ;
     auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
@@ -225,24 +230,32 @@ static void statusDefault(Rpi::Peripheral *rpi,uint32_t pins)
 	std::cout << m[Rpi::Gpio::Function::TypeEnum(mode).n()] << ' ' ;
     }
     while (i.next()) ;
-    auto input = gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
+    auto  input = gpio.at<Rpi::Register::Gpio::Input::  Bank0>().value() ;
+    auto status = gpio.at<Rpi::Register::Gpio::Event::Status0>().value() ;
     std::cout << "mode\n" 
-	      << mkstr(pins,input .peek()) << "level\n" 
-	      << mkstr(pins,status.peek()) << "event\n" ;
+	      << mkstr(pins, (*input)) << "level\n" 
+	      << mkstr(pins,(*status)) << "event\n" ;
 }
 
 static void statusEvents(Rpi::Peripheral *rpi,uint32_t pins)
 {
+    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
     namespace Register = Rpi::Register::Gpio::Event ;
+    auto rise      = gpio.at<Register::     Rise0>().value() ;
+    auto fall      = gpio.at<Register::     Fall0>().value() ;
+    auto high      = gpio.at<Register::     High0>().value() ;
+    auto low       = gpio.at<Register::      Low0>().value() ;
+    auto asyncRise = gpio.at<Register::AsyncRise0>().value() ;
+    auto asyncFall = gpio.at<Register::AsyncFall0>().value() ;
     std::cout
 	<< mkhdr(pins) << '\n'
 	<< mksep(pins) << '\n' 
-	<< mkstr(pins,rpi->at<Register::     Rise0>().peek()) << "rise\n"
-	<< mkstr(pins,rpi->at<Register::     Fall0>().peek()) << "fall\n"
-	<< mkstr(pins,rpi->at<Register::     High0>().peek()) << "high\n"
-	<< mkstr(pins,rpi->at<Register::      Low0>().peek()) << "low\n"
-	<< mkstr(pins,rpi->at<Register::AsyncRise0>().peek()) << "async-rise\n"
-	<< mkstr(pins,rpi->at<Register::AsyncFall0>().peek()) << "async-fall\n"
+	<< mkstr(pins,     *rise) << "rise\n"
+	<< mkstr(pins,     *fall) << "fall\n"
+	<< mkstr(pins,     *high) << "high\n"
+	<< mkstr(pins,      *low) << "low\n"
+	<< mkstr(pins,*asyncRise) << "async-rise\n"
+	<< mkstr(pins,*asyncFall) << "async-fall\n"
 	;
 }
 

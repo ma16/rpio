@@ -22,33 +22,35 @@ struct BangIo
 	    using Type = Register::Type ;
 	    switch (type)
 	    {
-	    case Type::     Rise: return this->gpio.at<Register::     Rise0>() ;
-	    case Type::     Fall: return this->gpio.at<Register::     Fall0>() ;
-	    case Type::     High: return this->gpio.at<Register::     High0>() ;
-	    case Type::      Low: return this->gpio.at<Register::      Low0>() ;
-	    case Type::AsyncRise: return this->gpio.at<Register::AsyncRise0>() ;
-	    case Type::AsyncFall: return this->gpio.at<Register::AsyncFall0>() ;
+	    case Type::     Rise: return this->gpio.at<Register::     Rise0>().value() ;
+	    case Type::     Fall: return this->gpio.at<Register::     Fall0>().value() ;
+	    case Type::     High: return this->gpio.at<Register::     High0>().value() ;
+	    case Type::      Low: return this->gpio.at<Register::      Low0>().value() ;
+	    case Type::AsyncRise: return this->gpio.at<Register::AsyncRise0>().value() ;
+	    case Type::AsyncFall: return this->gpio.at<Register::AsyncFall0>().value() ;
 	    }
 	    abort() ;
 	    // ...[todo] switch() is far beyond optimal
 	    // ...(use template<Type> function instead)
 	} ;
-	select().set(1u << pin.value(),enable) ;
+	auto p = select() ;
+	if (enable) (*p) |=   1u << pin.value()  ;
+	else        (*p) &= ~(1u << pin.value()) ;
     }
 
     uint32_t events(uint32_t mask)
     {
-	auto status = this->gpio.at<Rpi::Register::Gpio::Event::Status0>() ;
-	auto raised = mask & status.peek() ;
-	if (raised != 0)
-	    status.poke(raised) ;
-	return raised ;
+	auto status = this->gpio.at<Rpi::Register::Gpio::Event::Status0>().value() ;
+	auto events = mask & (*status) ;
+	if (events != 0)
+	    (*status) = events ;
+	return events ;
     }
 
     uint32_t levels()
     {
-	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
-	return input.peek() ;
+	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>().value() ;
+	return (*input) ;
     }
 
     void mode(Rpi::Pin pin,Rpi::Gpio::Function::Type mode)
@@ -63,14 +65,14 @@ struct BangIo
 
     void reset(uint32_t pins)
     {
-	auto clear = this->gpio.at<Rpi::Register::Gpio::Output::Clear0>() ;
-	clear.poke(pins) ;
+	auto clear = this->gpio.at<Rpi::Register::Gpio::Output::Clear0>().value() ;
+	(*clear) = pins ;
     }
     
     void set(uint32_t pins)
     {
-	auto raise = this->gpio.at<Rpi::Register::Gpio::Output::Raise0>() ;
-	raise.poke(pins) ;
+	auto raise = this->gpio.at<Rpi::Register::Gpio::Output::Raise0>().value() ;
+	(*raise) = pins ;
     }
 
     void sleep(uint32_t span)
@@ -96,15 +98,15 @@ struct BangIo
     
     uint32_t waitForEvent(uint32_t t0,uint32_t span,uint32_t mask)
     {
-	auto status = this->gpio.at<Rpi::Register::Gpio::Event::Status0>() ;
+	auto status = this->gpio.at<Rpi::Register::Gpio::Event::Status0>().value() ;
 	do
 	{
 	    arm::dmb() ; // since we got strange values
-	    auto raised = mask & status.peek() ;
-	    if (raised != 0)
+	    auto events = mask & (*status) ;
+	    if (events != 0)
 	    {
-		status.poke(raised) ;
-		return raised ;
+		(*status) = events ;
+		return events ;
 	    }
 	    arm::dmb() ; // since we got strange values
 	    this->t = this->timer.counter().read() ;
@@ -115,11 +117,11 @@ struct BangIo
 
     uint32_t waitForLevel(uint32_t t0,uint32_t span,uint32_t mask,uint32_t cond)
     {
-	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
+	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>().value() ;
 	do
 	{
 	    arm::dmb() ; // since we got strange values
-	    this->l = input.peek() ;
+	    this->l = (*input) ;
 	    arm::dmb() ; // since we got strange values
 	    if (cond == (l & mask))
 	    {

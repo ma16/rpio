@@ -78,10 +78,10 @@ namespace Rpi { struct Peripheral
     Peripheral           (Peripheral const&) = delete ;
     Peripheral& operator=(Peripheral const&) = delete ;
 
-    template<typename Traits> Register::Pointer at()
+    template<typename Traits> Register::Pointer<Traits> at()
     {
 	return & page(Traits::PageNo)->at(Traits::Index) ;
-	// ...that's a fairly expensive call (compared with page())
+	// ...that's a fairly expensive call (compared with base.at())
     }
 
     template<uint32_t P> Register::Base<P> page()

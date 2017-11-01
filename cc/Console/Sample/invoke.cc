@@ -85,7 +85,7 @@ static void countInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto dry = argL->pop_if("-d") ;
     argL->finalize() ;
     auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
-    auto status = gpio.at<Rpi::Register::Gpio::Event::Status0>() ;
+    auto status = gpio.at<Rpi::Register::Gpio::Event::Status0>().value() ;
     auto mask = 1u << pin.value() ;
     decltype(nsamples) nevents = 0 ;
     decltype(nsamples) nsubseq = 0 ;
@@ -94,21 +94,21 @@ static void countInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     {
 	for (decltype(nsamples) i=0 ; i<nsamples ; ++i)
 	{
-	    auto w = mask & status.peek() ;
+	    auto w = mask & (*status) ;
 	    if (w != 0)
-		status.poke(w) ;
+		(*status) = w ;
 	}
     }
     else
     {
 	auto active = false ;
-	status.poke(mask) ;
+	(*status) = mask ;
 	for (decltype(nsamples) i=0 ; i<nsamples ; ++i)
 	{
-	    auto w = mask & status.peek() ;
+	    auto w = mask & (*status) ;
 	    if (w != 0)
 	    {
-		status.poke(w) ;
+		(*status) = w ;
 		++nevents ;
 		if (active) ++nsubseq ;
 		else active = true ;
@@ -133,21 +133,21 @@ static void dutyInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
   auto dry = argL->pop_if("-d") ;
   argL->finalize() ;
-  auto input = rpi->at<Rpi::Register::Gpio::Input::Bank0>() ;
+  auto input = rpi->at<Rpi::Register::Gpio::Input::Bank0>().value() ;
   auto mask = 1u << pin.value() ;
   decltype(nsamples) nchanges = 0 ;
   decltype(nsamples) nhis = 0 ;
-  auto level = mask & input.peek() ;
+  auto level = mask & (*input) ;
   auto t0 = std::chrono::steady_clock::now() ;
   if (dry) {
     for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      level ^= mask & input.peek() ;
+	level ^= mask & (*input) ;
     }
     auto volatile x = level ; (void)x ;
   }
   else {
     for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      auto next = mask & input.peek() ;
+	auto next = mask & (*input) ;
       if (next != level) {
 	level = next ;
 	++nchanges ;
@@ -181,27 +181,29 @@ static void pulseInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     auto wait4edge = [&](uint32_t *t0,uint32_t *t1)
     {
-	auto status = gpio.at<Register::Status0>() ;
-	status.poke(mask) ;
-	while (0 == (mask & status.peek()))
+	auto status = gpio.at<Register::Status0>().value() ;
+	(*status) = mask ;
+	while (0 == (mask & (*status)))
 	    (*t0) = timer.counter().read() ;
 	(*t1) = timer.counter().read() ;
     } ;
 
     auto t0=timer.counter().read() ; decltype(t0) t1 ;
-    gpio.at<Register::Rise0>() += mask ;
+    auto rise = gpio.at<Register::Rise0>().value() ;
+    (*rise) |= mask ;
     wait4edge(&t0,&t1) ;
-    gpio.at<Register::Rise0>() -= mask ;
+    (*rise) &= ~mask ;
     
     auto t2 = t1 ; decltype(t2) t3 ;
-    gpio.at<Register::Fall0>() += mask ;
+    auto fall = gpio.at<Register::Fall0>().value() ;
+    (*fall) |= mask ;
     wait4edge(&t2,&t3) ;
-    gpio.at<Register::Fall0>() -= mask ;
+    (*fall) &= ~mask ;
 
     auto t4 = t3 ; decltype(t4) t5 ;
-    gpio.at<Register::Rise0>() += mask ;
+    (*rise) |= mask ;
     wait4edge(&t4,&t5) ;
-    gpio.at<Register::Rise0>() -= mask ;
+    (*rise) &= ~mask ;
 
     std::cout <<       0 << '+' << (t1-t0) << ' '
 	      << (t2-t0) << '+' << (t3-t2) << ' '
@@ -223,18 +225,18 @@ static void watchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
   argL->finalize() ;
   
-  auto input = rpi->at<Rpi::Register::Gpio::Input::Bank0>() ;
+  auto input = rpi->at<Rpi::Register::Gpio::Input::Bank0>().value() ;
   Rpi::ArmTimer timer(rpi) ;
   std::vector<Record> v(0x10000) ; v.resize(0) ;
   
   auto t0 = timer.counter().read() ;
-  auto levels = pins & input.peek() ;
+  auto levels = pins & (*input) ;
   auto t1 = timer.counter().read() ;
   v.push_back(Record(0,t1-t0,levels)) ;
   
   for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
     auto ti = timer.counter().read() ;
-    auto next = pins & input.peek() ;
+    auto next = pins & (*input) ;
     if (levels != next) {
       auto tj = timer.counter().read() ;
       levels = next ;

@@ -8,9 +8,9 @@ bool RpiExt::Serialize::send(uint32_t *t0,Edge const &edge)
     while (t1 - (*t0) < edge.t_min)
 	t1 = this->timer.counter().read() ;
 
-    edge.level == Rpi::Register::Gpio::Output::Level::Hi
-	? this->raise.poke(edge.pins)
-	: this->clear.poke(edge.pins) ;
+    auto hi = (edge.level == Rpi::Register::Gpio::Output::Level::Hi) ;
+    if (hi) (*this->raise) = edge.pins ;
+    else    (*this->clear) = edge.pins ;
     
     auto t2 = this->timer.counter().read() ;
     auto success = t2 - (*t0) <= edge.t_max ;

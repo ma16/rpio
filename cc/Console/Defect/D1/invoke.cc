@@ -13,19 +13,21 @@ static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     argL->finalize() ;
 
     namespace Function = Rpi::Gpio::Function ;
+    namespace Register = Rpi::Register::Gpio ;
     
-    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
-    auto status = rpi->at<Rpi::Register::Gpio::Event::   Status0>() ;
-    auto detect = rpi->at<Rpi::Register::Gpio::Event::AsyncFall0>() ;
+    auto gpio = rpi->page<Register::PageNo>() ;
+    auto status = rpi->at<Register::Event::   Status0>().value() ;
+    auto detect = rpi->at<Register::Event::AsyncFall0>().value() ;
     Rpi::Timer timer(rpi) ;
     
     auto mask = 1u << pin.value() ;
 
     // setup: mode=In output=Low event=AsyncFall status=Clear
     Function::set(gpio,pin,Function::Type::In) ;
-    rpi->at<Rpi::Register::Gpio::Output::Clear0>().poke(mask) ;
-    detect += mask ;
-    status.poke(mask) ;
+    auto clear = rpi->at<Register::Output::Clear0>().value() ;
+    (*clear) = mask ;
+    (*detect) |= mask ;
+    (*status) = mask ;
     
     // precondition: pin must have been pulled to High by resistor!
     
@@ -34,16 +36,16 @@ static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     Function::set(gpio,pin,Function::Type::Out) ;
     Function::set(gpio,pin,Function::Type:: In) ;
     auto t1 = timer.cLo() ;
-    detect -= mask ;
+    (*detect) &= ~mask ;
 
-    if (0 == (status.peek() & mask))
+    if (0 == ((*status) & mask))
     {
 	std::cout << "error: no event detected or already cleared "
 		  << "(" << (t1-t0) << "us)\n" ;
 	return ;
     }
 
-    while (0 != (status.peek() & mask))
+    while (0 != ((*status) & mask))
     {
 	t1 = timer.cLo() ;
 	if (t1 - t0 > span)

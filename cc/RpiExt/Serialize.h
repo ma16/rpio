@@ -57,16 +57,16 @@ struct Serialize
     } ;
 
     Serialize(Rpi::Peripheral *rpi)
-	: clear(rpi->at<Rpi::Register::Gpio::Output::Clear0>())
-	, raise(rpi->at<Rpi::Register::Gpio::Output::Raise0>())
+	: clear(rpi->at<Rpi::Register::Gpio::Output::Clear0>().value())
+	, raise(rpi->at<Rpi::Register::Gpio::Output::Raise0>().value())
 	, timer(rpi) {}
 
     bool send(std::vector<Edge> const &v) ;
   
 private:
 
-    Rpi::Register::Pointer clear ;
-    Rpi::Register::Pointer raise ;
+    uint32_t volatile * clear ;
+    uint32_t volatile * raise ;
     Rpi::ArmTimer timer ;
 
     bool send(uint32_t *t0,Edge const &edge) ;

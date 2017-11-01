@@ -3,6 +3,7 @@
 #ifndef INCLUDE_Rpi_Register_h
 #define INCLUDE_Rpi_Register_h
 
+#include <Neat/Bit/Word.h>
 #include <Neat/Enum.h>
 #include <cstdint>
 
@@ -26,25 +27,24 @@ namespace Rpi { namespace Register
 	// static Bus::Address address = 0x7e<Pno><Ofs> 
     } ;
 
-    struct Pointer
+    template<uint32_t P,uint32_t O,uint32_t R,uint32_t W>
+    constexpr Pno Traits<P,O,R,W>::PageNo ;
+
+    template<typename Traits> struct Pointer
     {
-	uint32_t peek() const { return (*p) ; }
+	using ReadWord = Neat::Bit::Word<uint32_t,Traits::ReadMask> ;
 	
-	void poke(uint32_t w) const { (*p) = w ; }
+	ReadWord read() const { return ReadWord::coset(*p) ; }
 
-	Pointer& operator+=(uint32_t w) { (*p) |=  w ; return (*this) ; }
-
-	Pointer& operator-=(uint32_t w) { (*p) &= ~w ; return (*this) ; }
-
-	Pointer& set(uint32_t w,bool on)
-	{
-	    if (on) return (*this) += w ;
-	    else    return (*this) -= w ;
-	}
+	using WriteWord = Neat::Bit::Word<uint32_t,Traits::WriteMask> ;
+	
+	void write(WriteWord w) { (*p) = w.value() ; }
+	
+	uint32_t volatile* value() { return p ; }
 	
     private:
 
-	template<uint32_t P> friend class Base ; 
+	friend class Base<Traits::PageNo.value()> ; 
 
 	friend class Rpi::Peripheral ;
 	
@@ -53,10 +53,10 @@ namespace Rpi { namespace Register
 
     template<uint32_t P> struct Base 
     {
-	template<typename Traits> Pointer at()
+	template<typename Traits> Pointer<Traits> at()
 	{
 	    static_assert(P == Traits::PageNo.value(),"") ;
-	    return Pointer(p + Traits::Index.value()) ;
+	    return Pointer<Traits>(p + Traits::Index.value()) ;
 	}
 
 	uint32_t volatile      * ptr()       { return p ; }
@@ -69,6 +69,10 @@ namespace Rpi { namespace Register
 	volatile uint32_t *p ; Base(volatile uint32_t *p) : p(p) {}
     } ;
 
+    template<typename U,unsigned O> using Bit = Neat::Bit::Bit<U,O> ;
+    
+    template<typename U,unsigned O,unsigned L> using Set = Neat::Bit::Set<U,O,L> ;
+    
     // BCM2835 ARM Peripherals §6: General Purpose I/O (GPIO)
 
     namespace Gpio
@@ -133,9 +137,55 @@ namespace Rpi { namespace Register
 	}
     }
     
-    template<uint32_t P,uint32_t O,uint32_t R,uint32_t W>
-    constexpr Pno Traits<P,O,R,W>::PageNo ;
-    
+    // BCM2835 ARM Peripherals §9: Pulse Width Modulator
+
+    namespace Pwm
+    {
+	static constexpr auto PageNo = 0x20cu ;
+
+	using Control = Traits<PageNo,0x00,0xbfff,0xbfff> ;
+
+	using Pwen1 = Bit<uint32_t, 0> ;
+	using Mode1 = Bit<uint32_t, 1> ; 
+	using Rptl1 = Bit<uint32_t, 2> ; 
+	using Sbit1 = Bit<uint32_t, 3> ; 
+	using Pola1 = Bit<uint32_t, 4> ; 
+	using Usef1 = Bit<uint32_t, 5> ; 
+	using Clrf  = Bit<uint32_t, 6> ; 
+	using Msen1 = Bit<uint32_t, 7> ; 
+	using Pwen2 = Bit<uint32_t, 8> ; 
+	using Mode2 = Bit<uint32_t, 9> ; 
+	using Rptl2 = Bit<uint32_t,10> ; 
+	using Sbit2 = Bit<uint32_t,11> ; 	
+	using Pola2 = Bit<uint32_t,12> ; 
+	using Usef2 = Bit<uint32_t,13> ; 
+	using Msen2 = Bit<uint32_t,15> ;
+
+	using Status = Traits<PageNo,0x04,0x73f,0x73f> ;
+
+	using Full = Bit<uint32_t, 0> ; 
+	using Empt = Bit<uint32_t, 1> ; 
+	using Werr = Bit<uint32_t, 2> ; 
+	using Rerr = Bit<uint32_t, 3> ; 
+	using Gap1 = Bit<uint32_t, 4> ; 
+	using Gap2 = Bit<uint32_t, 5> ; 
+	using Berr = Bit<uint32_t, 8> ; 
+	using Sta1 = Bit<uint32_t, 9> ; 
+	using Sta2 = Bit<uint32_t,10> ; 
+
+	using DmaC = Traits<PageNo,0x08,0x8000ffff,0x8000ffff> ;
+
+	using Dreq   = Set<uint32_t, 0,8> ;
+	using Panic  = Set<uint32_t, 8,8> ;
+	using Enable = Set<uint32_t,31,1> ;
+
+	using Range1 = Traits<PageNo,0x10,0xffffffff,0xffffffff> ;
+	using Data1  = Traits<PageNo,0x14,0xffffffff,0xffffffff> ;
+	using Fifo   = Traits<PageNo,0x18,0xffffffff,0xffffffff> ;
+	using Range2 = Traits<PageNo,0x20,0xffffffff,0xffffffff> ;
+	using Data2  = Traits<PageNo,0x24,0xffffffff,0xffffffff> ;
+    }
+
 } }
 
 #endif // INCLUDE_Rpi_Register_h

@@ -13,7 +13,39 @@
 #include "../uint.h"
 
 namespace Neat { namespace Bit {
+	
+template<typename U,unsigned O> struct Bit
+{
+    using Unsigned = U ;
 
+    static_assert(std::is_integral<Unsigned>::value,"integral type required") ;
+    static_assert(std::is_unsigned<Unsigned>::value,"unsigned type required") ;
+    
+    static constexpr auto Offset = O ;
+    
+    static_assert(Offset<std::numeric_limits<Unsigned>::digits,"") ;
+} ;
+	
+template<typename U,unsigned O,unsigned L> struct Set
+{
+    using Unsigned = U ;
+
+    static_assert(std::is_integral<Unsigned>::value,"integral type required") ;
+    static_assert(std::is_unsigned<Unsigned>::value,"unsigned type required") ;
+    
+    static constexpr auto Offset = O ;
+    static constexpr auto Len    = L ;
+
+    static_assert(Offset < std::numeric_limits<Unsigned>::digits,"") ;
+    static_assert(Len    > 0,"") ;
+    static_assert(Len    < std::numeric_limits<Unsigned>::digits,"") ;
+    static_assert(Offset < std::numeric_limits<Unsigned>::digits-Len,"") ;
+    
+    using Uint = Neat::uint<Unsigned,Len> ;
+	
+    static constexpr auto Mask = (~ (~Unsigned(0) << Len) ) << Offset ;
+} ;
+    
 template<typename U,U M> struct Word
 {
     using Unsigned = U ;

@@ -33,6 +33,25 @@ size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
     }
 }
 
+#if 0
+bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
+{
+    constexpr auto werr = Rpi::Register::Pwm::Werr::make(1).word() ;
+
+    auto status = this->base.at<Rpi::Register::Pwm::Status>() ;
+    status.set(werr) ;
+    
+    auto fifo = this->base.at<Rpi::Register::Pwm::Fifo>() ;
+    for (decltype(n) i=0 ; i<n ; ++i)
+	fifo.set(word) ;
+    auto digit = Rpi::Register::Pwm::Werr::Digit ;
+    auto error = status.get().test(digit) ;
+    if (error)
+	status.set(werr) ;
+    return error ;
+}
+#endif
+
 bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
 {
     constexpr auto werr = Status::Werr::make(1).word() ;

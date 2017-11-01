@@ -488,8 +488,8 @@ private:
 
     void levels(Command::Levels const &c)
     {
-	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
-	(*c.pins) = input.peek() ;
+	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>().value() ;
+	(*c.pins) = (*input) ;
     }
 
     void mode(Command::Mode const &c)
@@ -499,14 +499,14 @@ private:
 
     void reset(Command::Reset const &c)
     {
-	auto clear = this->gpio.at<Rpi::Register::Gpio::Output::Clear0>() ;
-	clear.poke(c.pins) ;
+	auto clear = this->gpio.at<Rpi::Register::Gpio::Output::Clear0>().value() ;
+	(*clear) = c.pins ;
     }
     
     void set(Command::Set const &c)
     {
-	auto raise = this->gpio.at<Rpi::Register::Gpio::Output::Raise0>() ;
-	raise.poke(c.pins) ;
+	auto raise = this->gpio.at<Rpi::Register::Gpio::Output::Raise0>().value() ;
+	(*raise) = c.pins ;
     }
 
     void time(Command::Time const &c)
@@ -537,10 +537,10 @@ private:
     
     void waitFor(Command::WaitFor const &c)
     {
-	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
+	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>().value() ;
 	do
 	{
-	    this->l = input.peek() ;
+	    this->l = (*input) ;
 	    if (c.cond == (this->l & c.mask))
 	    {
 		(*c.t1) = this->t ;
