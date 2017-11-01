@@ -3,6 +3,7 @@
 #include "../invoke.h"
 #include <Device/Ws2812b/BitStream.h>
 #include <Device/Ws2812b/Circuit.h>
+#include <Rpi/Pin.h>
 #include <RpiExt/Pwm.h>
 #include <RpiExt/Serialize.h>
 #include <RpiExt/Spi0.h>
@@ -35,8 +36,8 @@ static std::vector<RpiExt::Serialize::Edge> make(
     size_t nleds,uint32_t grb,uint32_t pins,
     Device::Ws2812b::Circuit::Ticks const &ticks)
 {
-    auto const Lo = Rpi::Gpio::Output::Level::Lo ;
-    auto const Hi = Rpi::Gpio::Output::Level::Hi ;
+    auto const Lo = Rpi::Register::Gpio::Output::Level::Lo ;
+    auto const Hi = Rpi::Register::Gpio::Output::Level::Hi ;
 
     using Edge = RpiExt::Serialize::Edge ;
     std::deque<Edge> q ;
@@ -80,14 +81,11 @@ static std::vector<RpiExt::Serialize::Edge> make(
 
 static void bang(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-    Rpi::Gpio::Output output(rpi) ;
-    Rpi::ArmTimer timer(rpi) ;
-    
     auto nleds = Ui::strto<unsigned>(argL->pop()) ;
     auto   grb = Ui::strto<unsigned>(argL->pop()) ;
   
     auto timing = getBang(argL) ;
-    auto freq = timer.frequency() ;
+    auto freq = Rpi::ArmTimer(rpi).frequency() ;
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto max_retries = Ui::strto<uint64_t>(argL->option("-r","1")) ;
     auto debug = argL->pop_if("-d") ;
@@ -105,7 +103,7 @@ static void bang(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << Device::Ws2812b::Circuit::toStr(ticks)  << '\n' ;
     }
   
-    RpiExt::Serialize host(output,timer) ;
+    RpiExt::Serialize host(rpi) ;
     std::vector<RpiExt::Serialize::Edge> v =
 	make(nleds,grb,(1u<<pin.value()),ticks) ;
   

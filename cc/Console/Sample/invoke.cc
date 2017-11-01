@@ -2,15 +2,13 @@
 
 #include "../rpio.h"
 #include <Rpi/ArmTimer.h>
-#include <Rpi/Gpio/Event.h>
-#include <Rpi/Gpio/Input.h>
+#include <Rpi/Pin.h>
+#include <Rpi/Register.h>
 #include <Ui/strto.h>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <vector>
-
-namespace Console { namespace Sample {
 
 static uint32_t getPins(Ui::ArgL *argL)
 {
@@ -81,44 +79,50 @@ static std::string mkstr(uint32_t mask,uint32_t bits)
 
 static void countInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
-  auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-  // [future] does also work with a pin mask
-  auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
-  auto dry = argL->pop_if("-d") ;
-  argL->finalize() ;
-  Rpi::Gpio::Event event(rpi) ;
-  auto mask = 1u << pin.value() ;
-  decltype(nsamples) nevents = 0 ;
-  decltype(nsamples) nsubseq = 0 ;
-  auto t0 = std::chrono::steady_clock::now() ;
-  if (dry) {
-    for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      auto w = mask & event.status0().read() ;
-      if (w != 0)
-	event.status0().write(w) ;
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    // [future] does also work with a pin mask
+    auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
+    auto dry = argL->pop_if("-d") ;
+    argL->finalize() ;
+    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
+    auto status = gpio.at<Rpi::Register::Gpio::Event::Status0>() ;
+    auto mask = 1u << pin.value() ;
+    decltype(nsamples) nevents = 0 ;
+    decltype(nsamples) nsubseq = 0 ;
+    auto t0 = std::chrono::steady_clock::now() ;
+    if (dry)
+    {
+	for (decltype(nsamples) i=0 ; i<nsamples ; ++i)
+	{
+	    auto w = mask & status.peek() ;
+	    if (w != 0)
+		status.poke(w) ;
+	}
     }
-  }
-  else {
-    auto active = false ;
-    event.status0().write(mask) ;
-    for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      auto w = mask & event.status0().read() ;
-      if (w != 0) {
-	event.status0().write(w) ;
-	++nevents ;
-	if (active) ++nsubseq ;
-	else active = true ;
-      }
-      else active = false ;
+    else
+    {
+	auto active = false ;
+	status.poke(mask) ;
+	for (decltype(nsamples) i=0 ; i<nsamples ; ++i)
+	{
+	    auto w = mask & status.peek() ;
+	    if (w != 0)
+	    {
+		status.poke(w) ;
+		++nevents ;
+		if (active) ++nsubseq ;
+		else active = true ;
+	    }
+	    else active = false ;
+	}
     }
-  }
-  auto tn = std::chrono::steady_clock::now() ; 
-  auto dt = std::chrono::duration<double>(tn-t0).count() ;
-  std::cout.setf(std::ios::scientific) ;
-  std::cout.precision(2) ;
-  std::cout <<      "f=" << static_cast<double>(nsamples)/dt << "/s " 
-	    << "signal=" << static_cast<double>( nevents)/dt << "/s "
-	    << "subseq=" << static_cast<double>( nsubseq)/dt << "/s\n" ;
+    auto tn = std::chrono::steady_clock::now() ; 
+    auto dt = std::chrono::duration<double>(tn-t0).count() ;
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    std::cout <<      "f=" << static_cast<double>(nsamples)/dt << "/s " 
+	      << "signal=" << static_cast<double>( nevents)/dt << "/s "
+	      << "subseq=" << static_cast<double>( nsubseq)/dt << "/s\n" ;
 }
 
 // --------------------------------------------------------------------
@@ -129,21 +133,21 @@ static void dutyInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
   auto dry = argL->pop_if("-d") ;
   argL->finalize() ;
-  Rpi::Gpio::Input input(rpi) ;
+  auto input = rpi->at<Rpi::Register::Gpio::Input::Bank0>() ;
   auto mask = 1u << pin.value() ;
   decltype(nsamples) nchanges = 0 ;
   decltype(nsamples) nhis = 0 ;
-  auto level = mask & input.bank0().read() ;
+  auto level = mask & input.peek() ;
   auto t0 = std::chrono::steady_clock::now() ;
   if (dry) {
     for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      level ^= mask & input.bank0().read() ;
+      level ^= mask & input.peek() ;
     }
     auto volatile x = level ; (void)x ;
   }
   else {
     for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
-      auto next = mask & input.bank0().read() ;
+      auto next = mask & input.peek() ;
       if (next != level) {
 	level = next ;
 	++nchanges ;
@@ -168,28 +172,36 @@ static void pulseInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
     
-    Rpi::Gpio::Event event(rpi) ;
+    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
+    
     Rpi::ArmTimer timer(rpi) ;
     auto mask = 1u << pin.value() ;
 
-    auto invoke = [&](Rpi::Gpio::Event::Type type,uint32_t *t0,uint32_t *t1)
+    namespace Register = Rpi::Register::Gpio::Event ;
+    
+    auto wait4edge = [&](uint32_t *t0,uint32_t *t1)
     {
-	event.enable(mask,type,true) ;
-	event.status0().write(mask) ;
-	while (0 == (mask & event.status0().read()))
+	auto status = gpio.at<Register::Status0>() ;
+	status.poke(mask) ;
+	while (0 == (mask & status.peek()))
 	    (*t0) = timer.counter().read() ;
 	(*t1) = timer.counter().read() ;
-	event.enable(mask,type,true) ;
     } ;
 
     auto t0=timer.counter().read() ; decltype(t0) t1 ;
-    invoke(Rpi::Gpio::Event::Type::Rise,&t0,&t1) ;
+    gpio.at<Register::Rise0>() += mask ;
+    wait4edge(&t0,&t1) ;
+    gpio.at<Register::Rise0>() -= mask ;
     
     auto t2 = t1 ; decltype(t2) t3 ;
-    invoke(Rpi::Gpio::Event::Type::Fall,&t2,&t3) ;
+    gpio.at<Register::Fall0>() += mask ;
+    wait4edge(&t2,&t3) ;
+    gpio.at<Register::Fall0>() -= mask ;
 
     auto t4 = t3 ; decltype(t4) t5 ;
-    invoke(Rpi::Gpio::Event::Type::Rise,&t4,&t5) ;
+    gpio.at<Register::Rise0>() += mask ;
+    wait4edge(&t4,&t5) ;
+    gpio.at<Register::Rise0>() -= mask ;
 
     std::cout <<       0 << '+' << (t1-t0) << ' '
 	      << (t2-t0) << '+' << (t3-t2) << ' '
@@ -211,18 +223,18 @@ static void watchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
   argL->finalize() ;
   
-  Rpi::Gpio::Input input(rpi) ;
+  auto input = rpi->at<Rpi::Register::Gpio::Input::Bank0>() ;
   Rpi::ArmTimer timer(rpi) ;
   std::vector<Record> v(0x10000) ; v.resize(0) ;
   
   auto t0 = timer.counter().read() ;
-  auto levels = pins & input.bank0().read() ;
+  auto levels = pins & input.peek() ;
   auto t1 = timer.counter().read() ;
   v.push_back(Record(0,t1-t0,levels)) ;
   
   for (decltype(nsamples) i=0 ; i<nsamples ; ++i) {
     auto ti = timer.counter().read() ;
-    auto next = pins & input.bank0().read() ;
+    auto next = pins & input.peek() ;
     if (levels != next) {
       auto tj = timer.counter().read() ;
       levels = next ;
@@ -237,10 +249,8 @@ static void watchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     std::cout << mkstr(pins,r.levels) << r.t0 << ' ' << r.t1 << '\n' ;
   }
 }
-  
-// --------------------------------------------------------------------
 
-void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+void Console::Sample::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
   if (argL->empty() || argL->peek() == "help") { 
     std::cout << "arguments: MODE PIN NSAMPLES [-d]\n"
@@ -262,5 +272,3 @@ void invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   else if (arg == "watch") { watchInvoke(rpi,argL) ; } 
   else throw std::runtime_error("not supported option:<"+arg+'>') ;
 }
-
-} /* Sample */ } /* Console */

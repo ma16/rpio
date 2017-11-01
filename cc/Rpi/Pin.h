@@ -8,6 +8,7 @@
 namespace Rpi
 {
   using Pin = Neat::Enum<unsigned,32-1> ;
+  // [todo] support bit-mask
 }
 
 #endif // _Rpi_Pin_h_

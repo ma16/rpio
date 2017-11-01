@@ -18,10 +18,7 @@
 #include <deque>
 #include <vector>
 #include <Rpi/ArmTimer.h>
-#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Function.h>
-#include <Rpi/Gpio/Input.h>
-#include <Rpi/Gpio/Output.h>
 
 namespace RpiExt {
 
@@ -97,8 +94,8 @@ struct Bang
 	    friend Command ;
 	    friend Bang ;
 	    Rpi::Pin pin ;
-	    Rpi::Gpio::Function::Mode mode ;
-	  Mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode) : pin(pin), mode(mode) {}
+	    Rpi::Gpio::Function::Type mode ;
+	    Mode(Rpi::Pin pin,Rpi::Gpio::Function::Type mode) : pin(pin), mode(mode) {}
 	} ;
 	    
 	class Recent
@@ -231,7 +228,7 @@ struct Bang
 	    return Command(Choice::Levels,Levels(pins)) ;
 	}
 
-	static Command mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode)
+	static Command mode(Rpi::Pin pin,Rpi::Gpio::Function::Type mode)
 	{
 	    return Command(Choice::Mode,Mode(pin,mode)) ;
 	}
@@ -279,11 +276,8 @@ struct Bang
 
     Bang(Rpi::Peripheral *rpi)
     : timer         (Rpi::ArmTimer(rpi))
-    , event      (Rpi::Gpio::Event(rpi))
-    , function(Rpi::Gpio::Function(rpi))
-    , input   (Rpi::Gpio::   Input(rpi))
-    , output  (Rpi::Gpio::  Output(rpi))
-    , t         (timer.counter().read())
+    , gpio(rpi->page<Rpi::Register::Gpio::PageNo>())
+    , t(timer.counter().read())
     {}
 
     void execute(Command const &c)
@@ -386,17 +380,17 @@ struct Bang
 	void low(Rpi::Pin pin)
 	{
 	    q.push_back(Command::reset(1u<<pin.value())) ; // [todo] drop
-	    q.push_back(Command::mode(pin,Rpi::Gpio::Function::Mode::Out)) ;
+	    q.push_back(Command::mode(pin,Rpi::Gpio::Function::Type::Out)) ;
 	}
 
-	void mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode)
+	void mode(Rpi::Pin pin,Rpi::Gpio::Function::Type mode)
 	{
 	    q.push_back(Command::mode(pin,mode)) ;
 	}
 
 	void off(Rpi::Pin pin)
 	{
-	    q.push_back(Command::mode(pin,Rpi::Gpio::Function::Mode::In)) ;
+	    q.push_back(Command::mode(pin,Rpi::Gpio::Function::Type::In)) ;
 	}
 
 	void recent(uint32_t *ticks)
@@ -453,11 +447,7 @@ struct Bang
 private:
 
     Rpi::ArmTimer timer ; 
-
-    Rpi::Gpio::Event       event ;
-    Rpi::Gpio::Function function ;
-    Rpi::Gpio::Input       input ;
-    Rpi::Gpio::Output     output ;
+    Rpi::Register::Base<Rpi::Register::Gpio::PageNo> gpio ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level
@@ -498,22 +488,25 @@ private:
 
     void levels(Command::Levels const &c)
     {
-	(*c.pins) = this->input.bank0().read() ;
+	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
+	(*c.pins) = input.peek() ;
     }
 
     void mode(Command::Mode const &c)
     {
-	this->function.set(c.pin,c.mode) ;
+	Rpi::Gpio::Function::set(this->gpio,c.pin,c.mode) ;
     }
 
     void reset(Command::Reset const &c)
     {
-	this->output.clear().write(c.pins) ;
+	auto clear = this->gpio.at<Rpi::Register::Gpio::Output::Clear0>() ;
+	clear.poke(c.pins) ;
     }
     
     void set(Command::Set const &c)
     {
-	this->output.raise().write(c.pins) ;
+	auto raise = this->gpio.at<Rpi::Register::Gpio::Output::Raise0>() ;
+	raise.poke(c.pins) ;
     }
 
     void time(Command::Time const &c)
@@ -544,9 +537,10 @@ private:
     
     void waitFor(Command::WaitFor const &c)
     {
+	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
 	do
 	{
-	    this->l = this->input.bank0().read() ;
+	    this->l = input.peek() ;
 	    if (c.cond == (this->l & c.mask))
 	    {
 		(*c.t1) = this->t ;

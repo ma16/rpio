@@ -1,9 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
-#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Function.h>
-#include <Rpi/Gpio/Output.h>
 #include <Rpi/Timer.h>
 #include <Ui/strto.h>
 #include <iostream>
@@ -13,37 +11,39 @@ static void defect(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     auto span = Ui::strto<uint32_t>(argL->pop()) ;
     argL->finalize() ;
+
+    namespace Function = Rpi::Gpio::Function ;
     
-    Rpi::Gpio::Event       event(rpi) ;
-    Rpi::Gpio::Function function(rpi) ;
-    Rpi::Gpio::Output     output(rpi) ;
-    Rpi::Timer             timer(rpi) ;
+    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
+    auto status = rpi->at<Rpi::Register::Gpio::Event::   Status0>() ;
+    auto detect = rpi->at<Rpi::Register::Gpio::Event::AsyncFall0>() ;
+    Rpi::Timer timer(rpi) ;
     
     auto mask = 1u << pin.value() ;
 
     // setup: mode=In output=Low event=AsyncFall status=Clear
-    function.set(pin,Rpi::Gpio::Function::Mode::In) ;
-    output.clear().write(mask) ;
-    event.asyncFall0().write(mask | event.fall0().read()) ;
-    event.status0().write(mask) ;
+    Function::set(gpio,pin,Function::Type::In) ;
+    rpi->at<Rpi::Register::Gpio::Output::Clear0>().poke(mask) ;
+    detect += mask ;
+    status.poke(mask) ;
     
     // precondition: pin must have been pulled to High by resistor!
     
     auto t0 = timer.cLo() ;
     // create Low pulse on pin thru GPIO mode switch
-    function.set(pin,Rpi::Gpio::Function::Mode::Out) ;
-    function.set(pin,Rpi::Gpio::Function::Mode::In) ;
-    event.fall0().write(mask | event.fall0().read()) ;
+    Function::set(gpio,pin,Function::Type::Out) ;
+    Function::set(gpio,pin,Function::Type:: In) ;
     auto t1 = timer.cLo() ;
+    detect -= mask ;
 
-    if (0 == (event.status0().read() & mask))
+    if (0 == (status.peek() & mask))
     {
 	std::cout << "error: no event detected or already cleared "
 		  << "(" << (t1-t0) << "us)\n" ;
 	return ;
     }
 
-    while (0 != (event.status0().read() & mask))
+    while (0 != (status.peek() & mask))
     {
 	t1 = timer.cLo() ;
 	if (t1 - t0 > span)

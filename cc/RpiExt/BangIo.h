@@ -5,37 +5,55 @@
 
 #include <arm/arm.h>
 #include <Rpi/ArmTimer.h>
-#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Function.h>
-#include <Rpi/Gpio/Input.h>
-#include <Rpi/Gpio/Output.h>
 
 namespace RpiExt {
 
 struct BangIo
 {
-    void detect(Rpi::Pin pin,Rpi::Gpio::Event::Type event,bool enable=true)
+    void detect(Rpi::Pin pin,Rpi::Register::Gpio::Event::Type type,bool enable=true)
     {
-	this->event.enable(pin,event,enable) ;
-	// [todo] better mask instead of pin
+	// [todo] would be faster...
+	// * if 32-bit mask (instead of pin);
+	// * if dedicated enable/disable methods (instead of (...bool enable)
+	auto select = [this,type]
+	{
+	    namespace Register = Rpi::Register::Gpio::Event ;
+	    using Type = Register::Type ;
+	    switch (type)
+	    {
+	    case Type::     Rise: return this->gpio.at<Register::     Rise0>() ;
+	    case Type::     Fall: return this->gpio.at<Register::     Fall0>() ;
+	    case Type::     High: return this->gpio.at<Register::     High0>() ;
+	    case Type::      Low: return this->gpio.at<Register::      Low0>() ;
+	    case Type::AsyncRise: return this->gpio.at<Register::AsyncRise0>() ;
+	    case Type::AsyncFall: return this->gpio.at<Register::AsyncFall0>() ;
+	    }
+	    abort() ;
+	    // ...[todo] switch() is far beyond optimal
+	    // ...(use template<Type> function instead)
+	} ;
+	select().set(1u << pin.value(),enable) ;
     }
 
     uint32_t events(uint32_t mask)
     {
-	auto raised = mask & this->event.status0().read() ;
+	auto status = this->gpio.at<Rpi::Register::Gpio::Event::Status0>() ;
+	auto raised = mask & status.peek() ;
 	if (raised != 0)
-	    this->event.status0().write(raised) ;
+	    status.poke(raised) ;
 	return raised ;
     }
 
     uint32_t levels()
     {
-	return this->input.bank0().read() ;
+	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
+	return input.peek() ;
     }
 
-    void mode(Rpi::Pin pin,Rpi::Gpio::Function::Mode mode)
+    void mode(Rpi::Pin pin,Rpi::Gpio::Function::Type mode)
     {
-	this->function.set(pin,mode) ;
+	Rpi::Gpio::Function::set(this->gpio,pin,mode) ;
     }
 
     uint32_t recent() const
@@ -45,12 +63,14 @@ struct BangIo
 
     void reset(uint32_t pins)
     {
-	this->output.clear().write(pins) ;
+	auto clear = this->gpio.at<Rpi::Register::Gpio::Output::Clear0>() ;
+	clear.poke(pins) ;
     }
     
     void set(uint32_t pins)
     {
-	this->output.raise().write(pins) ;
+	auto raise = this->gpio.at<Rpi::Register::Gpio::Output::Raise0>() ;
+	raise.poke(pins) ;
     }
 
     void sleep(uint32_t span)
@@ -76,13 +96,14 @@ struct BangIo
     
     uint32_t waitForEvent(uint32_t t0,uint32_t span,uint32_t mask)
     {
+	auto status = this->gpio.at<Rpi::Register::Gpio::Event::Status0>() ;
 	do
 	{
 	    arm::dmb() ; // since we got strange values
-	    auto raised = mask & this->event.status0().read() ;
+	    auto raised = mask & status.peek() ;
 	    if (raised != 0)
 	    {
-		this->event.status0().write(raised) ;
+		status.poke(raised) ;
 		return raised ;
 	    }
 	    arm::dmb() ; // since we got strange values
@@ -94,10 +115,11 @@ struct BangIo
 
     uint32_t waitForLevel(uint32_t t0,uint32_t span,uint32_t mask,uint32_t cond)
     {
+	auto input = this->gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
 	do
 	{
 	    arm::dmb() ; // since we got strange values
-	    this->l = this->input.bank0().read() ;
+	    this->l = input.peek() ;
 	    arm::dmb() ; // since we got strange values
 	    if (cond == (l & mask))
 	    {
@@ -117,10 +139,8 @@ struct BangIo
 
     BangIo(Rpi::Peripheral *rpi)
 	: timer         (Rpi::ArmTimer(rpi))
-	, event      (Rpi::Gpio::Event(rpi))
-	, function(Rpi::Gpio::Function(rpi))
-	, input      (Rpi::Gpio::Input(rpi))
-	, output    (Rpi::Gpio::Output(rpi))
+	, gpio(rpi->page<Rpi::Register::Gpio::PageNo>())
+	  
 	, t         (timer.counter().read())
 	{ }
 
@@ -128,10 +148,7 @@ private:
     
     Rpi::ArmTimer timer ;
 
-    Rpi::Gpio::Event       event ;
-    Rpi::Gpio::Function function ;
-    Rpi::Gpio::Input       input ;
-    Rpi::Gpio::Output     output ;
+    Rpi::Register::Base<Rpi::Register::Gpio::PageNo> gpio ;
 
     uint32_t t ; // last read time-stamp
     uint32_t l ; // last read GPIO level

@@ -1,7 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Rpi_Peripheral_h_
-#define _Rpi_Peripheral_h_
+#ifndef INCLUDE_Rpi_Peripheral_h
+#define INCLUDE_Rpi_Peripheral_h
 
 // The BCM2835 periperal address range covers 18 documented memory
 // pages within an (partially used) address range of 0x1000,000
@@ -45,7 +45,9 @@
 
 #include "Error.h"
 #include "Page.h"
+#include "Register.h"
 
+#include <Neat/Bit/Word.h>
 #include <Neat/Enum.h>
 #include <Posix/Fd.h> // uoff_t
 
@@ -53,46 +55,55 @@
 
 namespace Rpi { struct Peripheral
 {
-  static std::shared_ptr<Peripheral> make(Posix::Fd::uoff_t addr) ;
-  // ...shared_ptr so it can easily be passed around incl. ownership
+    static std::shared_ptr<Peripheral> make(Posix::Fd::uoff_t addr) ;
+    // ...shared_ptr so it can easily be passed around incl. ownership
 
-  // figure out the physical ARM address automatically...
-  static Posix::Fd::uoff_t by_devtree() ;
-  static Posix::Fd::uoff_t by_cpuinfo() ;
+    // figure out the physical ARM address automatically...
+    static Posix::Fd::uoff_t by_devtree() ;
+    static Posix::Fd::uoff_t by_cpuinfo() ;
     
-  using PNo = Neat::Enum<unsigned,0x1000-1> ;
+    using PNo = Neat::Enum<unsigned,0x1000-1> ;
     
-  std::shared_ptr<Page>       page(PNo no) ;
-  std::shared_ptr<Page const> page(PNo no) const ;
-  // ...shared_ptr so it can easily be passed around incl. ownership
+    std::shared_ptr<Page>       page(PNo no) ;
+    std::shared_ptr<Page const> page(PNo no) const ;
+    // ...shared_ptr so it can easily be passed around incl. ownership
 
-  uint32_t volatile const & at(size_t i) const ;
-  uint32_t volatile       & at(size_t i)       ;
-  // ...i is relative to base_page as a byte-offset (which must be word-aligned though)
+    uint32_t volatile const & at(size_t i) const ;
+    uint32_t volatile       & at(size_t i)       ;
+    // ...i is relative to base_page as a byte-offset
+    //    (which must be word-aligned)
 
-  uint32_t base_addr() const { return base_page * Page::nbytes ; }
+    uint32_t base_addr() const { return base_page * Page::nbytes ; }
   
-  Peripheral           (Peripheral const&) = delete ;
-  Peripheral& operator=(Peripheral const&) = delete ;
-    
+    Peripheral           (Peripheral const&) = delete ;
+    Peripheral& operator=(Peripheral const&) = delete ;
+
+    template<typename Traits> Register::Pointer at()
+    {
+	return & page(Traits::PageNo)->at(Traits::Index) ;
+	// ...that's a fairly expensive call (compared with page())
+    }
+
+    template<uint32_t P> Register::Base<P> page()
+    {
+	return & page(PNo::make<P>())->at<0>() ;
+    }
+
 private:
 
-  using Map = std::map<unsigned,std::shared_ptr<Page>> ;
+    using Map = std::map<unsigned,std::shared_ptr<Page>> ;
       
-  size_t base_page ;
+    size_t base_page ;
 
-  Posix::Fd::shared_ptr mem ; // file descriptor for "/dev/mem"
+    Posix::Fd::shared_ptr mem ; // file descriptor for "/dev/mem"
   
-  mutable Map map ;
+    mutable Map map ;
 
-  Peripheral(size_t base_page,Posix::Fd::shared_ptr mem,Map &&map)
-    
-    : base_page(base_page)
-    , mem            (mem)
-    , map (std::move(map))
-
-  { }
-  
+    Peripheral(size_t base_page,Posix::Fd::shared_ptr mem,Map &&map)
+	: base_page(base_page)
+	, mem            (mem)
+	, map (std::move(map))
+	{ }
 } ; }
 
-#endif // _Rpi_Peripheral_h_
+#endif // INCLUDE_Rpi_Peripheral_h

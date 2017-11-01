@@ -1,10 +1,7 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
 #include "../invoke.h"
-#include <Rpi/Gpio/Event.h>
 #include <Rpi/Gpio/Function.h>
-#include <Rpi/Gpio/Input.h>
-#include <Rpi/Gpio/Output.h>
 #include <Rpi/Gpio/Pull.h>
 #include <Ui/strto.h>
 #include <iomanip>
@@ -77,35 +74,52 @@ static std::string mkstr(uint32_t mask,uint32_t bits)
     
 static void enableInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-  if (argL->empty() || argL->peek() == "help") {
-    std::cout << "arguments: PINS TYPE [off]\n"
-	      << '\n'
-	      << "TYPE : rise\n"
-	      << "     | fall\n"
-	      << "     | high\n"
-	      << "     | low\n"
-	      << "     | async-rise\n"
-	      << "     | async-fall\n"
-	      << "     | any\n"
-	      << std::flush ;
-    return ;
-  }
-  auto pins = getPins(argL) ;
-  auto mode = argL->pop({"rise","fall","high","low","async-rise","async-fall","any"}) ;
-  auto on = !argL->pop_if("off") ;
-  argL->finalize() ;
-  Rpi::Gpio::Event event(rpi) ;
-  if (mode == 6) {
-    auto type = Rpi::Gpio::Event::TypeEnum::first() ;
-    // ...[todo] an iterator would be nice
-    do event.enable(pins,type.e(),on) ;
-    while (type.next()) ;
-  }
-  else {
-    auto type = Rpi::Gpio::Event::TypeEnum::make(mode).e() ;
-    // ...[todo] dangerous if Type order changes
-    event.enable(pins,type,on) ;
-  }
+    if (argL->empty() || argL->peek() == "help")
+    {
+	std::cout
+	    << "arguments: PINS TYPE [off]\n"
+	    << '\n'
+	    << "TYPE : rise\n"
+	    << "     | fall\n"
+	    << "     | high\n"
+	    << "     | low\n"
+	    << "     | async-rise\n"
+	    << "     | async-fall\n"
+	    << "     | any\n"
+	    ;
+	return ;
+    }
+    auto pins = getPins(argL) ;
+    auto mode = argL->pop(
+    {"rise","fall","high","low","async-rise","async-fall","any"}) ;
+    auto on = !argL->pop_if("off") ;
+    argL->finalize() ;
+    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
+    
+    auto rise      = gpio.at<Rpi::Register::Gpio::Event::     Rise0>() ;
+    auto fall      = gpio.at<Rpi::Register::Gpio::Event::     Fall0>() ;
+    auto high      = gpio.at<Rpi::Register::Gpio::Event::     High0>() ;
+    auto low       = gpio.at<Rpi::Register::Gpio::Event::      Low0>() ;
+    auto asyncRise = gpio.at<Rpi::Register::Gpio::Event::AsyncRise0>() ;
+    auto asyncFall = gpio.at<Rpi::Register::Gpio::Event::AsyncFall0>() ;
+    
+    switch (mode)
+    {
+    case 0: rise      .set(pins,on) ; break ;
+    case 1: fall      .set(pins,on) ; break ;
+    case 2: high      .set(pins,on) ; break ;
+    case 3: low       .set(pins,on) ; break ;
+    case 4: asyncRise .set(pins,on) ; break ;
+    case 5: asyncFall .set(pins,on) ; break ;
+    case 6:
+	rise      .set(pins,on) ;
+	fall      .set(pins,on) ;
+	high      .set(pins,on) ;
+	low       .set(pins,on) ;
+	asyncRise .set(pins,on) ;
+	asyncFall .set(pins,on) ;
+	break ;
+    }
 }
 
 static void modeInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -126,9 +140,16 @@ static void modeInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
   auto pins = getPins(argL) ;
   auto i = argL->pop({"i","o","5","4","0","1","2","3"}) ;
-  auto mode = Rpi::Gpio::Function::ModeEnum::make(i).e() ;
+  auto mode = Rpi::Gpio::Function::TypeEnum::make(i).e() ;
   argL->finalize() ;
-  Rpi::Gpio::Function(rpi).set(pins,mode) ;
+  auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
+  auto pin = Rpi::Pin::first() ; 
+  do
+  {
+      if (0 != (pins & (1u << pin.value())))
+	  Rpi::Gpio::Function::set(gpio,pin,mode) ;
+  }
+  while (pin.next()) ;
 }
 
 static void outputInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -143,147 +164,160 @@ static void outputInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
   }
   auto pins = getPins(argL) ;
   auto i = argL->pop({"hi","lo"}) ;
-  //auto output = Rpi::Gpio::Output::LevelEnum::make(i).e() ;
   argL->finalize() ;
   i == 0
-    ? Rpi::Gpio::Output(rpi).raise().write(pins) 
-    : Rpi::Gpio::Output(rpi).clear().write(pins) ;
+      ? rpi->at<Rpi::Register::Gpio::Output::Raise0>().poke(pins) 
+      : rpi->at<Rpi::Register::Gpio::Output::Clear0>().poke(pins) ;
 }
 
 static void pullInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-  if (argL->empty() || argL->peek() == "help") {
-    std::cout << "arguments: PINS MODE\n"
-	      << '\n'
-	      << "MODE : down  # apply pull-down resistor\n"
-	      << "     | off   # set tri-state (high-impedance)\n"
-	      << "     | up    # apply pull-up resistor\n"
-	      << std::flush ;
-    return ;
-  }
-  auto pins = getPins(argL) ;
-  auto i = argL->pop({"off","down","up"}) ;
-  auto mode = Rpi::Gpio::Pull::ModeEnum::make(i).e() ;
-  // ...[todo] dangerous since the since off/down/up may change
-  argL->finalize() ;
-  Rpi::Gpio::Pull(rpi).set(pins,mode) ; 
+    if (argL->empty() || argL->peek() == "help")
+    {
+	std::cout << "arguments: PINS MODE\n"
+		  << '\n'
+		  << "MODE : down  # apply pull-down resistor\n"
+		  << "     | off   # set tri-state (high-impedance)\n"
+		  << "     | up    # apply pull-up resistor\n"
+	    ;
+	return ;
+    }
+    auto pins = getPins(argL) ;
+    auto i = argL->pop({"off","down","up"}) ;
+    argL->finalize() ;
+    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
+    switch (i)
+    {
+    case 0: Rpi::Gpio::Pull::set(gpio,pins,Rpi::Gpio::Pull::Mode:: Off) ; break ;
+    case 1: Rpi::Gpio::Pull::set(gpio,pins,Rpi::Gpio::Pull::Mode::Down) ; break ;
+    case 2: Rpi::Gpio::Pull::set(gpio,pins,Rpi::Gpio::Pull::Mode::  Up) ; break ;
+    }
 }
     
 static void resetInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-  if (!argL->empty() && argL->peek() == "help") {
-    std::cout << "argument: [PINS]" << std::endl ;
-    return ;
-  }
-  uint32_t pins = 0xffffffff ;
-  if (!argL->empty())
-    pins = getPins(argL) ;
-  argL->finalize() ;
-  Rpi::Gpio::Event(rpi).status0().write(pins) ;
+    if (!argL->empty() && argL->peek() == "help")
+    {
+	std::cout << "argument: [PINS]\n" ;
+	return ;
+    }
+    uint32_t pins = 0xffffffff ;
+    if (!argL->empty())
+	pins = getPins(argL) ;
+    argL->finalize() ;
+    auto status = rpi->at<Rpi::Register::Gpio::Event::Status0>() ;
+    status.poke(pins) ;
 }
 
-static void statusDefault(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void statusDefault(Rpi::Peripheral *rpi,uint32_t pins)
 {
-  auto pins = 0xffffffffu ;
-  if (!argL->empty())
-    pins = getPins(argL) ;
-  argL->finalize() ;
-  Rpi::Gpio::Event event(rpi) ;
-  Rpi::Gpio::Input input(rpi) ;
-  std::cout << mkhdr(pins) << '\n'
-	    << mksep(pins) << '\n' ;
-  auto i = Rpi::Pin::first() ;
-  do {
-    if (0 == (pins & (1u << i.value())))
-      continue ;
-    static const char m[] = { 'i','o','5','4','0','1','2','3' } ;
-    auto mode = Rpi::Gpio::Function(rpi).get(i) ;
-    std::cout << m[Rpi::Gpio::Function::ModeEnum(mode).n()] << ' ' ;
-  } while (i.next()) ;
-  std::cout << "mode\n" 
-	    << mkstr(pins,input.  bank0().read()) << "level\n" 
-	    << mkstr(pins,event.status0().read()) << "event\n" ;
+    auto status = rpi->at<Rpi::Register::Gpio::Event::Status0>() ;
+    std::cout << mkhdr(pins) << '\n'
+	      << mksep(pins) << '\n' ;
+    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
+    auto i = Rpi::Pin::first() ;
+    do
+    {
+	if (0 == (pins & (1u << i.value())))
+	    continue ;
+	static const char m[] = { 'i','o','5','4','0','1','2','3' } ;
+	auto mode = Rpi::Gpio::Function::get(gpio,i) ;
+	std::cout << m[Rpi::Gpio::Function::TypeEnum(mode).n()] << ' ' ;
+    }
+    while (i.next()) ;
+    auto input = gpio.at<Rpi::Register::Gpio::Input::Bank0>() ;
+    std::cout << "mode\n" 
+	      << mkstr(pins,input .peek()) << "level\n" 
+	      << mkstr(pins,status.peek()) << "event\n" ;
 }
 
-static void statusEvents(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void statusEvents(Rpi::Peripheral *rpi,uint32_t pins)
 {
-  auto pins = 0xffffffffu ;
-  if (!argL->empty())
-    pins = getPins(argL) ;
-  argL->finalize() ;
-  Rpi::Gpio::Event event(rpi) ;
-  std::cout << mkhdr(pins) << '\n'
-	    << mksep(pins) << '\n' 
-	    << mkstr(pins,event.     rise0().read()) << "rise\n"
-	    << mkstr(pins,event.     fall0().read()) << "fall\n"
-	    << mkstr(pins,event.     high0().read()) << "high\n"
-	    << mkstr(pins,event.      low0().read()) << "low\n"
-	    << mkstr(pins,event.asyncRise0().read()) << "async-rise\n"
-	    << mkstr(pins,event.asyncFall0().read()) << "async-fall\n"
-    ;
+    namespace Register = Rpi::Register::Gpio::Event ;
+    std::cout
+	<< mkhdr(pins) << '\n'
+	<< mksep(pins) << '\n' 
+	<< mkstr(pins,rpi->at<Register::     Rise0>().peek()) << "rise\n"
+	<< mkstr(pins,rpi->at<Register::     Fall0>().peek()) << "fall\n"
+	<< mkstr(pins,rpi->at<Register::     High0>().peek()) << "high\n"
+	<< mkstr(pins,rpi->at<Register::      Low0>().peek()) << "low\n"
+	<< mkstr(pins,rpi->at<Register::AsyncRise0>().peek()) << "async-rise\n"
+	<< mkstr(pins,rpi->at<Register::AsyncFall0>().peek()) << "async-fall\n"
+	;
 }
 
-static void statusFunctions(Rpi::Peripheral *rpi,Ui::ArgL *argL)
+static void statusFunctions(Rpi::Peripheral *rpi,uint32_t pins,bool verbose)
 {
-  auto verbose = argL->pop_if("-v") ;
-  auto pins = 0xffffffffu ;
-  if (!argL->empty())
-    pins = getPins(argL) ;
-  argL->finalize() ;
-  Rpi::Gpio::Function function(rpi) ;
-  auto pin = Rpi::Pin::first() ;
-  do {
-    if (0 == (pins & (1u << pin.value())))
-      continue ;
-    auto mode = function.get(pin) ;
-    static char const m[] = { 'i','o','5','4','0','1','2','3' } ;
-    std::cout << std::setw(2) << pin.value() << ' ' 
-	      << m[Rpi::Gpio::Function::ModeEnum(mode).n()] ;
-    if (mode == Rpi::Gpio::Function::Mode::In) {
-      std::cout << " (Input)" ;
+    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
+    auto pin = Rpi::Pin::first() ;
+    do
+    {
+	if (0 == (pins & (1u << pin.value())))
+	    continue ;
+	auto type = Rpi::Gpio::Function::get(gpio,pin) ;
+	static char const m[] = { 'i','o','5','4','0','1','2','3' } ;
+	std::cout << std::setw(2) << pin.value() << ' ' 
+		  << m[Rpi::Gpio::Function::TypeEnum(type).n()] ;
+	if (type == Rpi::Gpio::Function::Type::In)
+	{
+	    std::cout << " (Input)" ;
+	}
+	else if (type == Rpi::Gpio::Function::Type::Out)
+	{
+	    std::cout << " (Output)" ;
+	}
+	else
+	{
+	    for (auto const &r : Rpi::Gpio::Function::records())
+	    {
+		if ((r.pin.value() == pin.value()) && (type == r.type))
+		    std::cout << " (" << Rpi::Gpio::Function::name(r.device) << ')' ;
+	    }
+	}
+	if (verbose)
+	{
+	    for (auto const &r : Rpi::Gpio::Function::records()) 
+		if (r.pin.value() == pin.value())
+		    std::cout << ' ' << m[Rpi::Gpio::Function::TypeEnum(r.type).n()]
+			      << ':' << Rpi::Gpio::Function::name(r.device) ;
+	}
+	std::cout << '\n' ;
     }
-    else if (mode == Rpi::Gpio::Function::Mode::Out) {
-      std::cout << " (Output)" ;
-    }
-    else {
-      for (auto const &r : Rpi::Gpio::Function::records()) {
-	if ((r.pin.value() == pin.value()) && (mode == r.mode))
-	  std::cout << " (" << Rpi::Gpio::Function::name(r.type) << ')' ;
-      }
-    }
-    if (verbose) {
-      for (auto const &r : Rpi::Gpio::Function::records()) 
-	if (r.pin.value() == pin.value())
-	  std::cout << ' ' << m[Rpi::Gpio::Function::ModeEnum(r.mode).n()]
-		    << ':' << Rpi::Gpio::Function::name(r.type) ;
-    }
-    std::cout << '\n' ;
-  }
-  while (pin.next()) ;
+    while (pin.next()) ;
 }
 
 static void statusInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
-  if (!argL->empty() && argL->peek() == "help") {
-    std::cout << "arguments: [-e | (-f -v)] [PINS]\n"
-	      << '\n'
-	      << "Displays for all (default) or for selected pins:\n"
-	      << "* mode  : i,o,0..5 (see mode's help)\n"
-	      << "* level : the input level (0:low, 1:high)\n"
-	      << '\n'
-	      << "-e: include enabled and detected events\n"
-	      << "-f: presently selected GPIO functions by name\n"
-	      << "-v: available GPIO functions\n"
-	      << std::flush ;
-    return ;
-  }
-  auto n = argL->pop_if({"-e","-f"}) ;
-  if (n) {
-    if      ((*n) == 0)    statusEvents(rpi,argL) ;
-    else if ((*n) == 1) statusFunctions(rpi,argL) ;
-    else assert(false) ;
-  }
-  else statusDefault(rpi,argL) ;
+    if (!argL->empty() && argL->peek() == "help")
+    {
+	std::cout
+	    << "arguments: [-e | -f | -v] [PINS]\n"
+	    << '\n'
+	    << "Displays for all (default) or for selected pins:\n"
+	    << "* mode  : i,o,0..5 (see mode's help)\n"
+	    << "* level : the input level (0:low, 1:high)\n"
+	    << '\n'
+	    << "-e: include enabled and detected events\n"
+	    << "-f: presently selected GPIO functions by name\n"
+	    << "-v: -f plus available GPIO functions\n"
+	    ;
+	return ;
+    }
+    auto n = argL->pop_if({"-e","-f","-v"}) ;
+    auto pins = 0xffffffffu ;
+    if (!argL->empty())
+	pins = getPins(argL) ;
+    argL->finalize() ;
+    if (n)
+    {
+	switch (*n)
+	{
+	case 0: statusEvents   (rpi,pins      ) ; break ;
+	case 1: statusFunctions(rpi,pins,false) ; break ;
+	case 2: statusFunctions(rpi,pins, true) ; break ;
+	}
+    }
+    else statusDefault(rpi,pins) ;
 }
 
 void Console::Peripheral::Gpio::

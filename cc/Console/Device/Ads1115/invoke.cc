@@ -110,10 +110,10 @@ void Console::Device::Ads1115::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
   
     auto sclPin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    Rpi::Gpio::Output(rpi).clear().write(1u << sclPin.value()) ;
+    rpi->at<Rpi::Register::Gpio::Output::Clear0>().poke(1u << sclPin.value()) ;
     
     auto sdaPin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    Rpi::Gpio::Output(rpi).clear().write(1u << sdaPin.value()) ;
+    rpi->at<Rpi::Register::Gpio::Output::Clear0>().poke(1u << sdaPin.value()) ;
     
     auto addr = Ui::strto(argL->pop(),Circuit::Addr()) ;
 

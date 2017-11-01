@@ -15,7 +15,7 @@
 #define INCLUDE_Rpi_ArmTimer_h
 
 #include "Peripheral.h"
-#include "Register.h"
+#include "RegOld.h"
 
 namespace Rpi {
 
@@ -28,9 +28,9 @@ struct ArmTimer
     static constexpr auto Address =
     Bus::Address::Base + PNo.value() * Page::nbytes ;
 
-    struct Control : Register::Masked<Address+0x408,0x00ff0200>
+    struct Control : RegOld::Masked<Address+0x408,0x00ff0200>
     {
-	using Base = Register::Masked<Address.value(),Mask> ;
+	using Base = RegOld::Masked<Address.value(),Mask> ;
 	Control(Base base) : Base(base) {}
 	using Enabled = Word::Bit< 9  > ; 
 	using Divider = Word::Set<16,8> ; // "pre-scaler" 1..256
@@ -38,7 +38,7 @@ struct ArmTimer
 
     Control control() { return Control(&page->at<Control::Offset/4>()) ; }
     
-    using Counter = Register::Word<Address+0x420> ;
+    using Counter = RegOld::Word<Address+0x420> ;
 
     Counter counter() const { return Counter(&page->at<Counter::Offset/4>()) ; }
     // [todo] should return a const reference / pointer

@@ -2,43 +2,30 @@
 
 #include "Function.h"
 
-constexpr Rpi::Peripheral::PNo Rpi::Gpio::Function::PNo ;
-
-Rpi::Gpio::Function::Mode Rpi::Gpio::Function::get(Pin pin) const
+Rpi::Gpio::Function::Type Rpi::Gpio::Function::get(Base gpio,Pin pin)
 {
     static_assert(pin.max < 54,"") ;
-    auto i = Page::Index::coset(0x0u + pin.value()/10u) ;
+    auto i = 0x0u + pin.value()/10u ;
     // ...10 pins per bank
     auto r = 3u * (pin.value()%10u) ;
     // ...3 bits for each pin
-    auto w = this->page->at(i) ;
+    auto w = gpio.ptr()[i] ;
     w >>= r ;
-    return ModeEnum::coset(w).e() ;
+    return TypeEnum::coset(w).e() ;
 }
 
-void Rpi::Gpio::Function::set(Pin pin,Mode mode)
+void Rpi::Gpio::Function::set(Base gpio,Pin pin,Type mode)
 {
     static_assert(pin.max < 54,"") ;
-    auto i = Page::Index::coset(0x0u + pin.value()/10u) ;
+    auto i = 0x0u + pin.value()/10u ;
     // ...10 pins per bank
     auto r = 3u * (pin.value()%10u) ; 
     // ...3 bits for each pin
-    auto w = this->page->at(i) ;
+    auto w = gpio.ptr()[i] ;
     w &= ~(7u << r) ; 
-    w |= ModeEnum(mode).n() << r ;
-    this->page->at(i) = w ;
+    w |= TypeEnum(mode).n() << r ;
+    gpio.ptr()[i] = w ;
     // [todo] read back and check if the same (race conditions)
-}
-
-void Rpi::Gpio::Function::set(uint32_t set,Mode mode)
-{
-    auto i = Pin::first() ; 
-    do
-    {
-	if (0 != (set & (1u << i.value())))
-	    this->set(i,mode) ;
-    }
-    while (i.next()) ;
 }
 
 std::vector<Rpi::Gpio::Function::Record> const& Rpi::Gpio::Function::records() 
@@ -47,182 +34,182 @@ std::vector<Rpi::Gpio::Function::Record> const& Rpi::Gpio::Function::records()
   
 	// 2x Broadcom Serial Controller (Master): (Sda,Scl)
   
-	{ Type::Bsc0_Sda,Pin::make <0>(),Mode::Alt0 },
-	{ Type::Bsc0_Sda,Pin::make<28>(),Mode::Alt0 },
-	{ Type::Bsc0_Scl,Pin::make <1>(),Mode::Alt0 },
-	{ Type::Bsc0_Scl,Pin::make<29>(),Mode::Alt0 },
+	{ Device::Bsc0_Sda,Pin::make <0>(),Type::Alt0 },
+	{ Device::Bsc0_Sda,Pin::make<28>(),Type::Alt0 },
+	{ Device::Bsc0_Scl,Pin::make <1>(),Type::Alt0 },
+	{ Device::Bsc0_Scl,Pin::make<29>(),Type::Alt0 },
   
-	{ Type::Bsc1_Sda,Pin::make<2>(),Mode::Alt0 },
-	//{ Type::Bsc1_Sda,Pin::make<44>(),Mode::Alt0 },
-	{ Type::Bsc1_Scl,Pin::make<3>(),Mode::Alt2 },
-	//{ Type::Bsc1_Scl,Pin::make<45>(),Mode::Alt2 },
+	{ Device::Bsc1_Sda,Pin::make<2>(),Type::Alt0 },
+	//{ Device::Bsc1_Sda,Pin::make<44>(),Type::Alt0 },
+	{ Device::Bsc1_Scl,Pin::make<3>(),Type::Alt2 },
+	//{ Device::Bsc1_Scl,Pin::make<45>(),Type::Alt2 },
 
 	// 1x Broadcom Serial Controller (Slave): (Sda,Scl) 
 
-	{ Type::BscS_Sda,Pin::make<18>(),Mode::Alt3 },
-	{ Type::BscS_Scl,Pin::make<19>(),Mode::Alt3 },
+	{ Device::BscS_Sda,Pin::make<18>(),Type::Alt3 },
+	{ Device::BscS_Scl,Pin::make<19>(),Type::Alt3 },
 
 	// 3x General Purpose Clock
   
-	{ Type::Cp0,Pin::make <4>(),Mode::Alt0 },
-	{ Type::Cp0,Pin::make<20>(),Mode::Alt5 },
-	//{ Type::Cp0,Pin::make<32>(),Mode::Alt0 },
-	//{ Type::Cp0,Pin::make<34>(),Mode::Alt0 },
+	{ Device::Cp0,Pin::make <4>(),Type::Alt0 },
+	{ Device::Cp0,Pin::make<20>(),Type::Alt5 },
+	//{ Device::Cp0,Pin::make<32>(),Type::Alt0 },
+	//{ Device::Cp0,Pin::make<34>(),Type::Alt0 },
   
-	{ Type::Cp1,Pin::make <5>(),Mode::Alt0 },
-	{ Type::Cp0,Pin::make<21>(),Mode::Alt5 },
-	//{ Type::Cp1,Pin::make<42>(),Mode::Alt0 },
-	//{ Type::Cp1,Pin::make<44>(),Mode::Alt0 },
+	{ Device::Cp1,Pin::make <5>(),Type::Alt0 },
+	{ Device::Cp0,Pin::make<21>(),Type::Alt5 },
+	//{ Device::Cp1,Pin::make<42>(),Type::Alt0 },
+	//{ Device::Cp1,Pin::make<44>(),Type::Alt0 },
   
-	{ Type::Cp2,Pin::make<6>(),Mode::Alt0 },
-	//{ Type::Cp2,Pin::make<43>(),Mode::Alt0 },
+	{ Device::Cp2,Pin::make<6>(),Type::Alt0 },
+	//{ Device::Cp2,Pin::make<43>(),Type::Alt0 },
 
 	// 1x Serial Peripheral Interface ("Full"): (Miso,Mosi,Clk,Ce0,Ce1)
 
-	{ Type::Spi0_Ce1 ,Pin::make< 7>(),Mode::Alt0 },
-	//{ Type::Spi0_Ce1 ,Pin::make<35>(),Mode::Alt0 },
-	{ Type::Spi0_Ce0 ,Pin::make< 8>(),Mode::Alt0 },
-	//{ Type::Spi0_Ce0 ,Pin::make<36>(),Mode::Alt0 },
-	{ Type::Spi0_Miso,Pin::make< 9>(),Mode::Alt0 },
-	//{ Type::Spi0_Miso,Pin::make<37>(),Mode::Alt0 },
-	{ Type::Spi0_Mosi,Pin::make<10>(),Mode::Alt0 },
-	//{ Type::Spi0_Mosi,Pin::make<38>(),Mode::Alt0 },
-	{ Type::Spi0_Sclk,Pin::make<11>(),Mode::Alt0 },
-	//{ Type::Spi0_Sclk,Pin::make<39>(),Mode::Alt0 },
+	{ Device::Spi0_Ce1 ,Pin::make< 7>(),Type::Alt0 },
+	//{ Device::Spi0_Ce1 ,Pin::make<35>(),Type::Alt0 },
+	{ Device::Spi0_Ce0 ,Pin::make< 8>(),Type::Alt0 },
+	//{ Device::Spi0_Ce0 ,Pin::make<36>(),Type::Alt0 },
+	{ Device::Spi0_Miso,Pin::make< 9>(),Type::Alt0 },
+	//{ Device::Spi0_Miso,Pin::make<37>(),Type::Alt0 },
+	{ Device::Spi0_Mosi,Pin::make<10>(),Type::Alt0 },
+	//{ Device::Spi0_Mosi,Pin::make<38>(),Type::Alt0 },
+	{ Device::Spi0_Sclk,Pin::make<11>(),Type::Alt0 },
+	//{ Device::Spi0_Sclk,Pin::make<39>(),Type::Alt0 },
   
 	// 2x Serial Peripheral Interface ("Lite"): (Miso,Mosi,Clk,Ce0,Ce1,Ce2)
 
-	{ Type::Spi1_Ce2 ,Pin::make<16>(),Mode::Alt4 },
-	{ Type::Spi1_Ce1 ,Pin::make<17>(),Mode::Alt4 },
-	{ Type::Spi1_Ce0 ,Pin::make<18>(),Mode::Alt4 },
-	{ Type::Spi1_Miso,Pin::make<19>(),Mode::Alt4 },
-	{ Type::Spi1_Mosi,Pin::make<20>(),Mode::Alt4 },
-	{ Type::Spi1_Sclk,Pin::make<21>(),Mode::Alt4 },
+	{ Device::Spi1_Ce2 ,Pin::make<16>(),Type::Alt4 },
+	{ Device::Spi1_Ce1 ,Pin::make<17>(),Type::Alt4 },
+	{ Device::Spi1_Ce0 ,Pin::make<18>(),Type::Alt4 },
+	{ Device::Spi1_Miso,Pin::make<19>(),Type::Alt4 },
+	{ Device::Spi1_Mosi,Pin::make<20>(),Type::Alt4 },
+	{ Device::Spi1_Sclk,Pin::make<21>(),Type::Alt4 },
     
 	/*
-	  { Type::Spi2_Ce2 ,Pin::make<45>(),Mode::Alt4 },
-	  { Type::Spi2_Ce1 ,Pin::make<44>(),Mode::Alt4 },
-	  { Type::Spi2_Ce0 ,Pin::make<43>(),Mode::Alt4 },
-	  { Type::Spi2_Miso,Pin::make<40>(),Mode::Alt4 },
-	  { Type::Spi2_Mosi,Pin::make<41>(),Mode::Alt4 },
-	  { Type::Spi2_Sclk,Pin::make<42>(),Mode::Alt4 },
+	  { Device::Spi2_Ce2 ,Pin::make<45>(),Type::Alt4 },
+	  { Device::Spi2_Ce1 ,Pin::make<44>(),Type::Alt4 },
+	  { Device::Spi2_Ce0 ,Pin::make<43>(),Type::Alt4 },
+	  { Device::Spi2_Miso,Pin::make<40>(),Type::Alt4 },
+	  { Device::Spi2_Mosi,Pin::make<41>(),Type::Alt4 },
+	  { Device::Spi2_Sclk,Pin::make<42>(),Type::Alt4 },
 	*/
     
 	// 1x Serial Peripheral Interface (Slave): (Mosi,Miso,Sclk,Ce)
     
-	{ Type::BscS_Mosi,Pin::make<18>(),Mode::Alt3 },
-	{ Type::BscS_Slck,Pin::make<19>(),Mode::Alt3 },
-	{ Type::BscS_Miso,Pin::make<20>(),Mode::Alt3 },
-	{ Type::BscS_Ce  ,Pin::make<21>(),Mode::Alt3 },
+	{ Device::BscS_Mosi,Pin::make<18>(),Type::Alt3 },
+	{ Device::BscS_Slck,Pin::make<19>(),Type::Alt3 },
+	{ Device::BscS_Miso,Pin::make<20>(),Type::Alt3 },
+	{ Device::BscS_Ce  ,Pin::make<21>(),Type::Alt3 },
   
 	// 2x Pulse Width Modulation
   
-	{ Type::Pwm0,Pin::make<12>(),Mode::Alt0 },
-	{ Type::Pwm0,Pin::make<18>(),Mode::Alt5 },
-	//{ Type::Pwm0,Pin::make<40>(),Mode::Alt0 },
+	{ Device::Pwm0,Pin::make<12>(),Type::Alt0 },
+	{ Device::Pwm0,Pin::make<18>(),Type::Alt5 },
+	//{ Device::Pwm0,Pin::make<40>(),Type::Alt0 },
   
-	{ Type::Pwm1,Pin::make<13>(),Mode::Alt0 },
-	{ Type::Pwm0,Pin::make<19>(),Mode::Alt5 },
-	//{ Type::Pwm0,Pin::make<41>(),Mode::Alt0 },
-	//{ Type::Pwm0,Pin::make<45>(),Mode::Alt0 },
+	{ Device::Pwm1,Pin::make<13>(),Type::Alt0 },
+	{ Device::Pwm0,Pin::make<19>(),Type::Alt5 },
+	//{ Device::Pwm0,Pin::make<41>(),Type::Alt0 },
+	//{ Device::Pwm0,Pin::make<45>(),Type::Alt0 },
 
 	// 2x Universal Asynchronous Receiver Transmitter: (Tx,Rx,Cts,Rts)
 
-	{ Type::Uart0_Txd,Pin::make<14>(),Mode::Alt0 },
-	{ Type::Uart0_Txd,Pin::make<30>(),Mode::Alt3 },
-	//{ Type::Uart0_Txd,Pin::make<36>(),Mode::Alt2 },
-	{ Type::Uart0_Rxd,Pin::make<15>(),Mode::Alt0 },
-	{ Type::Uart0_Rxd,Pin::make<31>(),Mode::Alt3 },
-	//{ Type::Uart0_Rxd,Pin::make<37>(),Mode::Alt2 },
-	{ Type::Uart0_Cts,Pin::make<16>(),Mode::Alt3 },
-	//{ Type::Uart0_Cts,Pin::make<32>(),Mode::Alt3 },
-	//{ Type::Uart0_Cts,Pin::make<38>(),Mode::Alt2 },
-	{ Type::Uart0_Rts,Pin::make<17>(),Mode::Alt3 },
-	//{ Type::Uart0_Rts,Pin::make<33>(),Mode::Alt3 },
-	//{ Type::Uart0_Rts,Pin::make<39>(),Mode::Alt2 },
+	{ Device::Uart0_Txd,Pin::make<14>(),Type::Alt0 },
+	{ Device::Uart0_Txd,Pin::make<30>(),Type::Alt3 },
+	//{ Device::Uart0_Txd,Pin::make<36>(),Type::Alt2 },
+	{ Device::Uart0_Rxd,Pin::make<15>(),Type::Alt0 },
+	{ Device::Uart0_Rxd,Pin::make<31>(),Type::Alt3 },
+	//{ Device::Uart0_Rxd,Pin::make<37>(),Type::Alt2 },
+	{ Device::Uart0_Cts,Pin::make<16>(),Type::Alt3 },
+	//{ Device::Uart0_Cts,Pin::make<32>(),Type::Alt3 },
+	//{ Device::Uart0_Cts,Pin::make<38>(),Type::Alt2 },
+	{ Device::Uart0_Rts,Pin::make<17>(),Type::Alt3 },
+	//{ Device::Uart0_Rts,Pin::make<33>(),Type::Alt3 },
+	//{ Device::Uart0_Rts,Pin::make<39>(),Type::Alt2 },
 
-	{ Type::Uart1_Txd,Pin::make<14>(),Mode::Alt5 },
-	{ Type::Uart1_Txd,Pin::make<30>(),Mode::Alt5 },
-	//{ Type::Uart1_Txd,Pin::make<40>(),Mode::Alt5 },
-	{ Type::Uart1_Rxd,Pin::make<15>(),Mode::Alt5 },
-	{ Type::Uart1_Txd,Pin::make<31>(),Mode::Alt5 },
-	//{ Type::Uart1_Rxd,Pin::make<41>(),Mode::Alt5 },
-	{ Type::Uart1_Cts,Pin::make<16>(),Mode::Alt5 },
-	//{ Type::Uart1_Cts,Pin::make<32>(),Mode::Alt5 }
-	//{ Type::Uart1_Cts,Pin::make<42>(),Mode::Alt5 },
-	{ Type::Uart1_Rts,Pin::make<17>(),Mode::Alt5 },
-	//{ Type::Uart1_Rts,Pin::make<33>(),Mode::Alt5 },
-	//{ Type::Uart1_Rts,Pin::make<43>(),Mode::Alt5 },
+	{ Device::Uart1_Txd,Pin::make<14>(),Type::Alt5 },
+	{ Device::Uart1_Txd,Pin::make<30>(),Type::Alt5 },
+	//{ Device::Uart1_Txd,Pin::make<40>(),Type::Alt5 },
+	{ Device::Uart1_Rxd,Pin::make<15>(),Type::Alt5 },
+	{ Device::Uart1_Txd,Pin::make<31>(),Type::Alt5 },
+	//{ Device::Uart1_Rxd,Pin::make<41>(),Type::Alt5 },
+	{ Device::Uart1_Cts,Pin::make<16>(),Type::Alt5 },
+	//{ Device::Uart1_Cts,Pin::make<32>(),Type::Alt5 }
+	//{ Device::Uart1_Cts,Pin::make<42>(),Type::Alt5 },
+	{ Device::Uart1_Rts,Pin::make<17>(),Type::Alt5 },
+	//{ Device::Uart1_Rts,Pin::make<33>(),Type::Alt5 },
+	//{ Device::Uart1_Rts,Pin::make<43>(),Type::Alt5 },
 
 	// 1x Pulse Code Modulation: (Clk,Fs,Din,Dout)
   
-	{ Type::Pcm_Clk ,Pin::make<18>(),Mode::Alt0 },
-	{ Type::Pcm_Clk ,Pin::make<28>(),Mode::Alt2 },
-	{ Type::Pcm_Fs  ,Pin::make<19>(),Mode::Alt0 },
-	{ Type::Pcm_Fs  ,Pin::make<29>(),Mode::Alt2 },
-	{ Type::Pcm_Din ,Pin::make<20>(),Mode::Alt0 },
-	{ Type::Pcm_Din ,Pin::make<30>(),Mode::Alt2 },
-	{ Type::Pcm_Dout,Pin::make<21>(),Mode::Alt0 },
-	{ Type::Pcm_Dout,Pin::make<31>(),Mode::Alt2 },
+	{ Device::Pcm_Clk ,Pin::make<18>(),Type::Alt0 },
+	{ Device::Pcm_Clk ,Pin::make<28>(),Type::Alt2 },
+	{ Device::Pcm_Fs  ,Pin::make<19>(),Type::Alt0 },
+	{ Device::Pcm_Fs  ,Pin::make<29>(),Type::Alt2 },
+	{ Device::Pcm_Din ,Pin::make<20>(),Type::Alt0 },
+	{ Device::Pcm_Din ,Pin::make<30>(),Type::Alt2 },
+	{ Device::Pcm_Dout,Pin::make<21>(),Type::Alt0 },
+	{ Device::Pcm_Dout,Pin::make<31>(),Type::Alt2 },
   
 	// 1x Secondary Memory: (Sa0,...,Sa5,Sd0,...,Sd17,Soe,Swe)
   
-	{ Type::Mem_Sa0, Pin::make< 5>(),Mode::Alt1 },
-	{ Type::Mem_Sa0,Pin::make<28>(),Mode::Alt1 },
-	{ Type::Mem_Sa1, Pin::make< 4>(),Mode::Alt1 },
-	{ Type::Mem_Sa1,Pin::make<29>(),Mode::Alt1 },
-	{ Type::Mem_Sa2, Pin::make< 3>(),Mode::Alt1 },
-	{ Type::Mem_Sa2,Pin::make<30>(),Mode::Alt1 },
-	{ Type::Mem_Sa3, Pin::make< 2>(),Mode::Alt1 },
-	{ Type::Mem_Sa3,Pin::make<31>(),Mode::Alt1 },
-	{ Type::Mem_Sa4, Pin::make< 1>(),Mode::Alt1 },
-	/*{ Type::Mem_Sa4,Pin::make<32>(),Mode::Alt1 },*/
-	{ Type::Mem_Sa5, Pin::make< 0>(),Mode::Alt1 },
-	/*{ Type::Mem_Sa5,Pin::make<33>(),Mode::Alt1 },*/
-	{ Type::Mem_Soe, Pin::make< 6>(),Mode::Alt1 },
-	/*{ Type::Mem_Soe,Pin::make<34>(),Mode::Alt1 },*/
-	{ Type::Mem_Swe, Pin::make< 7>(),Mode::Alt1 },
-	/*{ Type::Mem_Soe,Pin::make<35>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd0, Pin::make< 8>(),Mode::Alt1 },
-	/*{ Type::Mem_Sd0,Pin::make<36>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd1, Pin::make< 9>(),Mode::Alt1 },
-	/*{ Type::Mem_Sd1,Pin::make<37>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd2, Pin::make<10>(),Mode::Alt1 },
-	/*{ Type::Mem_Sd2,Pin::make<38>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd3, Pin::make<11>(),Mode::Alt1 },
-	/*{ Type::Mem_Sd3,Pin::make<39>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd4, Pin::make<12>(),Mode::Alt1 },
-	/*{ Type::Mem_Sd4,Pin::make<40>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd5, Pin::make<13>(),Mode::Alt1 },
-	/*{ Type::Mem_Sd5,Pin::make<41>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd6, Pin::make<14>(),Mode::Alt1 },
-	/*{ Type::Mem_Sd6,Pin::make<42>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd7, Pin::make<15>(),Mode::Alt1 },
-	/*{ Type::Mem_Sd7,Pin::make<43>(),Mode::Alt1 },*/
-	{ Type::Mem_Sd8, Pin::make<16>(),Mode::Alt1 },
-	{ Type::Mem_Sd9, Pin::make<17>(),Mode::Alt1 },
-	{ Type::Mem_Sd10,Pin::make<18>(),Mode::Alt1 },
-	{ Type::Mem_Sd11,Pin::make<19>(),Mode::Alt1 },
-	{ Type::Mem_Sd12,Pin::make<20>(),Mode::Alt1 },
-	{ Type::Mem_Sd13,Pin::make<21>(),Mode::Alt1 },
-	{ Type::Mem_Sd14,Pin::make<22>(),Mode::Alt1 },
-	{ Type::Mem_Sd15,Pin::make<23>(),Mode::Alt1 },
-	{ Type::Mem_Sd16,Pin::make<24>(),Mode::Alt1 },
-	{ Type::Mem_Sd17,Pin::make<15>(),Mode::Alt1 },
+	{ Device::Mem_Sa0, Pin::make< 5>(),Type::Alt1 },
+	{ Device::Mem_Sa0,Pin::make<28>(),Type::Alt1 },
+	{ Device::Mem_Sa1, Pin::make< 4>(),Type::Alt1 },
+	{ Device::Mem_Sa1,Pin::make<29>(),Type::Alt1 },
+	{ Device::Mem_Sa2, Pin::make< 3>(),Type::Alt1 },
+	{ Device::Mem_Sa2,Pin::make<30>(),Type::Alt1 },
+	{ Device::Mem_Sa3, Pin::make< 2>(),Type::Alt1 },
+	{ Device::Mem_Sa3,Pin::make<31>(),Type::Alt1 },
+	{ Device::Mem_Sa4, Pin::make< 1>(),Type::Alt1 },
+	/*{ Device::Mem_Sa4,Pin::make<32>(),Type::Alt1 },*/
+	{ Device::Mem_Sa5, Pin::make< 0>(),Type::Alt1 },
+	/*{ Device::Mem_Sa5,Pin::make<33>(),Type::Alt1 },*/
+	{ Device::Mem_Soe, Pin::make< 6>(),Type::Alt1 },
+	/*{ Device::Mem_Soe,Pin::make<34>(),Type::Alt1 },*/
+	{ Device::Mem_Swe, Pin::make< 7>(),Type::Alt1 },
+	/*{ Device::Mem_Soe,Pin::make<35>(),Type::Alt1 },*/
+	{ Device::Mem_Sd0, Pin::make< 8>(),Type::Alt1 },
+	/*{ Device::Mem_Sd0,Pin::make<36>(),Type::Alt1 },*/
+	{ Device::Mem_Sd1, Pin::make< 9>(),Type::Alt1 },
+	/*{ Device::Mem_Sd1,Pin::make<37>(),Type::Alt1 },*/
+	{ Device::Mem_Sd2, Pin::make<10>(),Type::Alt1 },
+	/*{ Device::Mem_Sd2,Pin::make<38>(),Type::Alt1 },*/
+	{ Device::Mem_Sd3, Pin::make<11>(),Type::Alt1 },
+	/*{ Device::Mem_Sd3,Pin::make<39>(),Type::Alt1 },*/
+	{ Device::Mem_Sd4, Pin::make<12>(),Type::Alt1 },
+	/*{ Device::Mem_Sd4,Pin::make<40>(),Type::Alt1 },*/
+	{ Device::Mem_Sd5, Pin::make<13>(),Type::Alt1 },
+	/*{ Device::Mem_Sd5,Pin::make<41>(),Type::Alt1 },*/
+	{ Device::Mem_Sd6, Pin::make<14>(),Type::Alt1 },
+	/*{ Device::Mem_Sd6,Pin::make<42>(),Type::Alt1 },*/
+	{ Device::Mem_Sd7, Pin::make<15>(),Type::Alt1 },
+	/*{ Device::Mem_Sd7,Pin::make<43>(),Type::Alt1 },*/
+	{ Device::Mem_Sd8, Pin::make<16>(),Type::Alt1 },
+	{ Device::Mem_Sd9, Pin::make<17>(),Type::Alt1 },
+	{ Device::Mem_Sd10,Pin::make<18>(),Type::Alt1 },
+	{ Device::Mem_Sd11,Pin::make<19>(),Type::Alt1 },
+	{ Device::Mem_Sd12,Pin::make<20>(),Type::Alt1 },
+	{ Device::Mem_Sd13,Pin::make<21>(),Type::Alt1 },
+	{ Device::Mem_Sd14,Pin::make<22>(),Type::Alt1 },
+	{ Device::Mem_Sd15,Pin::make<23>(),Type::Alt1 },
+	{ Device::Mem_Sd16,Pin::make<24>(),Type::Alt1 },
+	{ Device::Mem_Sd17,Pin::make<15>(),Type::Alt1 },
   
 	// 1x ARM: (Trst,Rtck,Tdo,Tck,Tdi,Tms)
   
-	{ Type::Arm_Trst,Pin::make<22>(),Mode::Alt4 },
-	{ Type::Arm_Rtck,Pin::make<23>(),Mode::Alt4 },
-	{ Type::Arm_Rtck,Pin::make< 6>(),Mode::Alt5 },
-	{ Type::Arm_Tdo ,Pin::make<24>(),Mode::Alt4 },
-	{ Type::Arm_Tdo ,Pin::make< 5>(),Mode::Alt5 },
-	{ Type::Arm_Tck ,Pin::make<25>(),Mode::Alt4 },
-	{ Type::Arm_Tck ,Pin::make<13>(),Mode::Alt5 },
-	{ Type::Arm_Tdi ,Pin::make<26>(),Mode::Alt4 },
-	{ Type::Arm_Tdi ,Pin::make< 4>(),Mode::Alt5 },
-	{ Type::Arm_Tms ,Pin::make<27>(),Mode::Alt4 },
-	{ Type::Arm_Tms ,Pin::make<12>(),Mode::Alt5 },
+	{ Device::Arm_Trst,Pin::make<22>(),Type::Alt4 },
+	{ Device::Arm_Rtck,Pin::make<23>(),Type::Alt4 },
+	{ Device::Arm_Rtck,Pin::make< 6>(),Type::Alt5 },
+	{ Device::Arm_Tdo ,Pin::make<24>(),Type::Alt4 },
+	{ Device::Arm_Tdo ,Pin::make< 5>(),Type::Alt5 },
+	{ Device::Arm_Tck ,Pin::make<25>(),Type::Alt4 },
+	{ Device::Arm_Tck ,Pin::make<13>(),Type::Alt5 },
+	{ Device::Arm_Tdi ,Pin::make<26>(),Type::Alt4 },
+	{ Device::Arm_Tdi ,Pin::make< 4>(),Type::Alt5 },
+	{ Device::Arm_Tms ,Pin::make<27>(),Type::Alt4 },
+	{ Device::Arm_Tms ,Pin::make<12>(),Type::Alt5 },
 
 	// [todo] (Sd1_Clk,Sd1_Cmd,Sd1_Dat0,...,Sd1_dat3)
     } ;
@@ -230,9 +217,9 @@ std::vector<Rpi::Gpio::Function::Record> const& Rpi::Gpio::Function::records()
     return recordV ;
 }
 
-char const* Rpi::Gpio::Function::name(Type type) 
+char const* Rpi::Gpio::Function::name(Device device) 
 {
-    static char const* nameV[] =
+    static char const* v[] =
     {
 	"Bsc0_Sda","Bsc0_Scl",
 	"Bsc1_Sda","Bsc1_Scl",
@@ -258,6 +245,6 @@ char const* Rpi::Gpio::Function::name(Type type)
 	"Mem_Sd16","Mem_Sd17",
 	"Arm_Trst","Arm_Rtck","Arm_Tdo","Arm_Tck","Arm_Tdi","Arm_Tms",
     } ;
-    static_assert(TypeEnum::max == sizeof(nameV)/sizeof(nameV[0])-1,"") ;
-    return nameV[TypeEnum(type).n()] ;
+    static_assert(DeviceEnum::max == sizeof(v)/sizeof(v[0])-1,"") ;
+    return v[DeviceEnum(device).n()] ;
 }

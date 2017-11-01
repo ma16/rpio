@@ -6,7 +6,7 @@
 #define INCLUDE_Rpi_Pwm_h
 
 #include "Peripheral.h"
-#include "Register.h"
+#include "RegOld.h"
 #include <Neat/Enum.h>
 
 namespace Rpi {
@@ -19,9 +19,9 @@ struct Pwm
 
     static constexpr auto Address = Bus::Address::Base + PNo.value() * Page::nbytes ;
 
-    struct Control : Register::Masked<Address+0x000,0xbfff>
+    struct Control : RegOld::Masked<Address+0x000,0xbfff>
     {
-	using Base = Register::Masked<Address.value(),Mask> ;
+	using Base = RegOld::Masked<Address.value(),Mask> ;
 	Control(Base base) : Base(base) {}
 	using Pwen1 = Word::Bit< 0> ;
 	using Mode1 = Word::Bit< 1> ; 
@@ -40,9 +40,9 @@ struct Pwm
 	using Msen2 = Word::Bit<15> ;
     } ;
 
-    struct Status : Register::Masked<Address+0x004,0x73f>
+    struct Status : RegOld::Masked<Address+0x004,0x73f>
     {
-	using Base = Register::Masked<Address.value(),Mask> ;
+	using Base = RegOld::Masked<Address.value(),Mask> ;
 	Status(Base base) : Base(base) {}
 	using Full = Word::Bit< 0> ; 
 	using Empt = Word::Bit< 1> ; 
@@ -55,20 +55,20 @@ struct Pwm
 	using Sta2 = Word::Bit<10> ; 
     } ;
 
-    struct DmaC : Register::Masked<Address+0x008,0x8000ffff>
+    struct DmaC : RegOld::Masked<Address+0x008,0x8000ffff>
     {
-	using Base = Register::Masked<Address.value(),Mask> ;
+	using Base = RegOld::Masked<Address.value(),Mask> ;
 	DmaC(Base base) : Base(base) {}
 	using Dreq   = Word::Set<0,8> ;
 	using Panic  = Word::Set<8,8> ;
 	using Enable = Word::Set<31,1> ;
     } ;
 
-    using Range1 = Register::Word<Address+0x010> ;
-    using  Data1 = Register::Word<Address+0x014> ;
-    using   Fifo = Register::Word<Address+0x018> ;
-    using Range2 = Register::Word<Address+0x020> ;
-    using  Data2 = Register::Word<Address+0x024> ;
+    using Range1 = RegOld::Word<Address+0x010> ;
+    using  Data1 = RegOld::Word<Address+0x014> ;
+    using   Fifo = RegOld::Word<Address+0x018> ;
+    using Range2 = RegOld::Word<Address+0x020> ;
+    using  Data2 = RegOld::Word<Address+0x024> ;
 
     Control control() { return Control(&page->at<Control::Offset/4>()) ; }
     Data1     data1() { return   Data1(&page->at<  Data1::Offset/4>()) ; }

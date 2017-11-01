@@ -2,4 +2,4 @@
 
 #include "Register.h"
 
-// the remainder is left intentionally empty
+// empty on purpose
