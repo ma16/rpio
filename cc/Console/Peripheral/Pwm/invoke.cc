@@ -10,6 +10,7 @@
 #include <Neat/cast.h>
 #include <Neat/stream.h>
 #include <Rpi/ArmTimer.h>
+#include <Rpi/Pwm.h>
 #include <RpiExt/Dma/Control.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>

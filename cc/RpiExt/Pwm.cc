@@ -2,9 +2,6 @@
 
 #include "Pwm.h"
 #include <cassert>
-#include <iostream> // [debug]
-
-using Status = Rpi::Pwm::Status ;
 
 size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
 {
@@ -33,7 +30,6 @@ size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
     }
 }
 
-#if 1
 bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
 {
     using Fifo   = Rpi::Register::Pwm::Fifo ;
@@ -52,21 +48,7 @@ bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
     
     return error ;
 }
-#else
-bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
-{
-    constexpr auto werr = Status::Werr::make(1).word() ;
-    this->pwm.status().write(werr) ;
-    for (decltype(n) i=0 ; i<n ; ++i)
-	this->pwm.fifo().write(word) ;
-    auto error = this->pwm.status().read().test(Status::Werr::Digit) ;
-    if (error)
-	this->pwm.status().write(werr) ;
-    return error ;
-}
-#endif
 
-#if 1
 size_t RpiExt::Pwm::headstart(uint32_t const buffer[],size_t nwords)
 {
     using Control = Rpi::Register::Pwm::Control ;
@@ -81,21 +63,7 @@ size_t RpiExt::Pwm::headstart(uint32_t const buffer[],size_t nwords)
     this->base.at<Control>().write(control) ;
     return n ;
 }
-#else
-size_t RpiExt::Pwm::headstart(uint32_t const buffer[],size_t nwords)
-{
-    auto enable = this->pwm.control().read() ;
-    auto disable = enable ;
-    disable %= Rpi::Pwm::Control::Pwen1::make(0) ;
-    disable %= Rpi::Pwm::Control::Pwen2::make(0) ;
-    this->setControl(disable) ;
-    auto n = this->topUp(buffer,nwords) ;
-    this->setControl(enable) ;
-    return n ;
-}
-#endif
 
-#if 1
 std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
 {
     using Fifo   = Rpi::Register::Pwm::Fifo ;
@@ -176,85 +144,7 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
 
     // [todo] we might stop the timing whenever a gap is encountered
 }
-#else
-std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
-{
-    // we keep the FIFO full for the given duration and then return
-    // number of words written divided by the time that has passed.
 
-    // the ARM timer we use is using milli-seconds
-    auto span = static_cast<uint32_t>(seconds * 1e+6 + .5) ;
-
-    // actually, the data we write to the FIFO doesn't matter.
-    // however, if we analyze the output with a logic analyzer,
-    // a distinguishable pattern may become quite useful.
-    static uint32_t buffer[40] = {
-	0x80000002,0x88000002,0x8a000002,0x8a800002,
-	0x8aa00002,0x8aa80002,0x8aaa0002,0x8aaa8002,
-	0xa0000002,0xa2000002,0xa2800002,0xa2a00002,
-	0xa2a80002,0xa2aa0002,0xa2aa8002,0xa2aaa002,
-	0xa8000002,0xa8800002,0xa8a00002,0xa8a80002,
-	0xa8aa0002,0xa8aa8002,0xa8aaa002,0xa8aaa802,
-	0xaa000002,0xaa200002,0xaa280002,0xaa2a0002,
-	0xaa2a8002,0xaa2aa002,0xaa2aa802,0xaa2aaa02,
-	0xaa800002,0xaa880002,0xaa8a0002,0xaa8a8002,
-	0xaa8aa002,0xaa8aa802,0xaa8aaa02,0xaa8aaa82 } ;
-    // ...feel free to change this to other values which do display
-    // *better* on a logic analyzer. don't change the number of entries
-    // unless you modify the code below too.
-
-    // flood fifo
-    this->pwm.status().write(Status::Werr::make(1).word()) ;
-    for (unsigned i=0 ; i<40 ; ++i)
-	this->pwm.fifo().write(buffer[i]) ;
-    // ...more than 16 words may be written to the FIFO if the
-    // serializer is reading fast. Using exactly 40 write operations
-    // here is arbitrary, though.
-    auto status = this->pwm.status().read() ;
-    if (!status.test(Status::Werr::Digit))
-	// either the serializer reads faster than we're able to write
-	// (likely) or we got suspended more than once (very unlikely)
-	return std::make_pair(std::numeric_limits<double>::infinity(),0) ;
-    this->pwm.status().write(Status::Werr::make(1).word()) ;
-
-    // set-up statistical data
-    auto t0 = this->timer.cLo() ; 
-    decltype(t0) t1 ; // time at (t0 + span)
-    size_t nwords = 0 ; // number of words enqueued
-    size_t  ngaps = 0 ; // number of (potential) fifo underruns
-
-    if (!this->writable(span))
-	return std::make_pair(0.0,0) ;
-
-    // local function: top-up the fifo and update (nwords,ngaps)
-    auto enqueue = [this,&nwords,&ngaps](uint32_t const buffer[])
-    {
-	while (this->pwm.status().read().test(Status::Full::Digit))
-	    ;
-	auto n = this->topUp(buffer,24) ;
-	// ...24 is quite random, 16 should work too
-	nwords += n ;
-	if (n >= 16)
-	    ++ngaps ;
-    } ;
-    
-    do // top-up the fifo until the test-period has passed
-    {
-	// we switch the data for each call...
-	enqueue(&buffer[ 0]) ;
-	enqueue(&buffer[16]) ;
-	// ...so we can see repetitions (if underrun) on the analyzer
-	t1 = this->timer.cLo() ;
-    }
-    while (t1 - t0 <= span) ;
-
-    return std::make_pair(1e+6 * nwords / (t1 - t0),ngaps) ;
-
-    // [todo] we might stop the timing whenever a gap is encountered
-}
-#endif
-
-#if 1
 void RpiExt::Pwm::setControl(typename Rpi::Register::Pwm::Control::Traits::WriteWord w)
 {
     using Berr    = Rpi::Register::Pwm::Berr ;
@@ -268,19 +158,7 @@ void RpiExt::Pwm::setControl(typename Rpi::Register::Pwm::Control::Traits::Write
 	this->base.at<Control>().write(w) ;
     }
 }
-#else
-void RpiExt::Pwm::setControl(Rpi::Pwm::Control::Word w)
-{
-    this->pwm.control().write(w) ;
-    while (this->pwm.status().read().test(Status::Berr::Digit))
-    {
-	this->pwm.status().write(Status::Berr::make(1).word()) ;
-	this->pwm.control().write(w) ;
-    }
-}
-#endif
 
-#if 1
 size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
 {
     using Fifo   = Rpi::Register::Pwm::Fifo ;
@@ -295,20 +173,7 @@ size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
     }
     return nwords ;
 }
-#else
-size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
-{
-    for (decltype(nwords) i=0 ; i<nwords ; ++i)
-    {
-	if (this->pwm.status().read().test(Status::Full::Digit))
-	    return i ;
-	this->pwm.fifo().write(buffer[i]) ;
-    }
-    return nwords ;
-}
-#endif
 
-#if 1
 bool RpiExt::Pwm::writable(uint32_t timeout)
 {
     using Full   = Rpi::Register::Pwm::Full ;
@@ -328,26 +193,7 @@ bool RpiExt::Pwm::writable(uint32_t timeout)
     }
     return true ;
 }
-#else
-bool RpiExt::Pwm::writable(uint32_t timeout)
-{
-    if (!this->pwm.status().read().test(Status::Full::Digit))
-	return true ;
-    auto t0 = this->timer.cLo() ; 
-    while (this->pwm.status().read().test(Status::Full::Digit))
-    {
-	if (this->timer.cLo() - t0 >= timeout)
-	    return false ;
-	// possible reasons:
-	// * the given time span was too short
-	// * pwm wasn't enabled
-	// * CM::PWM is not enabled
-    }
-    return true ;
-}
-#endif
 
-#if 1
 void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
 {
     using Fifo   = Rpi::Register::Pwm::Fifo ;
@@ -362,15 +208,3 @@ void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
 	this->base.at<Fifo>().write(buffer[i]) ;
     }
 }	
-#else
-void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
-{
-    for (decltype(nwords) i=0 ; i<nwords ; ++i)
-    {
-	while (this->pwm.status().read().test(Status::Full::Digit))
-	    ;
-        // ...blocks indefinitely if serializer doesn't read
-	this->pwm.fifo().write(buffer[i]) ;
-    }
-}	
-#endif

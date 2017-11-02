@@ -17,7 +17,6 @@
 #define INCLUDE_RpiExt_Pwm_h
 
 #include <Rpi/Register.h>
-#include <Rpi/Pwm.h>
 #include <Rpi/Timer.h>
 
 namespace RpiExt {
@@ -26,7 +25,7 @@ struct Pwm
 {
     struct Error : Neat::Error
     {
-      Error(std::string const &s) : Neat::Error("RpiExt:Pwm:" + s) {}
+	Error(std::string const &s) : Neat::Error("RpiExt:Pwm:" + s) {}
     } ;
 
     // block until all data has been written; return early on underrun
@@ -54,20 +53,15 @@ struct Pwm
     void write(uint32_t const buffer[],size_t nwords) ;
 
     // set control register and repeat until BERR=0
-#if 1
     void setControl(typename Rpi::Register::Pwm::Control::Traits::WriteWord w) ;
-#else    
-    void setControl(Rpi::Pwm::Control::Word) ;
-#endif    
 
     Pwm(Rpi::Peripheral *rpi)
 	: timer(rpi)
-	, pwm(rpi)
 	, base(rpi->page<Rpi::Register::Pwm::PageNo>()) {}
     
 private:
   
-    Rpi::Timer timer ; Rpi::Pwm pwm ;
+    Rpi::Timer timer ;
 
     Rpi::Register::Base<Rpi::Register::Pwm::PageNo> base ;
 
