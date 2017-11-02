@@ -10,8 +10,6 @@
 
 namespace Neat { namespace Bit {
 
-//template<typename U,unsigned O> struct Digit ;
-	
 template<typename U,U B> struct Word
 {
     using Unsigned = U ;
@@ -25,9 +23,21 @@ template<typename U,U B> struct Word
 
     constexpr Unsigned value() const { return i ; }
 
-    constexpr Word operator& (Word w) const { return Word(i & w.value()) ; }
-
-    template<unsigned B2> constexpr Word(Word<U,B2> w) : i(w.value())
+    constexpr Word operator~ () const { return i ^ Mask::Bits ; }
+    
+    template<unsigned B2> 
+    constexpr Word<U,B|B2> operator| (Word<U,B2> w) const
+    {
+	return Word<U,B|B2>(i | w.i) ;
+    }
+    
+    template<unsigned B2> 
+    constexpr Word<U,B|B2> operator& (Word<U,B2> w) const
+    {
+	return Word<U,B|B2>(i & w.i) ;
+    }
+    
+    template<unsigned B2> constexpr Word(Word<U,B2> w) : i(w.i)
     {
 	static_assert(B == (B | B2),"") ;
     }
@@ -39,6 +49,8 @@ private:
 
     template<typename U2,unsigned O2> friend class Digit ;
 
+    template<typename U2,U2 B2> friend class Word ;
+    
     Unsigned i ; 
 
     template<typename U2=Unsigned> 

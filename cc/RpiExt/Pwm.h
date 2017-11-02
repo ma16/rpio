@@ -54,10 +54,15 @@ struct Pwm
     void write(uint32_t const buffer[],size_t nwords) ;
 
     // set control register and repeat until BERR=0
+#if 1
+    void setControl(typename Rpi::Register::Pwm::Control::Traits::WriteWord w) ;
+#else    
     void setControl(Rpi::Pwm::Control::Word) ;
+#endif    
 
     Pwm(Rpi::Peripheral *rpi)
-	: timer(rpi),pwm(rpi)
+	: timer(rpi)
+	, pwm(rpi)
 	, base(rpi->page<Rpi::Register::Pwm::PageNo>()) {}
     
 private:
