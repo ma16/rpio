@@ -3,6 +3,8 @@
 #ifndef INCLUDE_Rpi_Register_h
 #define INCLUDE_Rpi_Register_h
 
+#include <Neat/Bit/Digit.h>
+#include <Neat/Bit/Set.h>
 #include <Neat/Bit/Word.h>
 #include <Neat/Enum.h>
 #include <cstdint>
@@ -22,6 +24,10 @@ namespace Rpi { namespace Register
 	static constexpr Pno PageNo = Pno::make<P>() ;
 	static constexpr auto Index = Pix::make<O/4>() ;
 	// ...the (byte) offset is converted to the word offset
+	
+	using  ReadWord = Neat::Bit::Word<uint32_t,R> ;
+	using WriteWord = Neat::Bit::Word<uint32_t,W> ;
+	
 	static constexpr auto  ReadMask = R ; 
 	static constexpr auto WriteMask = W ;
 	// static Bus::Address address = 0x7e<Pno><Ofs> 
@@ -32,13 +38,16 @@ namespace Rpi { namespace Register
 
     template<typename Traits> struct Pointer
     {
-	using ReadWord = Neat::Bit::Word<uint32_t,Traits::ReadMask> ;
-	
-	ReadWord read() const { return ReadWord::coset(*p) ; }
+	typename Traits::ReadWord read() const
+	{
+	    using ReadWord = typename Traits::ReadWord ;
+	    return ReadWord::coset(*p) ;
+	}
 
-	using WriteWord = Neat::Bit::Word<uint32_t,Traits::WriteMask> ;
-	
-	void write(WriteWord w) { (*p) = w.value() ; }
+	void write(typename Traits::WriteWord w)
+	{
+	    (*p) = w.value() ;
+	}
 	
 	uint32_t volatile* value() { return p ; }
 	
@@ -69,7 +78,7 @@ namespace Rpi { namespace Register
 	volatile uint32_t *p ; Base(volatile uint32_t *p) : p(p) {}
     } ;
 
-    template<typename U,unsigned O> using Bit = Neat::Bit::Bit<U,O> ;
+    template<typename U,unsigned O> using Digit = Neat::Bit::Digit<U,O> ;
     
     template<typename U,unsigned O,unsigned L> using Set = Neat::Bit::Set<U,O,L> ;
     
@@ -145,33 +154,33 @@ namespace Rpi { namespace Register
 
 	using Control = Traits<PageNo,0x00,0xbfff,0xbfff> ;
 
-	using Pwen1 = Bit<uint32_t, 0> ;
-	using Mode1 = Bit<uint32_t, 1> ; 
-	using Rptl1 = Bit<uint32_t, 2> ; 
-	using Sbit1 = Bit<uint32_t, 3> ; 
-	using Pola1 = Bit<uint32_t, 4> ; 
-	using Usef1 = Bit<uint32_t, 5> ; 
-	using Clrf  = Bit<uint32_t, 6> ; 
-	using Msen1 = Bit<uint32_t, 7> ; 
-	using Pwen2 = Bit<uint32_t, 8> ; 
-	using Mode2 = Bit<uint32_t, 9> ; 
-	using Rptl2 = Bit<uint32_t,10> ; 
-	using Sbit2 = Bit<uint32_t,11> ; 	
-	using Pola2 = Bit<uint32_t,12> ; 
-	using Usef2 = Bit<uint32_t,13> ; 
-	using Msen2 = Bit<uint32_t,15> ;
+	using Pwen1 = Digit<uint32_t, 0> ;
+	using Mode1 = Digit<uint32_t, 1> ; 
+	using Rptl1 = Digit<uint32_t, 2> ; 
+	using Sbit1 = Digit<uint32_t, 3> ; 
+	using Pola1 = Digit<uint32_t, 4> ; 
+	using Usef1 = Digit<uint32_t, 5> ; 
+	using Clrf  = Digit<uint32_t, 6> ; 
+	using Msen1 = Digit<uint32_t, 7> ; 
+	using Pwen2 = Digit<uint32_t, 8> ; 
+	using Mode2 = Digit<uint32_t, 9> ; 
+	using Rptl2 = Digit<uint32_t,10> ; 
+	using Sbit2 = Digit<uint32_t,11> ; 	
+	using Pola2 = Digit<uint32_t,12> ; 
+	using Usef2 = Digit<uint32_t,13> ; 
+	using Msen2 = Digit<uint32_t,15> ;
 
 	using Status = Traits<PageNo,0x04,0x73f,0x73f> ;
 
-	using Full = Bit<uint32_t, 0> ; 
-	using Empt = Bit<uint32_t, 1> ; 
-	using Werr = Bit<uint32_t, 2> ; 
-	using Rerr = Bit<uint32_t, 3> ; 
-	using Gap1 = Bit<uint32_t, 4> ; 
-	using Gap2 = Bit<uint32_t, 5> ; 
-	using Berr = Bit<uint32_t, 8> ; 
-	using Sta1 = Bit<uint32_t, 9> ; 
-	using Sta2 = Bit<uint32_t,10> ; 
+	using Full = Digit<uint32_t, 0> ; 
+	using Empt = Digit<uint32_t, 1> ; 
+	using Werr = Digit<uint32_t, 2> ; 
+	using Rerr = Digit<uint32_t, 3> ; 
+	using Gap1 = Digit<uint32_t, 4> ; 
+	using Gap2 = Digit<uint32_t, 5> ; 
+	using Berr = Digit<uint32_t, 8> ; 
+	using Sta1 = Digit<uint32_t, 9> ; 
+	using Sta2 = Digit<uint32_t,10> ; 
 
 	using DmaC = Traits<PageNo,0x08,0x8000ffff,0x8000ffff> ;
 

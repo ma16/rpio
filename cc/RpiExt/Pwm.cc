@@ -33,25 +33,26 @@ size_t RpiExt::Pwm::convey(uint32_t const buffer[],size_t nwords,uint32_t pad)
     }
 }
 
-#if 0
+#if 1
 bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
 {
-    constexpr auto werr = Rpi::Register::Pwm::Werr::make(1).word() ;
-
-    auto status = this->base.at<Rpi::Register::Pwm::Status>() ;
-    status.set(werr) ;
+    using Fifo   = Rpi::Register::Pwm::Fifo ;
+    using Status = Rpi::Register::Pwm::Status ;
+    using Werr   = Rpi::Register::Pwm::Werr ;
     
-    auto fifo = this->base.at<Rpi::Register::Pwm::Fifo>() ;
+    this->base.at<Status>().write(Werr::On) ;
+    
     for (decltype(n) i=0 ; i<n ; ++i)
-	fifo.set(word) ;
-    auto digit = Rpi::Register::Pwm::Werr::Digit ;
-    auto error = status.get().test(digit) ;
+	this->base.at<Fifo>().write(word) ;
+
+    auto status = this->base.at<Status>().read() ;
+    auto error = 0 != (status & Werr::On).value() ;
     if (error)
-	status.set(werr) ;
+	this->base.at<Status>().write(Werr::On) ;
+    
     return error ;
 }
-#endif
-
+#else
 bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
 {
     constexpr auto werr = Status::Werr::make(1).word() ;
@@ -63,6 +64,7 @@ bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
 	this->pwm.status().write(werr) ;
     return error ;
 }
+#endif
 
 size_t RpiExt::Pwm::headstart(uint32_t const buffer[],size_t nwords)
 {

@@ -74,7 +74,11 @@ LSRC=\
 	Linux/PhysMem.cc \
 	Linux/Shm.cc \
 	Neat/Bit/Crc.cc \
+	Neat/Bit/Digit.cc \
+	Neat/Bit/Mask.cc \
+	Neat/Bit/Set.cc \
 	Neat/Bit/Word.cc \
+	Neat/Bit/WordOld.cc \
 	Neat/Enum.cc \
 	Neat/NotSigned.cc \
 	Neat/safe_int.cc \

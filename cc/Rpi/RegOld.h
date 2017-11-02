@@ -4,7 +4,7 @@
 #define INCLUDE_Rpi_RegOld_h
 
 #include "Bus/Address.h"
-#include <Neat/Bit/Word.h>
+#include <Neat/Bit/WordOld.h>
 #include "Page.h"
 
 namespace Rpi { namespace RegOld {
@@ -32,7 +32,7 @@ template<uint32_t A,uint32_t M> struct Masked
 
     static constexpr auto Mask = M ; 
 
-    using Word = Neat::Bit::Word<uint32_t,Mask> ; 
+    using Word = Neat::Bit::WordOld<uint32_t,Mask> ; 
 	
     Word read() const { return Word::coset(*p) ; }
 	

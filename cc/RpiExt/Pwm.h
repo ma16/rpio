@@ -16,9 +16,9 @@
 #ifndef INCLUDE_RpiExt_Pwm_h
 #define INCLUDE_RpiExt_Pwm_h
 
-#include <Rpi/Timer.h>
+#include <Rpi/Register.h>
 #include <Rpi/Pwm.h>
-#include <vector>
+#include <Rpi/Timer.h>
 
 namespace RpiExt {
 
@@ -56,11 +56,15 @@ struct Pwm
     // set control register and repeat until BERR=0
     void setControl(Rpi::Pwm::Control::Word) ;
 
-    Pwm(Rpi::Peripheral *rpi) : timer(rpi),pwm(rpi) {}
+    Pwm(Rpi::Peripheral *rpi)
+	: timer(rpi),pwm(rpi)
+	, base(rpi->page<Rpi::Register::Pwm::PageNo>()) {}
     
 private:
   
     Rpi::Timer timer ; Rpi::Pwm pwm ;
+
+    Rpi::Register::Base<Rpi::Register::Pwm::PageNo> base ;
 
 } ; }
 

@@ -5,7 +5,7 @@
 #ifndef INCLUDE_Rpi_Dma_Ti_h
 #define INCLUDE_Rpi_Dma_Ti_h
 
-#include <Neat/Bit/Word.h>
+#include <Neat/Bit/WordOld.h>
 #include <Neat/BitPtr.h>
 #include <cstdint> // uint32_t
 
@@ -13,7 +13,7 @@ namespace Rpi { namespace Dma {
 
 namespace Ti
 {
-    using Word = Neat::Bit::Word<uint32_t,0x07fffffb> ;
+    using Word = Neat::Bit::WordOld<uint32_t,0x07fffffb> ;
     
     using Inten        = Word::Set< 0,1> ;
     using Tdmode       = Word::Set< 1,1> ;

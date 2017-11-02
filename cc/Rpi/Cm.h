@@ -8,7 +8,7 @@
 #include "Bus/Address.h"
 #include "Peripheral.h"
 #include <cassert>
-#include <Neat/Bit/Word.h>
+#include <Neat/Bit/WordOld.h>
 #include <Neat/Numerator.h>
 
 namespace Rpi {
@@ -32,7 +32,7 @@ struct Cm
     {
 	static constexpr auto Mask = M ; 
 
-	using Word = Neat::Bit::Word<uint32_t,Mask> ; 
+	using Word = Neat::Bit::WordOld<uint32_t,Mask> ; 
 	
 	Word read() const { return Word::coset(*p) ; }
 	
