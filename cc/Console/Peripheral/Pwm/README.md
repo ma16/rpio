@@ -84,8 +84,10 @@ DURATION: time in seconds to fill-up FIFO (default: 0.1)
 
 For example:
 ```
-$ rpio peripheral cm set pwm -f 0 -i 500 -s 6 ;\
-  rpio peripheral cm switch pwm on ;\
+$ rpio peripheral cm ctl pwm -enab +kill ;\
+  rpio peripheral cm div pwm intgr 500 fract 0 ;\
+  rpio peripheral cm ctl pwm mash 0 src 6 -kill ;\
+  rpio peripheral cm ctl pwm +enab ;\
   rpio peripheral pwm control +mode1 +usef1 +pwen1 ;\
   rpio peripheral pwm status
 
