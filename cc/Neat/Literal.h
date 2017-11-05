@@ -1,15 +1,15 @@
 // BSD 2-Clause License, see github.com/ma16/rpio
 
-#ifndef _Neat_Literal_h_
-#define _Neat_Literal_h_
+#ifndef INCLUDE_Neat_Literal_h
+#define INCLUDE_Neat_Literal_h
 
-#include "Error.h"
-#include <limits>
-#include <sstream> 
+namespace Neat {
 
-namespace Neat { template<typename T,T V> struct Literal
+template<typename T,T V> struct Literal
 {
-  using Type = T ; constexpr static auto value = V ;
-} ; }
+    using Type = T ; constexpr static auto Value = V ;
+} ;
 
-#endif // _Neat_Literal_h_
+}
+
+#endif // INCLUDE_Neat_Literal_h
