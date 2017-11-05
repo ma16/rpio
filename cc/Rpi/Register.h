@@ -3,10 +3,9 @@
 #ifndef INCLUDE_Rpi_Register_h
 #define INCLUDE_Rpi_Register_h
 
-#include <Neat/Bit/Digit.h>
-#include <Neat/Bit/Set.h>
 #include <Neat/Bit/Word.h>
 #include <Neat/Enum.h>
+#include <Rpi/Bus/Address.h>
 #include <cstdint>
 
 namespace Rpi { class Peripheral ; }
@@ -30,11 +29,14 @@ namespace Rpi { namespace Register
 	
 	static constexpr auto  ReadMask = R ; 
 	static constexpr auto WriteMask = W ;
-	// static Bus::Address address = 0x7e<Pno><Ofs> 
+	static constexpr auto Address   = Bus::Address(((0x7e000u+P)<<12)+O) ;
     } ;
 
     template<uint32_t P,uint32_t O,uint32_t R,uint32_t W>
     constexpr Pno Traits<P,O,R,W>::PageNo ;
+
+    template<uint32_t P,uint32_t O,uint32_t R,uint32_t W>
+    constexpr Bus::Address Traits<P,O,R,W>::Address ;
 
     template<typename Traits> struct Pointer
     {
@@ -78,9 +80,11 @@ namespace Rpi { namespace Register
 	volatile uint32_t *p ; Base(volatile uint32_t *p) : p(p) {}
     } ;
 
-    template<typename U,unsigned O> using Digit = Neat::Bit::Digit<U,O> ;
+    template<typename U,unsigned O>
+    using Digit = Neat::Bit::Digit<U,O> ;
     
-    template<typename U,unsigned O,unsigned L> using Set = Neat::Bit::Set<U,O,L> ;
+    template<typename U,unsigned O,unsigned L>
+    using Sequence = Neat::Bit::Sequence<U,O,L> ;
     
     // BCM2835 ARM Peripherals §6: General Purpose I/O (GPIO)
 
@@ -154,6 +158,8 @@ namespace Rpi { namespace Register
 
 	using Control = Traits<PageNo,0x00,0xbfff,0xbfff> ;
 
+	/* [todo] the bits should get a dedicated namespace */
+	
 	using Pwen1 = Digit<uint32_t, 0> ;
 	using Mode1 = Digit<uint32_t, 1> ; 
 	using Rptl1 = Digit<uint32_t, 2> ; 
@@ -184,15 +190,45 @@ namespace Rpi { namespace Register
 
 	using DmaC = Traits<PageNo,0x08,0x8000ffff,0x8000ffff> ;
 
-	using Dreq   = Set<uint32_t, 0,8> ;
-	using Panic  = Set<uint32_t, 8,8> ;
-	using Enable = Set<uint32_t,31,1> ;
+	using Dreq   = Sequence<uint32_t, 0,8> ;
+	using Panic  = Sequence<uint32_t, 8,8> ;
+	using Enable = Sequence<uint32_t,31,1> ;
 
 	using Range1 = Traits<PageNo,0x10,0xffffffff,0xffffffff> ;
 	using Data1  = Traits<PageNo,0x14,0xffffffff,0xffffffff> ;
 	using Fifo   = Traits<PageNo,0x18,0xffffffff,0xffffffff> ;
 	using Range2 = Traits<PageNo,0x20,0xffffffff,0xffffffff> ;
 	using Data2  = Traits<PageNo,0x24,0xffffffff,0xffffffff> ;
+
+	// runtime access to the PWM channels by index
+	
+	using Index = Neat::Enum<unsigned,1> ; 
+
+	static constexpr auto Channel1 = Index::make<0>() ;
+	static constexpr auto Channel2 = Index::make<1>() ;
+
+	struct Bank
+	{
+	    using Cmask = Neat::Bit::Word<uint32_t,0xbfff> ;
+	    Cmask mode ; 
+	    Cmask msen ;
+	    Cmask pola ;
+	    Cmask pwen ;
+	    Cmask rptl ;
+	    Cmask sbit ;
+	    Cmask usef ;
+	    using Smask = Neat::Bit::Word<uint32_t,0x73f> ;
+	    Smask gap ; 
+	    Smask sta ;
+	} ;
+	
+	static constexpr Bank bank[2] =
+	{
+	    { Mode1(),Msen1(),Pola1(),Pwen1(),Rptl1(),Sbit1(),Usef1(),Gap1(),Sta1() },
+	    { Mode2(),Msen2(),Pola2(),Pwen2(),Rptl2(),Sbit2(),Usef2(),Gap2(),Sta2() },
+	} ;
+
+	static constexpr Bank select(Index i) { return bank[i.value()] ; }
     }
 
 } }

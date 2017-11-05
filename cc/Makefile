@@ -75,8 +75,7 @@ LSRC=\
 	Linux/Shm.cc \
 	Neat/Bit/Crc.cc \
 	Neat/Bit/Digit.cc \
-	Neat/Bit/Mask.cc \
-	Neat/Bit/Set.cc \
+	Neat/Bit/Sequence.cc \
 	Neat/Bit/Word.cc \
 	Neat/Bit/WordOld.cc \
 	Neat/Enum.cc \
@@ -112,7 +111,6 @@ LSRC=\
 	Rpi/Mbox/Queue.cc \
 	Rpi/Page.cc \
 	Rpi/Peripheral.cc \
-	Rpi/Pwm.cc \
 	Rpi/Register.cc \
 	Rpi/RegOld.cc \
 	Rpi/Spi0.cc \

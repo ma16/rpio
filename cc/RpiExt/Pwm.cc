@@ -36,15 +36,14 @@ bool RpiExt::Pwm::fillUp(size_t n,uint32_t word)
     using Status = Rpi::Register::Pwm::Status ;
     using Werr   = Rpi::Register::Pwm::Werr ;
     
-    this->base.at<Status>().write(Werr::On) ;
+    this->base.at<Status>().write(Werr()) ;
     
     for (decltype(n) i=0 ; i<n ; ++i)
 	this->base.at<Fifo>().write(word) ;
 
-    auto status = this->base.at<Status>().read() ;
-    auto error = 0 != (status & Werr::On).value() ;
+    auto error = this->base.at<Status>().read().test(Werr()) ;
     if (error)
-	this->base.at<Status>().write(Werr::On) ;
+	this->base.at<Status>().write(Werr()) ;
     
     return error ;
 }
@@ -53,12 +52,11 @@ size_t RpiExt::Pwm::headstart(uint32_t const buffer[],size_t nwords)
 {
     using Control = Rpi::Register::Pwm::Control ;
     auto control = this->base.at<Control>().read() ;
-    decltype(control) mask =
-	Rpi::Register::Pwm::Pwen1::On |
-	Rpi::Register::Pwm::Pwen2::On ;
-    // ...[todo] On returns a word with only a single bit; that's kind of dangerous
-    this->base.at<Control>().write(control & ~mask) ;
-    // ...hence we might want _not_ to auto convert words
+    auto disable = control ;
+    disable -= Rpi::Register::Pwm::Pwen1() ;
+    disable -= Rpi::Register::Pwm::Pwen2() ;
+    this->base.at<Control>().write(disable) ;
+    // ...[todo] write(control -= (Pwen1 | Pwen2))
     auto n = this->topUp(buffer,nwords) ;
     this->base.at<Control>().write(control) ;
     return n ;
@@ -96,18 +94,20 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
     // unless you modify the code below too.
 
     // flood fifo
-    this->base.at<Status>().write(Werr::On) ;
+    this->base.at<Status>().write(Werr()) ;
     for (unsigned i=0 ; i<40 ; ++i)
 	this->base.at<Fifo>().write(buffer[i]) ;
     // ...more than 16 words may be written to the FIFO if the
     // serializer is reading fast. Using exactly 40 write operations
     // here is arbitrary, though.
     auto status = this->base.at<Status>().read() ;
-    if (0 == (status & Werr::On).value())
+    if (!status.test(Werr()))
+    {
 	// either the serializer reads faster than we're able to write
 	// (likely) or we got suspended more than once (very unlikely)
 	return std::make_pair(std::numeric_limits<double>::infinity(),0) ;
-    this->base.at<Status>().write(Werr::On) ;
+    }
+    this->base.at<Status>().write(Werr()) ;
 
     // set-up statistical data
     auto t0 = this->timer.cLo() ; 
@@ -121,7 +121,7 @@ std::pair<double,size_t> RpiExt::Pwm::measureRate(double seconds)
     // local function: top-up the fifo and update (nwords,ngaps)
     auto enqueue = [this,&nwords,&ngaps](uint32_t const buffer[])
     {
-	while (0 != (this->base.at<Status>().read() & Full::On).value())
+	while (this->base.at<Status>().read().test(Full()))
 	    ;
 	auto n = this->topUp(buffer,24) ;
 	// ...24 is quite random, 16 should work too
@@ -152,9 +152,9 @@ void RpiExt::Pwm::setControl(typename Rpi::Register::Pwm::Control::Traits::Write
     using Status  = Rpi::Register::Pwm::Status ;
     
     this->base.at<Control>().write(w) ;
-    while (0 != (this->base.at<Status>().read() & Berr::On).value())
+    while (this->base.at<Status>().read().test(Berr()))
     {
-	this->base.at<Status>().write(Berr::On) ;
+	this->base.at<Status>().write(Berr()) ;
 	this->base.at<Control>().write(w) ;
     }
 }
@@ -167,7 +167,7 @@ size_t RpiExt::Pwm::topUp(uint32_t const buffer[],size_t nwords)
     
     for (decltype(nwords) i=0 ; i<nwords ; ++i)
     {
-	if (0 != (this->base.at<Status>().read() & Full::On).value())
+	if (this->base.at<Status>().read().test(Full()))
 	    return i ;
 	this->base.at<Fifo>().write(buffer[i]) ;
     }
@@ -179,10 +179,10 @@ bool RpiExt::Pwm::writable(uint32_t timeout)
     using Full   = Rpi::Register::Pwm::Full ;
     using Status = Rpi::Register::Pwm::Status ;
     
-    if (0 == (this->base.at<Status>().read() & Full::On).value())
+    if (!this->base.at<Status>().read().test(Full()))
 	return true ;
     auto t0 = this->timer.cLo() ; 
-    while (0 != (this->base.at<Status>().read() & Full::On).value())
+    while (this->base.at<Status>().read().test(Full()))
     {
 	if (this->timer.cLo() - t0 >= timeout)
 	    return false ;
@@ -202,7 +202,7 @@ void RpiExt::Pwm::write(uint32_t const buffer[],size_t nwords)
     
     for (decltype(nwords) i=0 ; i<nwords ; ++i)
     {
-	while (0 != (this->base.at<Status>().read() & Full::On).value())
+	while (this->base.at<Status>().read().test(Full()))
 	    ;
         // ...blocks indefinitely if serializer doesn't read
 	this->base.at<Fifo>().write(buffer[i]) ;

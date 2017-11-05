@@ -10,7 +10,7 @@
 #include <Neat/cast.h>
 #include <Neat/stream.h>
 #include <Rpi/ArmTimer.h>
-#include <Rpi/Pwm.h>
+#include <Rpi/Register.h>
 #include <RpiExt/Dma/Control.h>
 #include <RpiExt/VcMem.h>
 #include <RpiExt/Pwm.h>
@@ -30,20 +30,20 @@ static std::vector<uint32_t> readFile(std::string const &name)
     return v ;
 }
 
-static std::string statusString(Rpi::Pwm::Status::Word status)
+
+static std::string statusString(typename Rpi::Register::Pwm::Status::ReadWord w)
 {
-    using Status = Rpi::Pwm::Status ;
+    namespace Pwm = Rpi::Register::Pwm ;
     std::ostringstream os ;
     os << "berr,empt,full,gap1,gap2,rerr,sta1,sta2,werr: "
-       << Status::Berr(status).raised() << ' '
-       << Status::Empt(status).raised() << ' '
-       << Status::Full(status).raised() << ' '
-       << Status::Gap1(status).raised() << ' '
-       << Status::Gap2(status).raised() << ' '
-       << Status::Rerr(status).raised() << ' '
-       << Status::Sta1(status).raised() << ' '
-       << Status::Sta2(status).raised() << ' '
-       << Status::Werr(status).raised() ;
+       << w.test(Pwm::Berr()) << ' '
+       << w.test(Pwm::Empt()) << ' '
+       << w.test(Pwm::Gap1()) << ' '
+       << w.test(Pwm::Gap2()) << ' '
+       << w.test(Pwm::Rerr()) << ' '
+       << w.test(Pwm::Sta1()) << ' '
+       << w.test(Pwm::Sta2()) << ' '
+       << w.test(Pwm::Werr()) ;
     return os.str() ;
 }
 
@@ -65,13 +65,14 @@ static void berr(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
     auto n = Ui::strto<size_t>(argL->pop()) ;
     argL->finalize() ;
-    Rpi::Pwm pwm(rpi) ;
+    auto pwm = rpi->page<Rpi::Register::Pwm::PageNo>() ;
     for (auto i=0 ; i<100 ; ++i)
     {
-	decltype(pwm.control().read()) w ;
-	for (decltype(n) j=0 ; j<n ; ++j)
-	    w = pwm.control().read() ;
-	pwm.control().write(w) ;
+	using Control = Rpi::Register::Pwm::Control ;
+	auto w = pwm.at<Control>().read() ;
+	for (decltype(n) j=1 ; j<n ; ++j)
+	    w = pwm.at<Control>().read() ;
+	pwm.at<Control>().write(w) ;
     }
 }
 
@@ -83,29 +84,30 @@ static void clear(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "OPTION: all,berr,gap1,gap2,rerr,werr\n" ;
 	return ;
     }
-    Rpi::Pwm::Status::Word w ;
+    namespace Pwm = Rpi::Register::Pwm ;
+    using W = typename Pwm::Status::WriteWord ;
+    auto w = W::make<0>() ;
     while (!argL->empty())
     {
-	using Status = Rpi::Pwm::Status ;
 	auto arg = argL->pop() ;
 	
 	if (arg == "all")
 	{
-	    w %= Status::Berr::make(1) ;
-	    w %= Status::Gap1::make(1) ;
-	    w %= Status::Gap2::make(1) ;
-	    w %= Status::Rerr::make(1) ;
-	    w %= Status::Werr::make(1) ;
+	    w += Pwm::Berr() ;
+	    w += Pwm::Gap1() ;
+	    w += Pwm::Gap2() ;
+	    w += Pwm::Rerr() ;
+	    w += Pwm::Werr() ;
 	}
-	else if (arg == "berr") w %= Status::Berr::make(1) ;
-	else if (arg == "gap1") w %= Status::Gap1::make(1) ;
-	else if (arg == "gap2") w %= Status::Gap2::make(1) ;
-	else if (arg == "rerr") w %= Status::Rerr::make(1) ;
-	else if (arg == "werr") w %= Status::Werr::make(1) ;
+	else if (arg == "berr") w += Pwm::Berr() ;
+	else if (arg == "gap1") w += Pwm::Gap1() ;
+	else if (arg == "gap2") w += Pwm::Gap2() ;
+	else if (arg == "rerr") w += Pwm::Rerr() ;
+	else if (arg == "werr") w += Pwm::Werr() ;
 	
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
-    Rpi::Pwm(rpi).status().write(w) ;
+    rpi->at<Pwm::Status>().write(w) ;
 }
 
 static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -128,51 +130,49 @@ static void control(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	    ;
 	return ;
     }
-  
-    Rpi::Pwm pwm(rpi) ;
-    auto w = pwm.control().read() ;
+
+    namespace Pwm = Rpi::Register::Pwm ;
+    auto w = rpi->at<Pwm::Control>().read() ;
     while (!argL->empty())
     {
-	using Control = Rpi::Pwm::Control ;
-    
 	auto arg = argL->pop() ;
 	if (false) ;
 
-	else if (arg == "clear")  w %= Control::Clrf::make(1) ;
+	else if (arg == "clear")  w += Pwm::Clrf() ;
 	
-    	else if (arg == "-mode1") w %= Control::Mode1::make(0) ;
-    	else if (arg == "-mode2") w %= Control::Mode2::make(0) ;
-    	else if (arg == "-msen1") w %= Control::Msen1::make(0) ;
-    	else if (arg == "-msen2") w %= Control::Msen2::make(0) ;
-    	else if (arg == "-pola1") w %= Control::Pola1::make(0) ;
-    	else if (arg == "-pola2") w %= Control::Pola2::make(0) ;
-    	else if (arg == "-pwen1") w %= Control::Pwen1::make(0) ;
-    	else if (arg == "-pwen2") w %= Control::Pwen2::make(0) ;
-    	else if (arg == "-rptl1") w %= Control::Rptl1::make(0) ;
-    	else if (arg == "-rptl2") w %= Control::Rptl2::make(0) ;
-    	else if (arg == "-sbit1") w %= Control::Sbit1::make(0) ;
-    	else if (arg == "-sbit2") w %= Control::Sbit2::make(0) ;
-    	else if (arg == "-usef1") w %= Control::Usef1::make(0) ;
-    	else if (arg == "-usef2") w %= Control::Usef2::make(0) ;
+    	else if (arg == "-mode1") w -= Pwm::Mode1() ; 
+    	else if (arg == "-mode2") w -= Pwm::Mode2() ; 
+    	else if (arg == "-msen1") w -= Pwm::Msen1() ;
+    	else if (arg == "-msen2") w -= Pwm::Msen2() ;
+    	else if (arg == "-pola1") w -= Pwm::Pola1() ;
+    	else if (arg == "-pola2") w -= Pwm::Pola2() ;
+    	else if (arg == "-pwen1") w -= Pwm::Pwen1() ;
+    	else if (arg == "-pwen2") w -= Pwm::Pwen2() ;
+    	else if (arg == "-rptl1") w -= Pwm::Rptl1() ;
+    	else if (arg == "-rptl2") w -= Pwm::Rptl2() ;
+    	else if (arg == "-sbit1") w -= Pwm::Sbit1() ;
+    	else if (arg == "-sbit2") w -= Pwm::Sbit2() ;
+    	else if (arg == "-usef1") w -= Pwm::Usef1() ;
+    	else if (arg == "-usef2") w -= Pwm::Usef2() ;
 
-    	else if (arg == "+mode1") w %= Control::Mode1::make(1) ;
-    	else if (arg == "+mode2") w %= Control::Mode2::make(1) ;
-    	else if (arg == "+msen1") w %= Control::Msen1::make(1) ;
-    	else if (arg == "+msen2") w %= Control::Msen2::make(1) ;
-    	else if (arg == "+pola1") w %= Control::Pola1::make(1) ;
-    	else if (arg == "+pola2") w %= Control::Pola2::make(1) ;
-    	else if (arg == "+pwen1") w %= Control::Pwen1::make(1) ;
-    	else if (arg == "+pwen2") w %= Control::Pwen2::make(1) ;
-    	else if (arg == "+rptl1") w %= Control::Rptl1::make(1) ;
-    	else if (arg == "+rptl2") w %= Control::Rptl2::make(1) ;
-    	else if (arg == "+sbit1") w %= Control::Sbit1::make(1) ;
-    	else if (arg == "+sbit2") w %= Control::Sbit2::make(1) ;
-    	else if (arg == "+usef1") w %= Control::Usef1::make(1) ;
-    	else if (arg == "+usef2") w %= Control::Usef2::make(1) ;
+    	else if (arg == "+mode1") w += Pwm::Mode1() ;
+    	else if (arg == "+mode2") w += Pwm::Mode2() ;
+    	else if (arg == "+msen1") w += Pwm::Msen1() ;
+    	else if (arg == "+msen2") w += Pwm::Msen2() ;
+    	else if (arg == "+pola1") w += Pwm::Pola1() ;
+    	else if (arg == "+pola2") w += Pwm::Pola2() ;
+    	else if (arg == "+pwen1") w += Pwm::Pwen1() ;
+    	else if (arg == "+pwen2") w += Pwm::Pwen2() ;
+    	else if (arg == "+rptl1") w += Pwm::Rptl1() ;
+    	else if (arg == "+rptl2") w += Pwm::Rptl2() ;
+    	else if (arg == "+sbit1") w += Pwm::Sbit1() ;
+    	else if (arg == "+sbit2") w += Pwm::Sbit2() ;
+    	else if (arg == "+usef1") w += Pwm::Usef1() ;
+    	else if (arg == "+usef2") w += Pwm::Usef2() ;
 
 	else throw std::runtime_error("not supported option:<"+arg+'>') ;
     }
-    pwm.control().write(w) ;
+    rpi->at<Pwm::Control>().write(w) ;
 }
 
 static void data(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -182,13 +182,13 @@ static void data(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout << "arguments: CHANNEL U32\n" ;
 	return ;
     }
-    auto index = Rpi::Pwm::Index::make(argL->pop({"1","2"})) ;
+    auto index = argL->pop({"1","2"}) ;
     auto word = Ui::strto<uint32_t>(argL->pop()) ;
     argL->finalize() ;
-    if (index == Rpi::Pwm::Channel1)
-	Rpi::Pwm(rpi).data1().write(word) ;
+    if (index == 0)
+	rpi->at<Rpi::Register::Pwm::Data1>().write(word) ;
     else
-	Rpi::Pwm(rpi).data2().write(word) ;
+	rpi->at<Rpi::Register::Pwm::Data2>().write(word) ;
 }
 
 static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -202,34 +202,33 @@ static void dmaC(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 		  << "       | panic    U8\n" ;
 	return ;
     }
-    Rpi::Pwm pwm(rpi) ;
-    auto w = pwm.dmaC().read() ;
+    namespace Register = Rpi::Register::Pwm ;
+    auto w = rpi->at<Register::DmaC>().read() ;
     while (!argL->empty())
     {
-	using DmaC = Rpi::Pwm::DmaC ;
 	auto arg = argL->pop({"dreq","enable","panic"}) ;
 	if (false) ;
 	
 	else if (arg == 0)
 	{
-	    auto arg = Ui::strto(argL->pop(),DmaC::Dreq::Uint()) ;
-	    w %= DmaC::Dreq(arg) ;
+	    auto arg = Ui::strto(argL->pop(),Register::Dreq::Uint()) ;
+	    w %= Register::Dreq(arg) ;
 	}
 	else if (arg == 1)
 	{
-	    auto arg = Ui::strto(argL->pop(),DmaC::Enable::Uint()) ;
-	    w %= DmaC::Enable(arg) ;
+	    auto arg = Ui::strto(argL->pop(),Register::Enable::Uint()) ;
+	    w %= Register::Enable(arg) ;
 	}
 	else if (arg == 2)
 	{
-	    auto arg = Ui::strto(argL->pop(),DmaC::Panic::Uint()) ;
-	    w %= DmaC::Panic(arg) ;
+	    auto arg = Ui::strto(argL->pop(),Register::Panic::Uint()) ;
+	    w %= Register::Panic(arg) ;
 	} 
     }
     argL->finalize() ;
-    pwm.dmaC().write(w) ;
+    rpi->at<Rpi::Register::Pwm::DmaC>().write(w) ;
 }
-	       
+
 static void fifo_cpu(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
@@ -255,15 +254,17 @@ static void fifo_cpu(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	mode = Unpaced ;
     auto data = readFile(argL->pop()) ;
     argL->finalize() ;
-    
-    Rpi::Pwm pwm(rpi) ; RpiExt::Pwm ext(rpi) ;
 
-    Rpi::Pwm::Status::Word status ;
+    namespace Register = Rpi::Register::Pwm ;
+    auto pwm = rpi->page<Register::PageNo>() ;
+    RpiExt::Pwm ext(rpi) ;
+    using W = typename Register::Status::ReadWord ;
+    auto status = W::make<0>() ;
     if (mode == Checked)
     {
 	auto head = ext.headstart(&data[0],data.size()) ;
 	auto tail = ext.convey(&data[head],data.size()-head,padding) ;
-	status = pwm.status().read() ;
+	status = pwm.at<Register::Status>().read() ;
 	if (head + tail < data.size())
 	    std::cout << "underrun detected after "
 		      << head + tail << " / "
@@ -272,15 +273,15 @@ static void fifo_cpu(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     else if (mode == Unpaced)
     {
 	for (auto w: data)
-	    pwm.fifo().write(w) ;
-	status = pwm.status().read() ;
+	    pwm.at<Register::Fifo>().write(w) ;
+	status = pwm.at<Register::Status>().read() ;
     }
     else
     {
 	assert(mode == Topup) ;
 	auto head = ext.headstart(&data[0],data.size()) ;
 	ext.write(&data[head],data.size()-head) ;
-	status = pwm.status().read() ;
+	status = pwm.at<Register::Status>().read() ;
     }
     std::cout << statusString(status) << '\n' ;
 }
@@ -329,17 +330,21 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     
     argL->finalize() ;
 
+    auto ext = RpiExt::Pwm(rpi) ;
+    namespace Register = Rpi::Register::Pwm ;
+    auto pwm = rpi->page<Register::PageNo>() ;
+
     // stop (all) transmissions in order to top-up FIFO
-    auto control = Rpi::Pwm(rpi).control().read() ;
+    auto control = pwm.at<Register::Control>().read() ;
     {
 	auto stop = control ;
-	stop %= Rpi::Pwm::Control::Pwen1::make(0) ;
-	stop %= Rpi::Pwm::Control::Pwen2::make(0) ;
-	Rpi::Pwm(rpi).control().write(stop) ;
+	stop -= Register::Pwen1() ;
+	stop -= Register::Pwen2() ;
+	pwm.at<Register::Control>().write(stop) ;
     }
     
     // (user) data head-block that fits into FIFO buffer
-    auto head = RpiExt::Pwm(rpi).topUp(&data[0],data.size()) ;
+    auto head = ext.topUp(&data[0],data.size()) ;
     
     // manage DMA control block list
     RpiExt::Dma::Control cb(allocator) ;
@@ -347,7 +352,7 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // DMA: restore PWM control register
     auto enable = allocator->allocate(sizeof(uint32_t)) ;
     (*enable->as<uint32_t*>()) = control.value() ;
-    cb.add(Rpi::Dma::Ti::Word(),enable.get(),Rpi::Pwm::Control::Address) ;
+    cb.add(Rpi::Dma::Ti::Word(),enable.get(),Register::Control::Address) ;
     
     // DMA: take time t0 (DMA transfer just started)
     auto t0 = allocator->allocate(sizeof(uint32_t)) ;
@@ -359,12 +364,12 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     {
 	auto tail = allocator->allocate(rest) ;
 	memcpy(tail->as<void*>(),&data[head],rest) ;
-	cb.add(ti,tail.get(),Rpi::Pwm::Fifo::Address) ;
+	cb.add(ti,tail.get(),Register::Fifo::Address) ;
     }
 
     // DMA: read PWM Status flags
     auto status = allocator->allocate(sizeof(uint32_t)) ;
-    cb.add(Rpi::Dma::Ti::Word(),Rpi::Pwm::Status::Address,status.get()) ;
+    cb.add(Rpi::Dma::Ti::Word(),Register::Status::Address,status.get()) ;
 
     // DMA: take time t1 (when DMA transfer was completed)
     auto t1 = allocator->allocate(sizeof(uint32_t)) ;
@@ -380,7 +385,7 @@ static void fifo_dma(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     // and thereafter the memory can be released. On process abortion,
     // the (VC) memory stays allocated and the DMA continues running.
 
-    auto w = Rpi::Pwm::Status::Word::coset(*status->as<uint32_t*>()) ;
+    auto w = pwm.at<Register::Status>().read() ;
     auto d = (*t1->as<uint32_t*>()) - (*t0->as<uint32_t*>()) ;
     std::cout << statusString(w) << " duration: " << d << '\n' ;
 }
@@ -397,22 +402,24 @@ static void frequency(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
     auto duration = Ui::strto<double>(argL->option("-d","0.1")) ;
     argL->finalize() ;
-    Rpi::Pwm pwm(rpi) ;
-    auto control = pwm.control().read() ;
-    double width ;
+    namespace Register = Rpi::Register::Pwm ;
+    auto pwm = rpi->page<Register::PageNo>() ;
+    auto control = pwm.at<Register::Control>().read() ;
+    uint32_t width ;
     unsigned nchannels = 0 ;
-    if (control.test(Rpi::Pwm::Control::Pwen1::Digit))
+    if (control.test(Register::Pwen1()))
     {
-	if (!control.test(Rpi::Pwm::Control::Usef1::Digit))
+	if (!control.test(Register::Usef1()))
 	    throw std::runtime_error("channel #1 enabled w/o USEF=1") ;
-	width = pwm.range1().read() ;
+	width = pwm.at<Register::Range1>().read().value() ;
+        // ...[todo] read should return uint32_t
 	++nchannels ;
     }
-    if (control.test(Rpi::Pwm::Control::Pwen2::Digit))
+    if (control.test(Register::Pwen2()))
     {
-	if (!control.test(Rpi::Pwm::Control::Usef2::Digit))
+	if (!control.test(Register::Usef2()))
 	    throw std::runtime_error("channel #2 enabled w/o USEF=1") ;
-	width = pwm.range2().read() ;
+	width = pwm.at<Register::Range2>().read().value() ;
 	++nchannels ;
     }
     if (nchannels == 0)
@@ -433,13 +440,14 @@ static void range(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	std::cout << "arguments: CHANNEL U32\n" ;
 	return ;
     }
-    auto index = Rpi::Pwm::Index::make(argL->pop({"1","2"})) ;
+    auto index = argL->pop({"1","2"}) ;
     auto word = Ui::strto<uint32_t>(argL->pop()) ;
     argL->finalize() ;
-    if (index == Rpi::Pwm::Channel1)
-	Rpi::Pwm(rpi).range1().write(word) ;
+    namespace Register = Rpi::Register::Pwm ;
+    if (index == 0)
+	rpi->at<Register::Range1>().write(word) ;
     else
-	Rpi::Pwm(rpi).range2().write(word) ;
+	rpi->at<Register::Range2>().write(word) ;
 }
 
 static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
@@ -450,39 +458,38 @@ static void status(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	return ;
     }
     argL->finalize() ;
-    Rpi::Pwm pwm(rpi) ;
+    namespace Register = Rpi::Register::Pwm ;
+    auto pwm = rpi->page<Register::PageNo>() ;
     
-    using   DmaC = Rpi::Pwm::  DmaC ;
-    using Status = Rpi::Pwm::Status ;
-    
-    auto d = pwm.dmaC().read() ;
-    auto s = pwm.status().read() ;
+    auto d = pwm.at<Register::DmaC>().read() ;
+    auto s = pwm.at<Register::Status>().read() ;
     std::cout << '\n'
-	      << "berr=" << s.test(Status::Berr::Digit) << ' '
-	      << "empt=" << s.test(Status::Empt::Digit) << ' '
-	      << "full=" << s.test(Status::Full::Digit) << ' ' 
-	      << "rerr=" << s.test(Status::Rerr::Digit) << ' '
-	      << "werr=" << s.test(Status::Werr::Digit) << ' ' 
+	      << "berr=" << s.test(Register::Berr()) << ' '
+	      << "empt=" << s.test(Register::Empt()) << ' '
+	      << "full=" << s.test(Register::Full()) << ' ' 
+	      << "rerr=" << s.test(Register::Rerr()) << ' '
+	      << "werr=" << s.test(Register::Werr()) << ' ' 
 	      << "DMA: "
-	      << "enable=" << DmaC::Enable(d).count() << ' '
-	      << "panic="  << DmaC:: Panic(d).count() << ' '
-	      << "dreq="   << DmaC::  Dreq(d).count() << "\n\n" ;
+	      << "enable=" << Register::Enable::coset(d.value()).count() << ' '
+	      << "panic="  << Register:: Panic::coset(d.value()).count() << ' '
+	      << "dreq="   << Register::  Dreq::coset(d.value()).count() << "\n\n" ;
+    // ...[todo] there should be a better conversion from Word to Sequence
 
     std::cout
 	<< std::hex
 	<< "# | gap sta | mode msen pola pwen rptl sbit usef |     data |     range\n"
 	<< "--+---------+------------------------------------+----------+----------\n" ;
-    auto c = pwm.control().read() ;
-    auto i = Rpi::Pwm::Channel1 ;
+    auto c = pwm.at<Register::Control>().read() ;
+    auto i = Register::Channel1 ;
     do
     {
-	auto bank = pwm.select(i) ;
-	auto data = (i == Rpi::Pwm::Channel1)
-	    ? pwm.data1().read()
-	    : pwm.data2().read() ;
-	auto range = (i == Rpi::Pwm::Channel1)
-	    ? pwm.range1().read()
-	    : pwm.range2().read() ;
+	auto bank = Register::select(i) ;
+	auto data = (i == Register::Channel1)
+	    ? pwm.at<Register::Data1>().read().value()
+	    : pwm.at<Register::Data2>().read().value() ;
+	auto range = (i == Register::Channel1)
+	    ? pwm.at<Register::Range1>().read().value()
+	    : pwm.at<Register::Range2>().read().value() ;
 	
 	std::cout << std::setw(1) << i.value() + 1
 		  << " |"
