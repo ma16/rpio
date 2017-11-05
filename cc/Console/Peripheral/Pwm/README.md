@@ -84,11 +84,11 @@ DURATION: time in seconds to fill-up FIFO (default: 0.1)
 
 For example:
 ```
-$ rpio peripheral cm ctl pwm -enab +kill ;\
-  rpio peripheral cm div pwm intgr 500 fract 0 ;\
-  rpio peripheral cm ctl pwm mash 0 src 6 -kill ;\
-  rpio peripheral cm ctl pwm +enab ;\
-  rpio peripheral pwm control +mode1 +usef1 +pwen1 ;\
+$ rpio peripheral cm ctl pwm -enab +kill &&\
+  rpio peripheral cm div pwm intgr 500 fract 0 &&\
+  rpio peripheral cm ctl pwm mash 0 src 6 -kill &&\
+  rpio peripheral cm ctl pwm +enab &&\
+  rpio peripheral pwm control +mode1 +usef1 +pwen1 &&\
   rpio peripheral pwm status
 
 berr=0 empt=1 full=0 rerr=0 werr=0 DMA: enable=0 panic=7 dreq=7
@@ -246,10 +246,12 @@ $ od -Ad -txC ws.on
 
 Set up PWM at 2.5 M/s (400 ns) for channel #1:
 ```
-$ rpio peripheral cm set pwm -f 0 -i 200 -s 6 ;\
-  rpio peripheral cm switch pwm on ;\
-  rpio peripheral pwm control +mode1 +usef1 +pwen1 ;\
-  rpio peripheral pwm dmac enable 1 ;\
+$ rpio peripheral cm ctl pwm -enab +kill &&\
+  rpio peripheral cm div pwm intgr 200 fract 0 &&\
+  rpio peripheral cm ctl pwm mash 0 src 6 -kill &&\
+  rpio peripheral cm ctl pwm +enab &&\
+  rpio peripheral pwm control +mode1 +usef1 +pwen1 &&\
+  rpio peripheral pwm dmac enable 1 &&\
   rpio peripheral gpio mode 12 0
 
 $ rpio peripheral pwm status
