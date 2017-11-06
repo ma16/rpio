@@ -10,6 +10,8 @@
 #include <iostream>
 #include <vector>
 
+// --------------------------------------------------------------------
+    
 static uint32_t getPins(Ui::ArgL *argL)
 {
     auto arg = argL->pop() ;
@@ -37,7 +39,7 @@ static uint32_t getPins(Ui::ArgL *argL)
     auto pin = Ui::strto(arg,Rpi::Pin()) ;
     return (1u << pin.value()) ;
 }
-// [todo] deduplicate
+// [todo] deduplicate (gpio)
     
 // --------------------------------------------------------------------
     
@@ -77,42 +79,41 @@ static std::string mkstr(uint32_t mask,uint32_t bits)
     }  
     return std::string(s,ofs) ;
 } 
-// [todo] deduplicate
+// [todo] deduplicate (gpio)
 
 // --------------------------------------------------------------------
 
-static void countInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+static void count(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     // [future] does also work with a pin mask
     auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
     auto dry = argL->pop_if("-d") ;
     argL->finalize() ;
-    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
-    auto status = gpio.at<Rpi::Register::Gpio::Event::Status0>().value() ;
+    auto status = rpi->at<Rpi::Register::Gpio::Event::Status0>() ;
     auto mask = 1u << pin.value() ;
     decltype(nsamples) nevents = 0 ;
     decltype(nsamples) nsubseq = 0 ;
+    status.write(mask) ;
     auto t0 = std::chrono::steady_clock::now() ;
     if (dry)
     {
 	for (decltype(nsamples) i=0 ; i<nsamples ; ++i)
 	{
-	    auto w = mask & (*status) ;
-	    if (w != 0)
-		(*status) = w ;
+	    auto w = status.read() ;
+	    if (w.test(mask))
+		status.write(w) ;
 	}
     }
     else
     {
 	auto active = false ;
-	(*status) = mask ;
 	for (decltype(nsamples) i=0 ; i<nsamples ; ++i)
 	{
-	    auto w = mask & (*status) ;
-	    if (w != 0)
+	    auto w = status.read() ;
+	    if (w.test(mask))
 	    {
-		(*status) = w ;
+		status.write(w) ;
 		++nevents ;
 		if (active) ++nsubseq ;
 		else active = true ;
@@ -124,59 +125,117 @@ static void countInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto dt = std::chrono::duration<double>(tn-t0).count() ;
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
-    std::cout <<      "f=" << static_cast<double>(nsamples)/dt << "/s " 
+    std::cout <<      "R=" << static_cast<double>(nsamples)/dt << "/s " 
 	      << "signal=" << static_cast<double>( nevents)/dt << "/s "
 	      << "subseq=" << static_cast<double>( nsubseq)/dt << "/s\n" ;
 }
 
 // --------------------------------------------------------------------
 
-static void dutyInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+// sample input level [todo] we need a better name
+static void duty(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
+    auto nsamples = Ui::strto<uint32_t>(argL->pop()) ;
     auto dry = argL->pop_if("-d") ;
     argL->finalize() ;
-    auto input = rpi->at<Rpi::Register::Gpio::Input::Bank0>().value() ;
+    auto input = rpi->at<Rpi::Register::Gpio::Input::Bank0>() ;
     auto mask = 1u << pin.value() ;
-    decltype(nsamples) nchanges = 0 ;
-    decltype(nsamples) nhis = 0 ;
-    auto level = mask & (*input) ;
+    decltype(nsamples) nchanges = 0 ; // transition counter
+    decltype(nsamples) nhi = 0 ; // High-level counter
+    auto level = input.read().test(mask) ;
     auto t0 = std::chrono::steady_clock::now() ;
     if (dry)
     {
+	// this dry-run might be useful to estimate the additional
+	// cpu-time that is required to execute the real test.
 	for (decltype(nsamples) i=0 ; i<nsamples ; ++i)
 	{
-	    level ^= mask & (*input) ;
+	    level ^= input.read().test(mask) ;
+	    // ...level is used to prevent compiler optimizations
 	}
 	auto volatile x = level ; (void)x ;
     }
-    else {
+    else
+    {
 	for (decltype(nsamples) i=0 ; i<nsamples ; ++i)
 	{
-	    auto next = mask & (*input) ;
+	    auto next = input.read().test(mask) ;
 	    if (next != level)
 	    {
 		level = next ;
 		++nchanges ;
 	    }
 	    if (next)
-		++nhis ;
+		++nhi ;
 	}
     }
-    auto tn = std::chrono::steady_clock::now() ; 
-    auto dt = std::chrono::duration<double>(tn-t0).count() ;
+    auto t1 = std::chrono::steady_clock::now() ; 
+    auto dt = std::chrono::duration<double>(t1-t0).count() ;
     std::cout.setf(std::ios::scientific) ;
-    std::cout.precision(6) ;
+    std::cout.precision(2) ;
     
-    std::cout <<      "f=" << static_cast<double>(nsamples)/dt << "/s " 
-	      << "signal=" << static_cast<double>(nchanges)/dt << "/s "
-	      <<   "duty=" << static_cast<double>(nhis) / static_cast<double>(nsamples) << std::endl ;
+    std::cout << "r=" << nsamples/dt << "/s " 
+	      << "f=" << nchanges/dt/2 << "/s "
+	      << "duty=" << 1.0 * nhi / nsamples << "\n" ;
 }
 
 // --------------------------------------------------------------------
 
-static void pulseInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+#if 1
+static void pulse(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+{
+    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    argL->finalize() ;
+    
+    auto mask = 1u << pin.value() ;
+    
+    namespace Register = Rpi::Register::Gpio ;
+    auto gpio = rpi->page<Register::PageNo>() ;
+
+    using Clock = std::chrono::steady_clock ;
+    
+    auto wait4edge = [&](Clock::time_point *t0,Clock::time_point *t1)
+	{
+	    auto status = gpio.at<Register::Event::Status0>().value() ;
+	    (*status) = mask ;
+	    while (0 == (mask & (*status)))
+		(*t0) = Clock::now() ;
+	    (*t1) = Clock::now() ;
+	} ;
+
+    auto t0=Clock::now() ; decltype(t0) t1 ;
+    using Rise = Register::Event::AsyncRise0 ;
+    auto rise = gpio.at<Rise>().read().value() ;
+    gpio.at<Rise>().write(rise | mask) ;
+    wait4edge(&t0,&t1) ;
+    gpio.at<Rise>().write(rise & ~mask) ;
+    
+    auto t2 = t1 ; decltype(t2) t3 ;
+    using Fall = Register::Event::AsyncFall0 ;
+    auto fall = gpio.at<Fall>().read().value() ;
+    gpio.at<Fall>().write(fall | mask) ;
+    wait4edge(&t2,&t3) ;
+    gpio.at<Fall>().write(fall & ~mask) ;
+
+    auto t4 = t3 ; decltype(t4) t5 ;
+    gpio.at<Rise>().write(rise | mask) ;
+    wait4edge(&t4,&t5) ;
+    gpio.at<Rise>().write(rise & ~mask) ;
+
+    auto dt = [](Clock::time_point t0,Clock::time_point t1)
+    {
+	return std::chrono::duration<double>(t1-t0).count() ;
+    } ;
+    
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    std::cout <<         0 << '+' << dt(t0,t1) << ' '
+	      << dt(t0,t2) << '+' << dt(t2,t3) << ' '
+	      << dt(t0,t4) << '+' << dt(t4,t5) << '\n' ;
+}
+#else
+static void pulse(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
     argL->finalize() ;
@@ -218,6 +277,7 @@ static void pulseInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << (t2-t0) << '+' << (t3-t2) << ' '
 	      << (t4-t0) << '+' << (t5-t4) << '\n' ;
 }
+#endif
 
 // --------------------------------------------------------------------
 
@@ -229,7 +289,7 @@ struct Record
     Record() : t0(0),t1(0),levels(0) {}
 } ;
     
-static void watchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+static void watch(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
     auto pins = getPins(argL) ;
     auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
@@ -265,27 +325,34 @@ static void watchInvoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     }
 }
 
+// --------------------------------------------------------------------
+
 void Console::Sample::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 {
     if (argL->empty() || argL->peek() == "help")
     { 
 	std::cout
-	    << "arguments: MODE PIN NSAMPLES [-d]\n"
+	    << "arguments: MODE PIN NSAMPLES\n"
 	    << '\n'
 	    << "displays the sampling rate (f) and the signal rate" 
 	    << '\n'
-	    << "MODE : count  # count number of subsequent events\n"
-	    << "     | duty   # determine signal's duty cycle\n"
-	    << "     | pulse  # determine signal's pulse length\n"
+	    << "MODE : count [-d] # count number of subsequent events\n"
+	    << "     | duty  [-d] # determine signal's duty cycle\n"
+	    << "     | pulse      # determine signal's pulse length\n"
+	    << "     | watch      # ?\n"
 	    << '\n'
 	    << "-d : dry run to determine maximum sampling rate f\n"
 	    ;
 	return ;
     }
-    std::string arg = argL->pop() ;
-    if      (arg == "count") { countInvoke(rpi,argL) ; } 
-    else if (arg ==  "duty") {  dutyInvoke(rpi,argL) ; } 
-    else if (arg == "pulse") { pulseInvoke(rpi,argL) ; } 
-    else if (arg == "watch") { watchInvoke(rpi,argL) ; } 
-    else throw std::runtime_error("not supported option:<"+arg+'>') ;
+
+    std::map<std::string,void(*)(Rpi::Peripheral*,Ui::ArgL*)> map =
+    {
+	{ "count" , count },
+	{ "duty"  ,  duty },
+	{ "pulse" , pulse },
+	{ "watch" , watch },
+    } ;
+    argL->pop(map)(rpi,argL) ;
+    
 }
