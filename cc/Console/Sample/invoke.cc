@@ -83,15 +83,16 @@ static std::string mkstr(uint32_t mask,uint32_t bits)
 
 // --------------------------------------------------------------------
 
+// [todo] change name
 static void count(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto pins = getPins(argL) ;
     // [future] does also work with a pin mask
     auto nsamples = Ui::strto<unsigned>(argL->pop()) ;
     auto dry = argL->pop_if("-d") ;
     argL->finalize() ;
     auto status = rpi->at<Rpi::Register::Gpio::Event::Status0>() ;
-    auto mask = 1u << pin.value() ;
+    auto mask = pins ;
     decltype(nsamples) nevents = 0 ;
     decltype(nsamples) nsubseq = 0 ;
     status.write(mask) ;
@@ -125,9 +126,9 @@ static void count(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     auto dt = std::chrono::duration<double>(tn-t0).count() ;
     std::cout.setf(std::ios::scientific) ;
     std::cout.precision(2) ;
-    std::cout <<      "R=" << static_cast<double>(nsamples)/dt << "/s " 
-	      << "signal=" << static_cast<double>( nevents)/dt << "/s "
-	      << "subseq=" << static_cast<double>( nsubseq)/dt << "/s\n" ;
+    std::cout << "r=" << static_cast<double>(nsamples)/dt << "/s " 
+	      << "f=" << static_cast<double>( nevents)/dt << "/s "
+	      << "s=" << static_cast<double>( nsubseq)/dt << "/s\n" ;
 }
 
 // --------------------------------------------------------------------
@@ -182,7 +183,6 @@ static void duty(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
-#if 1
 static void pulse(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
@@ -234,50 +234,6 @@ static void pulse(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 	      << dt(t0,t2) << '+' << dt(t2,t3) << ' '
 	      << dt(t0,t4) << '+' << dt(t4,t5) << '\n' ;
 }
-#else
-static void pulse(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
-{
-    auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
-    argL->finalize() ;
-    
-    auto gpio = rpi->page<Rpi::Register::Gpio::PageNo>() ;
-    
-    Rpi::ArmTimer timer(rpi) ;
-    auto mask = 1u << pin.value() ;
-
-    namespace Register = Rpi::Register::Gpio::Event ;
-    
-    auto wait4edge = [&](uint32_t *t0,uint32_t *t1)
-	{
-	    auto status = gpio.at<Register::Status0>().value() ;
-	    (*status) = mask ;
-	    while (0 == (mask & (*status)))
-		(*t0) = timer.counter().read() ;
-	    (*t1) = timer.counter().read() ;
-	} ;
-
-    auto t0=timer.counter().read() ; decltype(t0) t1 ;
-    auto rise = gpio.at<Register::Rise0>().value() ;
-    (*rise) |= mask ;
-    wait4edge(&t0,&t1) ;
-    (*rise) &= ~mask ;
-    
-    auto t2 = t1 ; decltype(t2) t3 ;
-    auto fall = gpio.at<Register::Fall0>().value() ;
-    (*fall) |= mask ;
-    wait4edge(&t2,&t3) ;
-    (*fall) &= ~mask ;
-
-    auto t4 = t3 ; decltype(t4) t5 ;
-    (*rise) |= mask ;
-    wait4edge(&t4,&t5) ;
-    (*rise) &= ~mask ;
-
-    std::cout <<       0 << '+' << (t1-t0) << ' '
-	      << (t2-t0) << '+' << (t3-t2) << ' '
-	      << (t4-t0) << '+' << (t5-t4) << '\n' ;
-}
-#endif
 
 // --------------------------------------------------------------------
 
