@@ -46,7 +46,11 @@ template<typename U,U M> struct Word
     
     constexpr Word operator~ () const { return i ^ Mask ; }
 
-    constexpr bool test(Word w) const { return 0 != (this->i & w.i) ; }
+    constexpr bool test      (Word w) const { return 0 != (i & w.i) ; }
+    constexpr bool operator==(Word w) const { return i ==      w.i  ; }
+    
+    constexpr Word operator&(Word w) const { return i & w.i ; }
+    constexpr Word operator|(Word w) const { return i | w.i ; }
     
     // ---- Digit -----------------------------------------------------
 

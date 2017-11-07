@@ -183,6 +183,84 @@ static void duty(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 
 // --------------------------------------------------------------------
 
+static boost::optional<std::pair<std::chrono::steady_clock::duration,unsigned>>
+f(Rpi::Peripheral *rpi,uint32_t mask1,uint32_t mask2,unsigned n)
+{
+    auto mask = mask1 | mask2 ;
+    auto status = rpi->at<Rpi::Register::Gpio::Event::Status0>() ;
+    auto active = false ;
+    decltype(mask) last = 0 ;
+    decltype(n) count = 0 ;
+    auto t0 = std::chrono::steady_clock::now() ;
+    status.write(mask) ;
+    for (decltype(n) i=0 ; i<n ; ++i)
+    {
+	auto event = status.read() & mask ;
+	if (event == 0)
+	{
+	    active = false ;
+	    continue ;
+	}
+	if (active)
+	    return boost::none ; // we got delayed or signal is too fast
+	if (event == mask)
+	    return boost::none ; // we got delayed or signal is too fast
+	if (event == last)
+	    return boost::none ; // two falling or two rising edges in a row 
+	status.write(event) ;
+	++count ;
+	active = true ;
+	last = event.value() ;
+    }
+    auto dt = std::chrono::steady_clock::now() - t0 ;
+    return std::make_pair(dt,count) ;
+}
+
+// [todo] we need a better name
+static void duty2(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
+{
+    auto pin1 = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto pin2 = Ui::strto(argL->pop(),Rpi::Pin()) ;
+    auto nsamples = Ui::strto<uint32_t>(argL->pop()) ;
+    argL->finalize() ;
+
+    // [todo] check pin1 != pin2
+    auto mask1 = 1u << pin1.value() ;
+    auto mask2 = 1u << pin2.value() ;
+
+    auto t0 = std::chrono::steady_clock::now() ;
+    auto i = 0u ;
+  Loop:
+    ++i ;
+    auto result = f(rpi,mask1,mask2,nsamples) ;
+    {
+	auto t1 = std::chrono::steady_clock::now() ;
+	auto dt = std::chrono::duration<double>(t1-t0).count() ;
+	if (!result && dt < 1.0)
+	    goto Loop ;
+    }
+
+    if (!result)
+    {
+	std::cout << "failed\n" ;
+	return ;
+    }
+    
+    auto dt = std::chrono::duration<double>(result->first).count() ;
+    auto count = result->second ;
+    
+    std::cout.setf(std::ios::scientific) ;
+    std::cout.precision(2) ;
+    
+    std::cout
+	<< i << ' '
+	<< "r=" << nsamples/dt << "/s " 
+	<< "f=" << count/dt/2 << "/s\n"
+	;
+}
+
+// --------------------------------------------------------------------
+
 static void pulse(Rpi::Peripheral *rpi,Ui::ArgL *argL) 
 {
     auto pin = Ui::strto(argL->pop(),Rpi::Pin()) ;
@@ -236,6 +314,8 @@ static void pulse(Rpi::Peripheral *rpi,Ui::ArgL *argL)
 }
 
 // --------------------------------------------------------------------
+
+// [todo] remove this or move it somewhere else
 
 struct Record
 {
@@ -306,6 +386,7 @@ void Console::Sample::invoke(Rpi::Peripheral *rpi,Ui::ArgL *argL)
     {
 	{ "count" , count },
 	{ "duty"  ,  duty },
+	{ "duty2"  ,  duty2 },
 	{ "pulse" , pulse },
 	{ "watch" , watch },
     } ;
