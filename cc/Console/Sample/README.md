@@ -1,6 +1,16 @@
-# Sample Data
+# Digital Signal Sampling
 
-Note: the executing thread may be interrupted and suspended at any time for any duration by the operating system. Hence, the results of the program should be considered with care.
+Digital signal sampling in this context is the process of tracking a binary signal (high and low) over time. This may be useful to determine the (average) frequency or duty cylce, for monitoring purposes, or for communication (receiving data).
+
+Often, data is sampled at a constant rate; for instance at a rate (R) of one million (samples) per second (1 M/s). This will detect all signal levels that last longer than 1/R = 1µs. Thus, a 1:1 square-wave-signal at 400 kHz (where each High and Low level lasts for 1.25 µs) will be tracked; a 1:11 square-wave-signal at 100 kHz however not.
+
+Sampling at a constant rate is not possible thru a vanilla Linux userland process: A busy loop that polls an input register won't return values at a constant rate (unlike a loop on a microcontroller). The executing thread may be interrupted and suspended at any time for any duration by the operating system. Besides, depending on the bus and memory architecture, there may be unpredictable latencies (e.g. due to cache operations).
+
+Anyway, this stub provides a few simple methods to sample data (at no contant rate):
+* Level: the signal level is polled in a busy loop.
+* Event: the event detect status register is polled in a busy loop.
+* Inspect: similar to Event. However, retries on potential problems.
+* Pulse: PWM measurement.
 
 ## Synopsis
 
@@ -44,7 +54,7 @@ $ rpio peripheral pwm control -pwen1 &&\
 
 Sample GPIO pin 18 (Pi-3):
 ```
-$ rpio sample duty 18 100000000
+$ rpio sample level 18 100000000
 r=1.65e+07/s f=9.98e+05/s duty=1.00e-01
 ```
 The sample rate was 16.5 M/s, the determined frequency 0.998 MHz (instead of 1 MHz) and the determined duty cycle 0.1.
@@ -56,10 +66,76 @@ $ rpio peripheral pwm data 1 7
 
 Sample GPIO pin 18 (Pi-3):
 ```
-$ rpio sample duty 18 100000000
+$ rpio sample level 18 100000000
 r=1.65e+07/s f=9.99e+05/s duty=7.01e-01
 ```
 The sample rate was 16.5 M/s, the determined frequency 0.999 MHz (instead of 1 MHz) and the determined duty cycle 0.701 (instead of 0.7).
+
+## Watch Events
+
+The event detect status register (GPEDS0) is polled in a busy loop. The program arguments are the number of iterations and the GPIO pins to watch. All event registers (e.g. GPAREN0) must have been set up by the user beforehand. There are two counters: One counter increments with each detected event. (If an event is detected, it will be reset immediately by the program). If another event is detected in the subsequent iteration, the seond counter is incremented. The incrementation of the second timer stop if no event was detected.
+
+The program outputs:
+* The sample rate (r) which is the number of iterations per second.
+* The signal frequency (f) which is the number of detected events per second.
+* The sequential rate (s) which is the number of subsequent events per second.
+
+All values are rounded to three significant digits.
+
+The sample rate reflects the average time between samples. However, the actual time between two individual samples may vary tremendously. Thus, the sampled data is of limited use.
+
+If you watch the rising edge and the falling edge of a square wave, you'll receive alternating events (fall, rise, fall, a.s.o.). If you sample these events, and you get delayed, you will receive both events (fall and rise) within a single sample. This method provides the means to detect delays in your application (though not prevent them) and the possibility to deal with them.
+
+### Example
+
+Configure GPIO pin 15 as input and pin 18 as alternate function 5 to connect PWM channel #1:
+```
+$ rpio peripheral gpio mode 15 i &&\
+  rpio peripheral gpio mode 18 5
+```
+
+Connect GPIO pin 18 with GPIO pin 15 by a wire. We need a second pin since the peripheral permits only watching one event per pin (e.g. fall *or* rise).
+
+Configure GPIO event detection for pin 15 and 18:
+```
+$ rpio peripheral gpio enable 15 fall &&\
+  rpio peripheral gpio enable 18 rise 
+```
+
+Configure 10 MHz for the PWM base clock:
+```
+$ rpio peripheral cm ctl pwm -enab +kill &&\
+  rpio peripheral cm div pwm intgr 50 fract 0 &&\
+  rpio peripheral cm ctl pwm mash 0 src 6 -kill &&\
+  rpio peripheral cm ctl pwm +enab
+```
+
+Configure a 50/100 pulse (1:1 square wave at 100 kHz) for PWM channel #1:
+```
+$ rpio peripheral pwm control -pwen1 &&\
+  rpio peripheral pwm range 1 100 &&\
+  rpio peripheral pwm data 1 50 &&\
+  rpio peripheral pwm control -mode1 +msen1 -pola1 -usef1 +pwen1
+```
+
+Sample events (Pi-3):
+```
+$ rpio sample event -l 15,18 100000000
+r=1.63e+07/s f=2.00e+05/s s=2.29e+00/s
+```
+The sample rate is 16.3 M/s. There are 200k events per second (100 kHz signal frequency). There were 2.29 subsequent events per seconds (which suggest a potential sampling delay).
+
+Configure a 1/100 pulse (at 100 kHz) for PWM channel #1:
+```
+$ rpio peripheral pwm data 1 1
+```
+
+Sample events (Pi-3):
+```
+$ rpio sample event -l 15,18 100000000
+r=1.64e+07/s f=1.96e+05/s s=8.37e+04/s
+```
+The sample rate is 16.4 M/s. There are 196k events per second (98 kHz signal frequency). There were more than 80k subsequent events per seconds which confirm the aberrated measurement due to a sampling delay.
 
 ## Sample a Single Pulse
 
@@ -131,68 +207,3 @@ Next rising edge  | 200.000 | 200.417
 
 The detection failed. The implementation wasn't able to detect the signals's short 0.1µs-High-level period of the pulse. A "better" implementation (that makes use two pins) could watch for falling and rising edges at the same time, and hence wouldn't miss any (however, the accuracy of time points will still be an issue).
 
-## Watch Events
-
-The event detect status register (GPEDS0) is polled in a busy loop. The program arguments are the number of iterations and the GPIO pins to watch. All event registers (e.g. GPAREN0) must have been set up by the user beforehand. There are two counters: One counter increments with each detected event. (If an event is detected, it will be reset immediately by the program). If another event is detected in the subsequent iteration, the seond counter is incremented. The incrementation of the second timer stop if no event was detected.
-
-The program outputs:
-* The sample rate (r) which is the number of iterations per second.
-* The signal frequency (f) which is the number of detected events per second.
-* The sequential rate (s) which is the number of subsequent events per second.
-
-All values are rounded to three significant digits.
-
-The sample rate reflects the average time between samples. However, the actual time between two individual samples may vary tremendously. Thus, the sampled data is of limited use.
-
-If you watch the rising edge and the falling edge of a square wave, you'll receive alternating events (fall, rise, fall, a.s.o.). If you sample these events, and you get delayed, you will receive both events (fall and rise) within a single sample. This method provides the means to detect delays in your application (though not prevent them) and the possibility to deal with them.
-
-### Example
-
-Configure GPIO pin 15 as input and pin 18 as alternate function 5 to connect PWM channel #1:
-```
-$ rpio peripheral gpio mode 15 i &&\
-  rpio peripheral gpio mode 18 5
-```
-
-Connect GPIO pin 18 with GPIO pin 15 by a wire. We need a second pin since the peripheral permits only watching one event per pin (e.g. fall *or* rise).
-
-Configure GPIO event detection for pin 15 and 18:
-```
-$ rpio peripheral gpio enable 15 fall &&\
-  rpio peripheral gpio enable 18 rise 
-```
-
-Configure 10 MHz for the PWM base clock:
-```
-$ rpio peripheral cm ctl pwm -enab +kill &&\
-  rpio peripheral cm div pwm intgr 50 fract 0 &&\
-  rpio peripheral cm ctl pwm mash 0 src 6 -kill &&\
-  rpio peripheral cm ctl pwm +enab
-```
-
-Configure a 50/100 pulse (1:1 square wave at 100 kHz) for PWM channel #1:
-```
-$ rpio peripheral pwm control -pwen1 &&\
-  rpio peripheral pwm range 1 100 &&\
-  rpio peripheral pwm data 1 50 &&\
-  rpio peripheral pwm control -mode1 +msen1 -pola1 -usef1 +pwen1
-```
-
-Sample events (Pi-3):
-```
-$ rpio sample count -l 15,18 100000000
-r=1.63e+07/s f=2.00e+05/s s=2.29e+00/s
-```
-The sample rate is 16.3 M/s. There are 200k events per second (100 kHz signal frequency). There were 2.29 subsequent events per seconds (which suggest a potential sampling delay).
-
-Configure a 1/100 pulse (at 100 kHz) for PWM channel #1:
-```
-$ rpio peripheral pwm data 1 1
-```
-
-Sample events (Pi-3):
-```
-$ rpio sample count -l 15,18 100000000
-r=1.64e+07/s f=1.96e+05/s s=8.37e+04/s
-```
-The sample rate is 16.4 M/s. There are 196k events per second (98 kHz signal frequency). There were more than 80k subsequent events per seconds which confirm the bberated measurement due to a sampling delay.

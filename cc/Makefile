@@ -57,6 +57,8 @@ LSRC=\
 	Console/Peripheral/SpiSlave/invoke.cc \
 	Console/Poke/invoke.cc \
 	Console/Sample/invoke.cc \
+	Console/Sample/event.cc \
+	Console/Sample/level.cc \
 	Console/Shm/invoke.cc \
 	Console/Throughput/Buffer.cc \
 	Console/Throughput/invoke.cc \
