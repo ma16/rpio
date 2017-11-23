@@ -18,6 +18,76 @@ Anyway, this stub provides a few simple methods to sample data (at no contant ra
 $ ./rpio sample [help]
 ```
 
+## Clocks
+
+The Raspberry Pi uses several clocks (See [eLinux](https://elinux.org/RPiconfig)) to drive its bus systems.
+
+Name  | Option     | Bus System
+:---- | :--------- | :---------
+ARM   | arm_freq   | ARM Core(s) that run Linux
+CORE  | core_freq  | Peripheral Bus (APB)*
+SDRAM | sdram_freq | SDRAM
+
+(*) This clock is also used on the VideoCore and its L2-cache. All the recent Raspbian images use a Linux kernel that enables the VC's L2-cache for the ARM Core so the cache is shared between the ARM Core and the VideoCore; however, old kernels do not. This is only relevant for the Pi-0 and the Pi-1 variants. ARM cores on Pi-2 and Pi-3 have their own L2-cache.
+
+Model   | ARM      | CORE    | SDRAM
+:------ | :------- | :------ | :------
+Default |      700 |     250 |     400
+Pi-0    | 700-1000 | 250-400 | 400-450
+Pi-2    | 600- 900 |     250 | 400-450
+Pi-3    | 600-1200 | 250-400 | 400-450
+
+(Default values by eLinux)
+
+Sampling at fixed intervals isn't easy on the Raspberry Pi in the first place due to its architecture and due to a vanilla's Linux kernel's impacts on a userland process. Varying clocks (as shown above) make it even harder (if not to say impossible). Luckily, the (Raspbian) configuration in /boot/config.txt permits to make these clocks to pulse on a fixed frequency.
+
+Fix clocks to maximum frequency:
+```
+force_turbo=1
+```
+
+Fix clocks to minimum frequency:
+```
+arm_freq=600
+core_freq=250
+sdram_freq=400
+```
+On a Pi-0, arm_freq can safely be set to 700 (MHz).
+
+You can verify the clock frequencies yourself:
+```
+$ rpio peripheral mbox clock status
+```
+
+For example, on a Pi-3:
+
+Default:
+```
+ # parent state         hz        min        max name
+-----------------------------------------------------
+ 3      0     1  600000000  600000000 1200000000 ARM
+ 4      0     1  250000000  250000000  400000000 CORE
+ 8      0     1  400000000  400000000  450000000 SDRAM
+```
+
+If configuration sets maximum:
+```
+ # parent state         hz        min        max name
+-----------------------------------------------------
+ 3      0     1 1200000000 1200000000 1200000000 ARM
+ 4      0     1  400000000  400000000  400000000 CORE
+ 8      0     1  450000000  450000000  450000000 SDRAM
+```
+
+If configuration sets minimum:
+```
+ # parent state         hz        min        max name
+-----------------------------------------------------
+ 3      0     1  600000000  600000000  600000000 ARM
+ 4      0     1  250000000  250000000  250000000 CORE
+ 8      0     1  400000000  400000000  400000000 SDRAM
+```
+
 ## Sample Input Level
 
 The input level register (GPLEV0) is polled in a busy loop. The program expects the number of iterations and the GPIO pin to watch. There are two counters: One counter increments with each detected High level input. The other counter increments with each Level change (from High to Low and Low to High).
