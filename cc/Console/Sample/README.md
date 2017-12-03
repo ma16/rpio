@@ -417,7 +417,7 @@ $ rpio sample level buffer 10000000 10mps.bin
 The ripple is best seen when the counter wraps around. The least sigificant bit changes from 1 to 0 and causes a ripple through all bits:
 ```
 $ od -v -tu -w4 10mps.bin | awk '{print $2}' |\
-  perl -ne 'my $v=1^(($_/16)%0x800) ; printf "%4u %11b\n",$v,$v' && \
+  perl -ne 'my $v=1^(($_/16)%0x800) ; printf "%4u %11b\n",$v,$v' |\
   grep -A4 '11111111111$' | head
 ...
 2047 11111111111
@@ -430,7 +430,7 @@ $ od -v -tu -w4 10mps.bin | awk '{print $2}' |\
 Whenever there is an (invisible) ripple in progress, it gets quite difficult to work with such a sample. That becomes even harder if there are several ripples in progress: At a faster clock rate, the lower bits may have been incremented a few times before the ripple through the higher bits completed. Below an example (@ 100 M/s):
 ```
 $ od -v -tu -w4 100mps.bin | awk '{print $2}' |\
-  perl -ne 'my $v=1^(($_/16)%0x800) ; printf "%4u %11b\n",$v,$v' && \
+  perl -ne 'my $v=1^(($_/16)%0x800) ; printf "%4u %11b\n",$v,$v' |\
   grep -A4 '11111111111$' | head
 ...
 2047 11111111111
@@ -439,7 +439,7 @@ $ od -v -tu -w4 100mps.bin | awk '{print $2}' |\
   14        1110
 ...  
 ```
-The sample in the second row reads as 2 while the ripple isn't completed yet. Even more annoying, there is probably a second ripple in progress within the lower bits. It reads as 2. Howeverm there is probably transition from 3=0b11 to 4=0b100 in progress.
+The sample in the second row reads as 2 while the ripple isn't completed yet. Even more annoying, there is probably a second ripple in progress within the lower bits. It reads as 2. However, there is probably transition from 3=0b11 to 4=0b100 in progress.
 
 The ripple in the high bits is completed in the 3rd row. However, again, there is probably a ripple from 7=0b111 to 8=b1000 in progress.
 
@@ -480,7 +480,10 @@ while (defined($n) && $n == 4)
     $v = 1 ^ (($v/16) % 0x800) ;
     printf "%4u %11b ",$v,$v ;
     
-    if (0xf == ($v % 0x10))
+    if (defined($lastV) && $v == $lastV)
+    {
+    }
+    elsif (0xf == ($v % 0x10))
     {
 	if (defined($lastV))
 	{
@@ -564,4 +567,4 @@ So, 78 percent (7,810,722) of the sample are taken at an average interval of ~60
 
 In conclusion, if an application requires fixed intervals to sample; or at least intervals that don't exceed a pre-defined minimum duration; then CPU sampling won't provide the means to achive this goal. This isn't surprising, considering how Linux userland applications work. However, what does a little surprise, is the wide range of intervals.
 
-The approach presented here is only suitable to disprove the theory that fixed or minimum intervals between samples are achievable. The contrary is not true. Even if the output above would only show intervals of 60ns, actual samples might deviate since we've calculated an average for counters that end in 0xf. 
+The approach presented here is only suitable to disprove the theory that fixed or minimum intervals between samples are achievable. The contrary is not true. Even if the output above would only show intervals of 60ns, actual samples might deviate since we've calculated an average for counters that end in 0xf. Besides, wrap-arounds are not accounted for.
